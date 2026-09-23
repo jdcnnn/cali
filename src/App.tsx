@@ -7,7 +7,7 @@ function App() {
             CALI
           </p>
 
-          <h1 className="text-4xl font-bold tracking-tight text-cali-ink">
+          <h1 className="font-display text-5xl font-semibold tracking-tight text-cali-ink">
             Class Ally
           </h1>
 
