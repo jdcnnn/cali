@@ -4,7 +4,7 @@ function App() {
       <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-6">
         <section className="text-center">
           <h1 className="font-display text-5xl font-semibold tracking-tight text-cali-ink">
-            CALI
+            cali
           </h1>
 
           <p className="mt-1 font-display text-2xl font-medium text-cali-primary">
