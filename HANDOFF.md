@@ -14,7 +14,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added Supabase migrations for student profiles and repeating weekly schedule subjects/meetings, with ownership and eligibility policies.
 - Added Google OAuth with PKCE, session restoration, sign-out, error and access-denied states, and a verified `@rtu.edu.ph` Google account eligibility check.
 - Added first-sign-in onboarding for a unique lowercase username, program (listed or custom), and year level. Trusted database functions populate and refresh the Google name and avatar.
-- Completed the workspace foundation: a responsive sidebar and mobile navigation, a personalized `/dashboard`, a `/profile` page, and routed Schedules, Study, and Community preview pages. The dashboard shows the student's greeting and date; data from the future modules is not displayed yet.
+- Completed the workspace foundation: a responsive sidebar and mobile navigation, a personalized `/dashboard`, a `/profile` page, and routed Schedules, Tasks, Study, and Community pages. The dashboard shows a compact live schedule summary, a Tasks availability panel, and quick actions. It highlights classes happening now and the next three weekly meetings. Dashboard and Schedules data use skeleton loading; empty states distinguish an unconfigured schedule, a day with no classes, and a day whose classes have finished.
 - Added profile editing for program and year level, plus a confirmed account deletion flow backed by `20260925000000_delete_own_account.sql`.
 
 ### Landing page and splash
@@ -35,19 +35,28 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added `/team` with the four supplied team members, roles, bios, and photos.
 - Added Terms & Conditions, Privacy Policy, and Community Guidelines pages.
 
+### Dashboard and schedule design pass (2026-09-25)
+
+- Tightened the Schedules header and placed the weekly-view instruction directly beneath its heading. Day cards remain equal in width and height, including empty days, across responsive layouts.
+- Changed the empty-day copy to "No classes" ("No classes today" for the current day). Schedule and dashboard empty states now use muted gray icons, lighter type, and neutral backgrounds instead of prominent blue fills and heavy headings.
+- Removed decorative gradients from the dashboard greeting, workspace title cards, profile identity card, onboarding intro, and team call to action. The greeting and workspace title cards now use solid white surfaces with borders. Functional gradients remain in the splash, loading skeleton, and time picker.
+- Replaced the dashboard Quick Actions text list with three clickable icon cards for adding a class meeting, editing academic details, and opening study tools. Cards have hover and keyboard-focus feedback and reduced copy.
+
 ## Current behavior and known follow-ups
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
-- The workspace foundation is in place. Schedules, Study, and Community routes currently explain the planned tools; they do not yet provide those workflows. The dashboard will gain live schedule and task content as those modules are built.
-- **Next phase: Schedules and class reminders.** Define the schedule flow and acceptance criteria, then implement subject and meeting management, registration-form image intake, browser OCR, AI parsing, review and manual correction, and closed-tab Web Push reminders.
-- The `schedule_subjects` and `schedule_meetings` tables exist, but no schedule creation or viewing UI is implemented yet. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
+- The manual Schedules page now has Monday–Sunday cards, day-specific add forms, saved meeting details, edit and delete menus, and styled confirmations for unsaved edits and deletion. Deletion removes only the selected meeting. Subjects with no timed meetings remain visible below the day cards.
+- Registration-form image intake, browser OCR, AI parsing, review and atomic replacement, and closed-tab Web Push reminders are the remaining Schedule work. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
+- Tasks, Study, and Community routes still explain planned tools. The dashboard now shows live upcoming classes; task content remains future work.
+- Recent visual changes passed `npm.cmd run build` and `npm.cmd run lint`. The browser session was unavailable for a live visual check; review the dashboard and Schedules layouts at desktop and mobile sizes when continuing.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.
 
 ## Key files
 
 | Area | Files |
 | --- | --- |
-| Routes, onboarding, and dashboard | `src/App.tsx` |
+| Routes, onboarding, and dashboard | `src/App.tsx`, `src/components/DashboardSchedules.tsx`, `src/components/dashboard-schedules.css` |
+| Schedule page | `src/components/SchedulesPage.tsx`, `src/components/schedules.css` |
 | Landing, team, policies, footer, and splash | `src/components/LandingPage.tsx`, `TeamPage.tsx`, `PolicyPage.tsx`, `SiteFooter.tsx`, `SplashScreen.tsx` |
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
 | Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |

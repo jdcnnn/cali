@@ -9,5 +9,6 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     allowedHosts: ['afternoon-shame-petite.ngrok-free.dev'],
+    proxy: { '/api': 'http://127.0.0.1:8787' },
   },
 })

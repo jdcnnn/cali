@@ -50,15 +50,17 @@ The exact boundary and acceptance criteria for each capability will be defined o
 
 ## 3. Dashboard direction
 
-**Confirmed concept:** The home dashboard should present schedule previews, information about upcoming tasks, and quick actions. Its exact cards, ordering, and empty states remain open until the dashboard module is specified.
+**Current dashboard:** Below the greeting card, a compact schedule panel highlights classes whose saved day and time include the current local time, then shows up to three upcoming weekly meetings in start-time order. A Tasks panel states that task tracking is not yet available. Quick actions link to Schedules, Profile, and Study. Live task content awaits the Tasks module.
 
 ## 4. Schedule direction
 
 ### Intake and review
 
-**Confirmed:** Students may add a schedule by scanning their RTU registration form with a camera or uploading an image. Both entry paths feed an OCR and AI parsing pipeline to improve extraction. The result is a proposal that the student can review and correct before saving.
+**Confirmed:** On desktop, students upload an image of their RTU registration form. On mobile, they can take a photo with the camera or upload an image. All entry paths feed an OCR and AI parsing pipeline to improve extraction. The result is a proposal that the student can review and correct before saving.
 
 **Confirmed weekly model:** Each student has one current repeating weekly schedule. CALI does not retain previous schedules or require schedule start/end dates. A new registration-form import replaces the saved subjects and meetings only after the student confirms the proposal; the replacement must be atomic so a failed save leaves the existing schedule intact. Students can add missing subjects or meetings manually during review and can add, edit, or delete individual subjects and meetings after saving.
+
+**Confirmed manual schedule interaction:** The Schedules page shows Monday through Sunday cards. Each day card has a plus control for adding a meeting on that fixed day; the form does not offer a day selector. The form title names the selected day. Fields appear in the order subject code and units, subject title, start and end times, room, then block/section. The styled time picker has scrollable Hour, Minute, and Period columns, and the form calculates a subtle duration below the time pickers. Saved meetings can be opened to view their details. Each saved meeting has a three-dot menu with edit and delete actions. Leaving an edited meeting with unsaved changes requires a styled discard confirmation; deleting a saved meeting requires a styled deletion confirmation. Deleting from a day card removes only that meeting, never the subject or its meetings on other days. A subject with no timed meetings remains visible in an Unscheduled subjects section and can be selected when adding a meeting from a day card.
 
 **Proposed processing boundary:**
 

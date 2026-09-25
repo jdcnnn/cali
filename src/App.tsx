@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { AuthProvider } from './auth/AuthProvider'
@@ -10,6 +10,8 @@ import { OnboardingDropdown } from './components/OnboardingDropdown'
 import { SplashScreen } from './components/SplashScreen'
 import { TeamPage } from './components/TeamPage'
 import { PolicyPage } from './components/PolicyPage'
+import { SchedulesPage } from './components/SchedulesPage'
+import { DashboardSchedules } from './components/DashboardSchedules'
 import { ThemePicker } from './theme/ThemePicker'
 
 const programs = [
@@ -69,6 +71,10 @@ const yearOptions = [
 
 function Brand({ light = false }: { light?: boolean }) {
   return <CaliWordmark light={light} />
+}
+
+function scrollWorkspaceToTop() {
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
 }
 
 function LoadingScreen() {
@@ -257,11 +263,12 @@ function OnboardingPage() {
   </main>
 }
 
-type WorkspaceSection = 'dashboard' | 'schedules' | 'study' | 'community' | 'profile'
+type WorkspaceSection = 'dashboard' | 'schedules' | 'tasks' | 'study' | 'community' | 'profile'
 
 const workspaceLinks: { section: WorkspaceSection; label: string; path: string }[] = [
   { section: 'dashboard', label: 'Dashboard', path: '/dashboard' },
   { section: 'schedules', label: 'Schedules', path: '/schedules' },
+  { section: 'tasks', label: 'Tasks', path: '/tasks' },
   { section: 'study', label: 'Study', path: '/study' },
   { section: 'community', label: 'Community', path: '/community' },
   { section: 'profile', label: 'Profile', path: '/profile' },
@@ -269,11 +276,19 @@ const workspaceLinks: { section: WorkspaceSection; label: string; path: string }
 
 const moduleDetails = {
   schedules: {
-    description: 'Keep your classes in one weekly view when Schedules becomes available.',
+    description: 'Keep your classes together in one weekly view.',
     features: [
       { title: 'Weekly classes', detail: 'Organize subjects and meeting times in a repeating weekly schedule.' },
       { title: 'Registration form import', detail: 'Review and correct extracted class details before saving them.' },
-      { title: 'Class reminders', detail: 'Get reminders for upcoming meetings after choosing to enable them.' },
+      { title: 'Class reminders', detail: 'Choose when to receive notifications before class.' },
+    ],
+  },
+  tasks: {
+    description: 'Keep track of coursework and deadlines in one place.',
+    features: [
+      { title: 'Coursework tasks', detail: 'Record assignments and other work you need to finish.' },
+      { title: 'Due dates and status', detail: 'See what is due and mark work as complete.' },
+      { title: 'Class links', detail: 'Connect a task to a class when it belongs to one.' },
     ],
   },
   study: {
@@ -299,6 +314,7 @@ function WorkspaceIcon({ section }: { section: WorkspaceSection }) {
   const paths = {
     dashboard: <><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="8" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" /></>,
     schedules: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 10h18" /></>,
+    tasks: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m8 10 1.5 1.5L12 9m2 1h3m-9 6 1.5 1.5L12 15m2 1h3" /></>,
     study: <><path d="M12 6c-2-1.5-5-2-9-1v14c4-1 7-.5 9 1.5 2-2 5-2.5 9-1.5V5c-4-1-7-.5-9 1Z" /><path d="M12 6v14" /></>,
     community: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2H3Z" /><path d="M17 5a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5" /></>,
     profile: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2H4Z" /></>,
@@ -427,7 +443,7 @@ function ModuleScreen({ section }: { section: ModuleSection }) {
   const details = moduleDetails[section]
   const label = workspaceLinks.find(link => link.section === section)?.label
   return <div className="workspace-module-page">
-    <header className="workspace-module-hero"><div className="workspace-module-hero-icon"><WorkspaceIcon section={section} /></div><div><div className="workspace-module-meta"><span className="workspace-overline">CALI WORKSPACE</span><span className="workspace-status">In development</span></div><h1>{label}</h1><p>{details.description}</p></div></header>
+    <header className="workspace-module-hero"><div className="workspace-module-hero-icon"><WorkspaceIcon section={section} /></div><div><div className="workspace-module-meta"><span className="workspace-overline">CALI WORKSPACE</span></div><h1>{label}</h1><p>{details.description}</p></div></header>
     <section className="workspace-module-preview" aria-labelledby="module-preview-title"><div className="workspace-section-heading"><div><p className="workspace-overline">WHAT'S PLANNED</p><h2 id="module-preview-title">Inside {label}</h2></div><p>These tools are being built and are not available yet.</p></div><div className="workspace-capability-list">{details.features.map((feature, index) => <div className="workspace-capability" key={feature.title}><span className="workspace-capability-number">{String(index + 1).padStart(2, '0')}</span><div><h3>{feature.title}</h3><p>{feature.detail}</p></div><span className="workspace-capability-state">Planned</span></div>)}</div></section>
     <NavLink to="/dashboard" className="workspace-return-link">Back to dashboard <span aria-hidden="true">→</span></NavLink>
   </div>
@@ -440,11 +456,19 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
 
+  useLayoutEffect(() => {
+    scrollWorkspaceToTop()
+  }, [section])
+
   useEffect(() => {
     const updateTime = () => setNow(new Date())
-    const interval = window.setInterval(updateTime, 60_000)
+    let timer: number
+    const scheduleTick = () => {
+      timer = window.setTimeout(() => { updateTime(); scheduleTick() }, 60_000 - Date.now() % 60_000 + 50)
+    }
+    scheduleTick()
     document.addEventListener('visibilitychange', updateTime)
-    return () => { window.clearInterval(interval); document.removeEventListener('visibilitychange', updateTime) }
+    return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', updateTime) }
   }, [])
 
   useEffect(() => {
@@ -471,7 +495,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
   return <main className="dashboard-page workspace-shell">
     {menuOpen && <button type="button" className="workspace-backdrop" aria-label="Close navigation" onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus() }} />}
     <aside ref={sidebarRef} id="workspace-sidebar" className={`workspace-sidebar${menuOpen ? ' workspace-sidebar--open' : ''}`} aria-label="Workspace navigation">
-      <div className="workspace-sidebar-head"><Brand /><button ref={closeButtonRef} type="button" className="workspace-menu-close" aria-label="Close menu" onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus() }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg></button></div>
+      <div className="workspace-sidebar-head"><NavLink to="/dashboard" aria-label="Cali dashboard" onClick={() => { setMenuOpen(false); scrollWorkspaceToTop() }}><Brand /></NavLink><button ref={closeButtonRef} type="button" className="workspace-menu-close" aria-label="Close menu" onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus() }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg></button></div>
       <nav className="workspace-nav" aria-label="Main workspace"><p className="workspace-nav-caption">WORKSPACE</p>
         {workspaceLinks.map(link => <NavLink key={link.section} to={link.path} end className={({ isActive }) => `workspace-nav-link${isActive ? ' workspace-nav-link--active' : ''}`} onClick={() => setMenuOpen(false)}><WorkspaceIcon section={link.section} /><span>{link.label}</span>{link.section === section && <span className="workspace-nav-marker" aria-hidden="true" />}</NavLink>)}
       </nav>
@@ -480,12 +504,23 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
       </div>
     </aside>
     <div className="workspace-content" inert={menuOpen} aria-hidden={menuOpen}>
-      <header className="workspace-mobile-header"><button ref={menuButtonRef} type="button" className="workspace-menu-button" aria-label="Open menu" aria-expanded={menuOpen} aria-controls="workspace-sidebar" onClick={() => setMenuOpen(true)}><span /><span /><span /></button><Brand /></header>
+      <header className="workspace-mobile-header"><button ref={menuButtonRef} type="button" className="workspace-menu-button" aria-label="Open menu" aria-expanded={menuOpen} aria-controls="workspace-sidebar" onClick={() => setMenuOpen(true)}><span /><span /><span /></button><NavLink to="/dashboard" aria-label="Cali dashboard" onClick={scrollWorkspaceToTop}><Brand /></NavLink></header>
       {section === 'dashboard' ? <>
-        <section className="workspace-welcome" aria-labelledby="workspace-title"><div className="workspace-welcome-main"><p className="workspace-overline">YOUR DASHBOARD</p><h1 id="workspace-title">{greetingForHour(now.getHours())}, <em>{student.username}.</em></h1><p>Your space for classes, study, and the RTU community.</p></div><div className="workspace-date"><span>TODAY</span><strong>{new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).format(now)}</strong><small>{now.getFullYear()}</small></div></section>
-        <section className="workspace-explore" aria-labelledby="workspace-explore-title"><div className="workspace-section-heading"><div><p className="workspace-overline">EXPLORE</p><h2 id="workspace-explore-title">Your workspace</h2></div><p>See what's planned for each space.</p></div><div className="workspace-feature-grid">{workspaceLinks.slice(1, 4).map((link, index) => { const details = moduleDetails[link.section as ModuleSection]; return <NavLink key={link.section} to={link.path} className="workspace-feature-card"><div className="workspace-feature-card-top"><span className="workspace-feature-index">0{index + 1}</span><span className="workspace-status">In development</span></div><div className="workspace-feature-icon"><WorkspaceIcon section={link.section} /></div><h3>{link.label}</h3><p>{details.description}</p><span className="workspace-feature-action">Explore plans <span aria-hidden="true">→</span></span></NavLink> })}</div></section>
-        <NavLink to="/profile" className="workspace-account-link"><div><p className="workspace-overline">ACCOUNT</p><strong>Review your profile</strong><span>See your RTU email, program, and year level.</span></div><span aria-hidden="true">→</span></NavLink>
-      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : <ModuleScreen section={section} />}
+        <section className="workspace-welcome" aria-labelledby="workspace-title"><div className="workspace-welcome-main"><p className="workspace-overline">YOUR DASHBOARD</p><h1 id="workspace-title">{greetingForHour(now.getHours())}, <em>{student.username}.</em></h1><p>Your classes, tasks, and study space in one place.</p></div><div className="workspace-date"><span>TODAY</span><strong>{new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).format(now)}</strong><small>{now.getFullYear()}</small></div></section>
+        <div className="workspace-overview-grid">
+          <DashboardSchedules studentId={student.user_id} now={now} />
+          <div className="dashboard-side-panel">
+            <section className="dashboard-tasks" aria-labelledby="dashboard-tasks-title"><div className="dashboard-tasks-head"><h2 id="dashboard-tasks-title">Tasks</h2><NavLink to="/tasks">View tasks</NavLink></div><p className="dashboard-tasks-empty">Assignments and due dates will appear here when Tasks is ready.</p></section>
+            <section className="dashboard-quick-actions" aria-labelledby="dashboard-quick-actions-title"><h2 id="dashboard-quick-actions-title">Quick actions</h2><div className="dashboard-quick-actions-list">
+              {([
+                { to: '/schedules', section: 'schedules', label: 'Add a class meeting' },
+                { to: '/profile', section: 'profile', label: 'Edit academic details' },
+                { to: '/study', section: 'study', label: 'Open study tools' },
+              ] as const).map(action => <NavLink key={action.to} to={action.to} className="dashboard-action-card"><span className="dashboard-action-icon"><WorkspaceIcon section={action.section} /></span><span className="dashboard-action-label">{action.label}</span><svg className="dashboard-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></NavLink>)}
+            </div></section>
+          </div>
+        </div>
+      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : <ModuleScreen section={section} />}
     </div>
   </main>
 }
@@ -539,6 +574,7 @@ function AppRoutes() {
     <Route path="/onboarding" element={<OnboardingPage />} />
     <Route path="/dashboard" element={<WorkspacePage section="dashboard" />} />
     <Route path="/schedules" element={<WorkspacePage section="schedules" />} />
+    <Route path="/tasks" element={<WorkspacePage section="tasks" />} />
     <Route path="/study" element={<WorkspacePage section="study" />} />
     <Route path="/community" element={<WorkspacePage section="community" />} />
     <Route path="/profile" element={<WorkspacePage section="profile" />} />
