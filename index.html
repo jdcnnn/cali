@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <meta
       name="viewport"
@@ -13,9 +14,23 @@
       content="CALI (Class Ally) is a student workspace for academic planning and study."
     />
 
-    <meta name="theme-color" content="#1E90FF" />
+    <meta name="theme-color" content="#F6FCFF" />
 
-    <title>CALI — Class Ally</title>
+    <script>
+      try {
+        const saved = localStorage.getItem('cali-theme')
+        const preference = saved === 'light' || saved === 'dark' ? saved : 'system'
+        const dark = preference === 'dark' || (preference === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+        document.querySelector('meta[name="theme-color"]').content = dark ? '#0C202B' : '#F6FCFF'
+      } catch {
+        const dark = matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+        document.querySelector('meta[name="theme-color"]').content = dark ? '#0C202B' : '#F6FCFF'
+      }
+    </script>
+
+    <title>Cali</title>
   </head>
 
   <body>
