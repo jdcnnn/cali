@@ -23,7 +23,7 @@ export type AuthContextValue = {
   reload: () => Promise<void>
   signOut: () => Promise<void>
   completeOnboarding: (username: string, program: string, yearLevel: number) => Promise<void>
-  updateAcademicDetails: (program: string, yearLevel: number) => Promise<void>
+  updateProfileDetails: (username: string, program: string, yearLevel: number) => Promise<void>
   deleteAccount: () => Promise<void>
 }
 

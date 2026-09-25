@@ -1,8 +1,8 @@
 # CALI — Project Context and Architecture Plan
 
-**Document status:** Working draft  
-**Last updated:** 2026-09-24  
-**Purpose:** Record product decisions, architecture, proposed technology, and the development sequence before implementation.
+**Document status:** Living product and implementation record
+**Last updated:** 2026-09-25
+**Purpose:** Record product decisions, implemented behavior, architecture, and the remaining development sequence.
 
 ## Decision status
 
@@ -60,6 +60,14 @@ The exact boundary and acceptance criteria for each capability will be defined o
 
 **Confirmed manual schedule interaction:** The Schedules page shows Monday through Sunday cards. Each day card has a plus control for adding a meeting on that fixed day; the form does not offer a day selector. The form title names the selected day. Fields appear in the order subject code and units, subject title, start and end times, room, then block/section. The styled time picker has scrollable Hour, Minute, and Period columns, and the form calculates a subtle duration below the time pickers. Saved meetings can be opened to view their details. Each saved meeting has a three-dot menu with edit and delete actions. Leaving an edited meeting with unsaved changes requires a styled discard confirmation; deleting a saved meeting requires a styled deletion confirmation. Deleting from a day card removes only that meeting, never the subject or its meetings on other days. A subject with no timed meetings remains visible in an Unscheduled subjects section and can be selected when adding a meeting from a day card.
 
+### Schedule scanning
+
+**Implemented local import:** Students can scan a JPG, PNG, or WebP image of an RTU registration/assessment form. PaddleOCR.js and locally hosted PP-OCRv5 models run in the browser; the image is not uploaded or stored, and the flow has no paid OCR service, generative AI, scan quota, or subscription dependency. The scanner extracts only schedule data: subject code, title, units, block section, meetings, and rooms. Semester and term text are ignored.
+
+The three-step flow covers image selection, editable review, and saving. It summarizes extracted subjects, meetings, and units; highlights details that should be checked; blocks saving when required fields are missing or invalid; and links each missing-detail instruction directly to its field. Students can correct extracted values, add meetings, and remove subjects or meetings with confirmation. A subject marked `N/A` remains unscheduled instead of receiving a fictitious meeting.
+
+The scanner accepts images up to 12 MB and 20 megapixels and reduces the longest image edge to 2048 pixels before recognition. Accuracy still depends on a readable, complete, reasonably straight form, so manual review is required and manual schedule management remains available.
+
 ### Schedule fields
 
 Each class meeting has:
@@ -78,7 +86,7 @@ RTU day codes are **M, T, W, H, F, S, U**, where **H means Thursday**. A subject
 
 **Implemented initial tables (migrations `20260924003019_students_and_weekly_schedules.sql` and `20260924003933_add_google_profile_fields_to_students.sql`):** `students` has one row per Supabase Auth user and stores username, program, year level, read-only Google full name and avatar URL, and timestamps. Email remains in Supabase Auth. Full name and avatar are nullable if Google does not provide them; trusted database onboarding and refresh functions populate them from the Google identity. `schedule_subjects` belongs to a student and stores subject code, title, units, block section, and timestamps. `schedule_meetings` belongs to a subject and stores one RTU day code, start time, end time, optional room, and timestamps. There is no separate schedules table because the student has only one current weekly pattern. Deleting a subject deletes its meetings.
 
-The database enforces lowercase 3–30-character unique usernames, nonblank program/code/title/block values, year levels 1–5, decimal units from 0 to 30, valid RTU day codes, and start time before end time. Eligible students can read their own rows, create a profile through the onboarding function, edit CALI-managed profile details, and create, edit, or delete their own subjects and meetings. Anonymous clients have no table access. Google full name and avatar, ownership IDs, and timestamps are not student-editable. Migration `20260924010000_auth_onboarding.sql` adds verified RTU Google identity checks to student-owned tables and a trusted profile sync. A future schedule replacement operation must replace subjects and meetings atomically after review.
+The database enforces lowercase 3–30-character unique usernames, nonblank program/code/title/block values, year levels 1–5, decimal units from 0 to 30, valid RTU day codes, and start time before end time. Eligible students can read their own rows, create a profile through the onboarding function, edit CALI-managed profile details, and create, edit, or delete their own subjects and meetings. Anonymous clients have no table access. Google full name and avatar, ownership IDs, and timestamps are not student-editable. Migration `20260924010000_auth_onboarding.sql` adds verified RTU Google identity checks to student-owned tables and a trusted profile sync. Migration `20260925010000_replace_own_schedule.sql` adds `replace_own_schedule`, which validates a complete reviewed import and replaces the signed-in student's subjects and meetings in one transaction.
 
 ### Class reminders
 
@@ -119,6 +127,7 @@ Generative AI use is currently planned only for study workflows. Schedule scanni
 | Backend | Native Node.js with TypeScript; no backend framework | Confirmed |
 | Project layout | One project root with one `package.json` and one `package-lock.json` | Confirmed; React and Node API share the project |
 | Database | Supabase PostgreSQL | Confirmed |
+| Schedule scanning | Browser-only PaddleOCR.js with locally hosted PP-OCRv5 models and deterministic RTU parsing | Implemented |
 | File storage | Private Supabase Storage for temporary study-file processing | Confirmed; all uploaded files are discarded after processing |
 | Study-set source content | Private extracted text retained with its owning reviewer, flashcard set, or quiz | Confirmed; no independent material library |
 | Study document text extraction | PDF.js (`pdfjs-dist`) for PDF and Mammoth (`mammoth`) for `.docx` | Confirmed; deployment compatibility to test |
@@ -160,9 +169,9 @@ cali/
 
 `api/` and `server/` are folders inside the same npm project, not separate backend projects. Server-only secrets and service-role operations stay out of `src/`, which is bundled for the browser. Additional TypeScript configuration files may be added if the Vite template or API build needs them.
 
-### Proposed package inventory
+### Package inventory
 
-These package names follow the confirmed stack and belong to **one root package**. They are **not installation instructions or an approved package lock**. Exact versions and development-only tools should be selected during scaffolding.
+Implemented packages are recorded in the root `package.json` and `package-lock.json`. Packages for planned modules remain candidates until that module begins.
 
 | Package group | Candidate packages |
 | --- | --- |
@@ -203,19 +212,22 @@ The confirmed font pairing uses **Fredoka** for CALI branding and major headings
 
 The design should prioritize readable academic information and quick access to work. Final component and page specifications remain to be planned.
 
-## 9. Development plan — draft sequence
+## 9. Development status and sequence
 
-1. **Create foundations:** Scaffold the single-project root, validate deployment limits, and finalize the security model and documentation conventions.
-2. **Identity and onboarding:** Define and implement eligibility, profile creation, route access, and account states.
-3. **Dashboard foundation:** Establish navigation and a dashboard backed by real schedule and task data, with useful empty states.
-4. **Schedules and class reminders:** Maintain manual subject and meeting management, then define the push subscription flow and reminder delivery.
-5. **Tasks:** Define task fields, due dates, status, and optional class links.
-6. **Study:** Deliver manual creation first, then direct PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; support creating flashcards and quizzes from an existing reviewer.
-7. **Learning analytics:** Derive understandable progress measures from study activity and quiz attempts.
-8. **Community:** Define publishing, discovery, attribution, visibility, and moderation for shared reviewers.
-9. **Release review:** Verify key journeys, authorization, data handling, accessibility, and deployment behavior.
+| Phase | Status | Scope |
+| --- | --- | --- |
+| 1. Product foundation | **Complete** | Single React and Vite project, routing, responsive workspace shell, themes, shared visual system, policy pages, documentation conventions, and Vercel SPA configuration. |
+| 2. Identity and onboarding | **Complete** | Google OAuth, verified RTU account eligibility, session restoration, onboarding, profile editing, authorization policies, and confirmed account deletion. |
+| 3. Dashboard foundation | **Complete** | Personalized dashboard, current and upcoming class summaries, schedule-aware empty states, quick actions, and module availability panels. Live task data begins with the Tasks phase. |
+| 4. Schedule management and intake | **Complete** | Manual subjects and meetings, weekly and unscheduled views, editing and deletion confirmations, local RTU form scanning, editable validation, direct links to missing fields, and atomic schedule replacement. |
+| 5. Class reminders | **Planned** | Push subscriptions, Web Push delivery, reminder timing, idempotency, service worker behavior, and pause controls. |
+| 6. Tasks | **Planned** | Task fields, due dates, status, and optional class links. |
+| 7. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
+| 8. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
+| 9. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |
+| 10. Release review | **Planned** | Key journey, authorization, data handling, accessibility, performance, and deployment verification. |
 
-Each phase should receive its own user flow, data contract, validation rules, failure states, and acceptance criteria before development begins.
+Each remaining phase should receive its own user flow, data contract, validation rules, failure states, and acceptance criteria before development begins. Completed phases remain subject to release-level accessibility, performance, and deployment verification.
 
 ## 10. Open architecture decisions
 

@@ -15,7 +15,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added Google OAuth with PKCE, session restoration, sign-out, error and access-denied states, and a verified `@rtu.edu.ph` Google account eligibility check.
 - Added first-sign-in onboarding for a unique lowercase username, program (listed or custom), and year level. Trusted database functions populate and refresh the Google name and avatar.
 - Completed the workspace foundation: a responsive sidebar and mobile navigation, a personalized `/dashboard`, a `/profile` page, and routed Schedules, Tasks, Study, and Community pages. The dashboard shows a compact live schedule summary, a Tasks availability panel, and quick actions. It highlights classes happening now and the next three weekly meetings. Dashboard and Schedules data use skeleton loading; empty states distinguish an unconfigured schedule, a day with no classes, and a day whose classes have finished.
-- Added profile editing for program and year level, plus a confirmed account deletion flow backed by `20260925000000_delete_own_account.sql`.
+- Added profile editing for the unique username, program, and year level, plus a confirmed account deletion flow backed by `20260925000000_delete_own_account.sql`.
 
 ### Landing page and splash
 
@@ -42,11 +42,20 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Removed decorative gradients from the dashboard greeting, workspace title cards, profile identity card, onboarding intro, and team call to action. The greeting and workspace title cards now use solid white surfaces with borders. Functional gradients remain in the splash, loading skeleton, and time picker.
 - Replaced the dashboard Quick Actions text list with three clickable icon cards for adding a class meeting, editing academic details, and opening study tools. Cards have hover and keyboard-focus feedback and reduced copy.
 
+### Schedule management and local scanning (2026-09-25)
+
+- Completed manual weekly schedule management: students can create subjects and meetings, edit saved details, delete individual meetings with confirmation, and keep subjects without meeting times in the Unscheduled section.
+- Added a free, browser-only RTU registration-form scanner using PaddleOCR.js, locally hosted PP-OCRv5 models, and deterministic table parsing. Images are not uploaded or stored, and semester and term values are ignored.
+- Added an editable three-step import flow for image selection, review, and saving. It supports subject and meeting corrections, additions, removal confirmations, simple review guidance, and direct links from missing-detail instructions to the affected fields.
+- Added client and database validation for required schedule fields, duplicate records, valid RTU day codes, ordered meeting times, and bounded payload sizes.
+- Added `20260925010000_replace_own_schedule.sql`. Its authenticated `replace_own_schedule` function validates the full import and replaces the current schedule in one transaction.
+- Scanner limits are 12 MB and 20 megapixels per JPG, PNG, or WebP image, with a 2048-pixel maximum processing edge. There is no scan quota or paid OCR service.
+
 ## Current behavior and known follow-ups
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
-- The manual Schedules page now has Monday–Sunday cards, day-specific add forms, saved meeting details, edit and delete menus, and styled confirmations for unsaved edits and deletion. Deletion removes only the selected meeting. Subjects with no timed meetings remain visible below the day cards.
-- Closed-tab Web Push reminders are the remaining Schedule work. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
+- Core schedule management and intake are complete: manual creation, editing, deletion, unscheduled subjects, local form scanning, editable review, validation, and atomic replacement are working.
+- Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - Tasks, Study, and Community routes still explain planned tools. The dashboard now shows live upcoming classes; task content remains future work.
 - Recent visual changes passed `npm.cmd run build` and `npm.cmd run lint`. The browser session was unavailable for a live visual check; review the dashboard and Schedules layouts at desktop and mobile sizes when continuing.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.
@@ -56,7 +65,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 | Area | Files |
 | --- | --- |
 | Routes, onboarding, and dashboard | `src/App.tsx`, `src/components/DashboardSchedules.tsx`, `src/components/dashboard-schedules.css` |
-| Schedule page | `src/components/SchedulesPage.tsx`, `src/components/schedules.css` |
+| Schedule page and scanner | `src/components/SchedulesPage.tsx`, `src/components/schedules.css`, `src/components/ScheduleScanner.tsx`, `src/components/schedule-scan.css`, `src/lib/scheduleOcr.ts`, `src/lib/rtuScheduleParser.ts` |
 | Landing, team, policies, footer, and splash | `src/components/LandingPage.tsx`, `TeamPage.tsx`, `PolicyPage.tsx`, `SiteFooter.tsx`, `SplashScreen.tsx` |
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
 | Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |

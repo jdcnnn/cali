@@ -117,20 +117,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: 'ready', user: state.user, student: data, message: null })
   }
 
-  async function updateAcademicDetails(program: string, yearLevel: number) {
+  async function updateProfileDetails(username: string, program: string, yearLevel: number) {
     if (!supabase || state.status !== 'ready') throw new Error('Your session is not ready. Please try again.')
+    const normalizedUsername = username.trim().toLowerCase()
     const normalizedProgram = program.trim()
-    if (!normalizedProgram || normalizedProgram.length > 120 || !Number.isInteger(yearLevel) || yearLevel < 1 || yearLevel > 5) {
-      throw new Error('Enter a program up to 120 characters and choose a year level from 1 to 5.')
+    if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername) || !normalizedProgram || normalizedProgram.length > 120 || !Number.isInteger(yearLevel) || yearLevel < 1 || yearLevel > 5) {
+      throw new Error('Check your username, program, and year level.')
     }
     const userId = state.user.id
     const { data, error } = await supabase.from('students')
-      .update({ program: normalizedProgram, year_level: yearLevel })
+      .update({ username: normalizedUsername, program: normalizedProgram, year_level: yearLevel })
       .eq('user_id', userId)
       .select('user_id, username, program, year_level, full_name, avatar_url')
       .single()
     if (error) throw error
-    if (!isCompleteStudent(data, userId)) throw new Error('Your academic details could not be saved. Please try again.')
+    if (!isCompleteStudent(data, userId)) throw new Error('Your profile details could not be saved. Please try again.')
     setState(previous => previous.status === 'ready' && previous.user.id === userId
       ? { ...previous, student: data }
       : previous)
@@ -147,5 +148,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: 'signedOut', user: null, student: null, message: null })
   }
 
-  return <AuthContext.Provider value={{ state, reload, signOut, completeOnboarding, updateAcademicDetails, deleteAccount }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ state, reload, signOut, completeOnboarding, updateProfileDetails, deleteAccount }}>{children}</AuthContext.Provider>
 }

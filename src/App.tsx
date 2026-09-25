@@ -329,11 +329,12 @@ function greetingForHour(hour: number) {
 }
 
 function ProfileScreen({ student, email }: { student: Student; email: string }) {
-  const { updateAcademicDetails, deleteAccount } = useAuth()
+  const { updateProfileDetails, deleteAccount } = useAuth()
   const [editing, setEditing] = useState(false)
+  const [username, setUsername] = useState(student.username)
   const [programChoice, setProgramChoice] = useState(student.program)
   const [yearLevel, setYearLevel] = useState(String(student.year_level))
-  const [fieldErrors, setFieldErrors] = useState<{ program?: string; yearLevel?: string }>({})
+  const [fieldErrors, setFieldErrors] = useState<{ username?: string; program?: string; yearLevel?: string }>({})
   const [saveError, setSaveError] = useState('')
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -361,6 +362,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
   }, [deleteOpen])
 
   function startEditing() {
+    setUsername(student.username)
     setProgramChoice(student.program)
     setYearLevel(String(student.year_level))
     setFieldErrors({})
@@ -369,28 +371,36 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
     setEditing(true)
   }
 
-  async function saveAcademicDetails(event: FormEvent<HTMLFormElement>) {
+  async function saveProfileDetails(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (busy) return
+    const normalizedUsername = username.trim().toLowerCase()
     const program = programChoice.trim()
     const yearValue = Number(yearLevel)
-    const errors: { program?: string; yearLevel?: string } = {}
+    const errors: { username?: string; program?: string; yearLevel?: string } = {}
+    if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername)) errors.username = 'Use 3–30 lowercase letters, numbers, or underscores.'
     if (!program) errors.program = 'Choose or enter your program.'
     else if (program.length > 120) errors.program = 'Use a program name up to 120 characters.'
     if (!Number.isInteger(yearValue) || yearValue < 1 || yearValue > 5) errors.yearLevel = 'Choose a year level from 1 to 5.'
     setFieldErrors(errors)
-    if (errors.program || errors.yearLevel) {
-      document.getElementById(errors.program ? 'profile-program' : 'profile-year-level')?.focus()
+    if (errors.username || errors.program || errors.yearLevel) {
+      document.getElementById(errors.username ? 'profile-username' : errors.program ? 'profile-program' : 'profile-year-level')?.focus()
       return
     }
     setBusy(true)
     setSaveError('')
     try {
-      await updateAcademicDetails(program, yearValue)
+      await updateProfileDetails(normalizedUsername, program, yearValue)
       setEditing(false)
       setSaved(true)
     } catch (cause) {
-      setSaveError(cause instanceof Error ? cause.message : 'Could not save your academic details. Please try again.')
+      const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : ''
+      if (code === '23505') {
+        setFieldErrors(previous => ({ ...previous, username: 'That username is already taken. Choose another one.' }))
+        document.getElementById('profile-username')?.focus()
+      } else {
+        setSaveError(cause instanceof Error ? cause.message : 'Could not save your profile details. Please try again.')
+      }
     } finally {
       setBusy(false)
     }
@@ -418,13 +428,14 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
     <div className="workspace-profile-details">
       <section className="workspace-profile-section" aria-labelledby="profile-account-title"><h2 id="profile-account-title">Account</h2><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Institutional email</dt><dd>{email}</dd></div></dl></section>
       <section className="workspace-profile-section" aria-labelledby="profile-academic-title">
-        <div className="workspace-profile-section-head"><h2 id="profile-academic-title">Academic details</h2>{!editing && <button type="button" className="workspace-profile-edit" onClick={startEditing}>Edit</button>}</div>
-        {editing ? <form className="workspace-profile-form" onSubmit={saveAcademicDetails} noValidate>
+        <div className="workspace-profile-section-head"><h2 id="profile-academic-title">Profile details</h2>{!editing && <button type="button" className="workspace-profile-edit" onClick={startEditing}>Edit</button>}</div>
+        {editing ? <form className="workspace-profile-form" onSubmit={saveProfileDetails} noValidate>
+          <div><label className="field-label" htmlFor="profile-username">Username</label><input id="profile-username" name="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[a-z0-9_]{3,30}" className="field-input" value={username} onChange={event => { setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setFieldErrors(previous => ({ ...previous, username: undefined })) }} aria-describedby={fieldErrors.username ? 'profile-username-error profile-username-help' : 'profile-username-help'} aria-invalid={Boolean(fieldErrors.username)} /><p id="profile-username-help" className="field-help">Use 3–30 lowercase letters, numbers, or underscores.</p>{fieldErrors.username && <p id="profile-username-error" className="field-error" role="alert">{fieldErrors.username}</p>}</div>
           <div><label className="field-label" htmlFor="profile-program">Program</label><OnboardingDropdown id="profile-program" label="Program" placeholder="Browse or search programs" value={programChoice} options={programOptions} searchable allowCustom onChange={value => { setProgramChoice(value); setFieldErrors(previous => ({ ...previous, program: undefined })) }} invalid={Boolean(fieldErrors.program)} describedBy={fieldErrors.program ? 'profile-program-error profile-program-help' : 'profile-program-help'} /><p id="profile-program-help" className="field-help">Not on the list? Type your full program name, then choose “Use”.</p>{fieldErrors.program && <p id="profile-program-error" className="field-error" role="alert">{fieldErrors.program}</p>}</div>
           <div><label className="field-label" htmlFor="profile-year-level">Year level</label><OnboardingDropdown id="profile-year-level" label="Year level" placeholder="Select year level" value={yearLevel} options={yearOptions} onChange={value => { setYearLevel(value); setFieldErrors(previous => ({ ...previous, yearLevel: undefined })) }} invalid={Boolean(fieldErrors.yearLevel)} describedBy={fieldErrors.yearLevel ? 'profile-year-error' : undefined} />{fieldErrors.yearLevel && <p id="profile-year-error" className="field-error" role="alert">{fieldErrors.yearLevel}</p>}</div>
           {saveError && <p className="workspace-profile-save-error" role="alert">{saveError}</p>}
           <div className="workspace-profile-form-actions"><button type="button" className="workspace-profile-cancel" onClick={() => { setEditing(false); setSaveError('') }} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy}>{busy ? 'Saving...' : 'Save changes'}</button></div>
-        </form> : <><dl><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div></dl>{saved && <p className="workspace-profile-saved" role="status">Academic details saved.</p>}</>}
+        </form> : <><dl><div><dt>Username</dt><dd>{student.username}</dd></div><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div></dl>{saved && <p className="workspace-profile-saved" role="status">Profile details saved.</p>}</>}
       </section>
     </div>
     <section className="workspace-danger-zone" aria-labelledby="danger-zone-title"><div><p className="workspace-danger-label">DANGER ZONE</p><h2 id="danger-zone-title">Delete account</h2><p>Delete your Cali profile, saved schedules, and institutional email stored in Cali.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></section>

@@ -15,11 +15,17 @@ npm run dev
 
 The project also has npm run build and npm run lint scripts.
 
-## Local schedule scanning
+## Schedule module
 
-The Schedules page can read JPG, PNG, and WebP images of the RTU registration/assessment form. OCR runs entirely in the browser with the Apache-licensed PaddleOCR.js SDK and locally hosted PP-OCRv5 models. The form image is not uploaded or stored. Students must review every extracted subject and meeting before atomically replacing their current schedule.
+The schedule management and intake flow is implemented. Students can create subjects and meetings manually, edit saved details, remove individual meetings, and keep subjects without meeting times in the Unscheduled section. Destructive actions and unsaved edits use confirmation dialogs.
 
-Manual schedule entry remains available when the browser cannot run local OCR or the form cannot be recognized. Apply the Supabase migrations before testing replacement saves.
+Students can also import a schedule from an RTU registration/assessment form. The scanner accepts JPG, PNG, and WebP images and runs entirely in the browser with the Apache-licensed PaddleOCR.js SDK and locally hosted PP-OCRv5 models. Images are not uploaded or stored, and no paid OCR service or generative AI is used. Semester and term text are ignored.
+
+The import flow extracts subjects, units, block sections, meetings, and rooms into an editable review. Missing details prevent saving and link directly to the affected field. Students can correct results, add or remove meetings, and confirm removals before saving. The reviewed import replaces the current schedule atomically through `replace_own_schedule`, so a failed replacement does not leave a partial schedule.
+
+Scanner limits are 12 MB per image and 20 megapixels. Images are reduced to a maximum 2048-pixel edge for processing. There is no scan count, daily quota, subscription, or API usage limit. Manual entry remains available when local scanning is unsupported or a form cannot be recognized.
+
+Apply all Supabase migrations before testing. `20260925010000_replace_own_schedule.sql` adds the authenticated atomic replacement function used by the scanner.
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The anon key is the public browser key. Never put a service role key in a `VITE_` variable or commit `.env`.
 
@@ -46,4 +52,4 @@ The reusable CALI logo assets are `src/assets/cali-wordmark.svg` and `src/assets
 - supabase/migrations/: database migrations
 - cali.md: current project decisions and plan
 
-Auth, onboarding, and manual weekly schedules are implemented. Class reminders and the other application modules described in cali.md are planned work.
+Auth, onboarding, manual weekly schedule management, and local schedule scanning are implemented. Closed-tab class reminders and the other application modules described in cali.md remain planned work.
