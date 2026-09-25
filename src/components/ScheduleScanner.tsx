@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { supabase } from '../lib/supabase'
-import { parseRtuSchedule, validateImportedSchedule } from '../lib/rtuScheduleParser'
+import { getImportedScheduleIssues, parseRtuSchedule } from '../lib/rtuScheduleParser'
 import type { ImportedMeetingDraft, ImportedScheduleDraft, ImportedSubjectDraft, ScheduleDayCode } from '../lib/rtuScheduleParser'
 import { runScheduleOcr } from '../lib/scheduleOcr'
 import './schedule-scan.css'
@@ -51,7 +51,8 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
   const [confirming, setConfirming] = useState(false)
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null)
 
-  const validationErrors = useMemo(() => schedule ? validateImportedSchedule(schedule.subjects) : [], [schedule])
+  const validationIssues = useMemo(() => schedule ? getImportedScheduleIssues(schedule.subjects) : [], [schedule])
+  const validationErrors = validationIssues.map(issue => issue.message)
   const reviewNotes = useMemo(() => {
     if (!schedule) return []
     const subjectCodes = [...new Set(schedule.warnings
@@ -65,6 +66,13 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     return notes
   }, [schedule])
   const busy = stage === 'processing' || stage === 'saving'
+
+  function goToIssue(targetId: string) {
+    const target = document.getElementById(targetId)
+    if (!target) return
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    window.setTimeout(() => target.focus({ preventScroll: true }), 350)
+  }
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -254,25 +262,25 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
           </div>}
           {validationErrors.length > 0 && <div className="schedule-review-task schedule-review-task--required" role="alert">
             <span className="schedule-review-task-icon" aria-hidden="true">+</span>
-            <div><strong>{validationErrors.length} {validationErrors.length === 1 ? 'detail' : 'details'} to add</strong><ul>{validationErrors.map(message => <li key={message}>{message}</li>)}</ul></div>
+            <div><strong>{validationIssues.length} {validationIssues.length === 1 ? 'detail' : 'details'} to add</strong><ul>{validationIssues.map(issue => <li key={issue.id}><button type="button" onClick={() => goToIssue(issue.targetId)}>{issue.message}<span aria-hidden="true">Go to field →</span></button></li>)}</ul></div>
           </div>}
         </div>}
         {error && <p className="schedule-scan-error" role="alert">{error}</p>}
 
-        <div className="schedule-scan-subjects">{schedule.subjects.map((subject, subjectIndex) => <article className={`schedule-scan-subject${subject.confidence < 0.85 ? ' schedule-scan-subject--check' : ''}${subjectNeedsAttention(subject) ? ' schedule-scan-subject--invalid' : ''}`} key={subject.id}>
+        <div id="schedule-scan-subjects" className="schedule-scan-subjects" tabIndex={-1}>{schedule.subjects.map((subject, subjectIndex) => <article id={`schedule-scan-subject-${subject.id}`} tabIndex={-1} className={`schedule-scan-subject${subject.confidence < 0.85 ? ' schedule-scan-subject--check' : ''}${subjectNeedsAttention(subject) ? ' schedule-scan-subject--invalid' : ''}`} key={subject.id}>
           <div className="schedule-scan-subject-head"><div><span>Subject {subjectIndex + 1}</span><strong>{subject.subjectCode || 'Missing code'}</strong></div><button type="button" onClick={() => setPendingRemoval({ kind: 'subject', subjectId: subject.id, label: subject.subjectCode || `Subject ${subjectIndex + 1}` })} disabled={busy}>Remove subject</button></div>
           <div className="schedule-scan-fields">
-            <label>Subject code<input value={subject.subjectCode} maxLength={40} placeholder="Add subject code" aria-invalid={!clean(subject.subjectCode)} onChange={event => updateSubject(subject.id, { subjectCode: event.target.value.toUpperCase() })} disabled={busy} /></label>
-            <label>Units<input value={subject.units} inputMode="decimal" placeholder="Add units" aria-invalid={!/^\d+(?:\.\d)?$/.test(subject.units)} onChange={event => updateSubject(subject.id, { units: event.target.value.replace(/[^\d.]/g, '').slice(0, 4) })} disabled={busy} /></label>
-            <label className="schedule-scan-wide">Subject title<input value={subject.title} maxLength={200} placeholder="Add subject title" aria-invalid={!clean(subject.title)} onChange={event => updateSubject(subject.id, { title: event.target.value })} disabled={busy} /></label>
-            <label className="schedule-scan-wide">Block / section<input value={subject.blockSection} maxLength={80} placeholder="Add block section" aria-invalid={!clean(subject.blockSection)} onChange={event => updateSubject(subject.id, { blockSection: event.target.value.toUpperCase() })} disabled={busy} /></label>
+            <label>Subject code<input id={`schedule-scan-subject-${subject.id}-code`} value={subject.subjectCode} maxLength={40} placeholder="Add subject code" aria-invalid={!clean(subject.subjectCode)} onChange={event => updateSubject(subject.id, { subjectCode: event.target.value.toUpperCase() })} disabled={busy} /></label>
+            <label>Units<input id={`schedule-scan-subject-${subject.id}-units`} value={subject.units} inputMode="decimal" placeholder="Add units" aria-invalid={!/^\d+(?:\.\d)?$/.test(subject.units)} onChange={event => updateSubject(subject.id, { units: event.target.value.replace(/[^\d.]/g, '').slice(0, 4) })} disabled={busy} /></label>
+            <label className="schedule-scan-wide">Subject title<input id={`schedule-scan-subject-${subject.id}-title`} value={subject.title} maxLength={200} placeholder="Add subject title" aria-invalid={!clean(subject.title)} onChange={event => updateSubject(subject.id, { title: event.target.value })} disabled={busy} /></label>
+            <label className="schedule-scan-wide">Block / section<input id={`schedule-scan-subject-${subject.id}-section`} value={subject.blockSection} maxLength={80} placeholder="Add block section" aria-invalid={!clean(subject.blockSection)} onChange={event => updateSubject(subject.id, { blockSection: event.target.value.toUpperCase() })} disabled={busy} /></label>
           </div>
           <div className="schedule-scan-meetings-head"><strong>Meetings</strong><button type="button" onClick={() => addMeeting(subject.id)} disabled={busy}>+ Add meeting</button></div>
-          {subject.meetings.length === 0 ? <p className="schedule-scan-unscheduled">No class time was found. Add a meeting if the subject has one; otherwise it will be saved as unscheduled.</p> : <div className="schedule-scan-meetings">{subject.meetings.map(meeting => <div className={`schedule-scan-meeting${meeting.confidence < 0.85 ? ' schedule-scan-meeting--check' : ''}${meetingNeedsAttention(meeting) ? ' schedule-scan-meeting--invalid' : ''}`} key={meeting.id}>
-            <label>Day<select value={meeting.dayCode} onChange={event => updateMeeting(subject.id, meeting.id, { dayCode: event.target.value as ScheduleDayCode })} disabled={busy}>{days.map(day => <option value={day.code} key={day.code}>{day.name}</option>)}</select></label>
-            <label>Starts<input type="time" value={meeting.startsAt} aria-invalid={!/^\d{2}:\d{2}$/.test(meeting.startsAt) || meeting.startsAt >= meeting.endsAt} onChange={event => updateMeeting(subject.id, meeting.id, { startsAt: event.target.value })} disabled={busy} /></label>
-            <label>Ends<input type="time" value={meeting.endsAt} aria-invalid={!/^\d{2}:\d{2}$/.test(meeting.endsAt) || meeting.startsAt >= meeting.endsAt} onChange={event => updateMeeting(subject.id, meeting.id, { endsAt: event.target.value })} disabled={busy} /></label>
-            <label>Room<input value={meeting.room} maxLength={120} placeholder="Optional" onChange={event => updateMeeting(subject.id, meeting.id, { room: event.target.value.toUpperCase() })} disabled={busy} /></label>
+          {subject.meetings.length === 0 ? <p className="schedule-scan-unscheduled">No class time was found. Add a meeting if the subject has one; otherwise it will be saved as unscheduled.</p> : <div className="schedule-scan-meetings">{subject.meetings.map(meeting => <div id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}`} tabIndex={-1} className={`schedule-scan-meeting${meeting.confidence < 0.85 ? ' schedule-scan-meeting--check' : ''}${meetingNeedsAttention(meeting) ? ' schedule-scan-meeting--invalid' : ''}`} key={meeting.id}>
+            <label>Day<select id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-day`} value={meeting.dayCode} onChange={event => updateMeeting(subject.id, meeting.id, { dayCode: event.target.value as ScheduleDayCode })} disabled={busy}>{days.map(day => <option value={day.code} key={day.code}>{day.name}</option>)}</select></label>
+            <label>Starts<input id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-starts`} type="time" value={meeting.startsAt} aria-invalid={!/^\d{2}:\d{2}$/.test(meeting.startsAt) || meeting.startsAt >= meeting.endsAt} onChange={event => updateMeeting(subject.id, meeting.id, { startsAt: event.target.value })} disabled={busy} /></label>
+            <label>Ends<input id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-ends`} type="time" value={meeting.endsAt} aria-invalid={!/^\d{2}:\d{2}$/.test(meeting.endsAt) || meeting.startsAt >= meeting.endsAt} onChange={event => updateMeeting(subject.id, meeting.id, { endsAt: event.target.value })} disabled={busy} /></label>
+            <label>Room<input id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-room`} value={meeting.room} maxLength={120} placeholder="Optional" onChange={event => updateMeeting(subject.id, meeting.id, { room: event.target.value.toUpperCase() })} disabled={busy} /></label>
             <button type="button" aria-label={`Remove meeting from ${subject.subjectCode}`} onClick={() => setPendingRemoval({ kind: 'meeting', subjectId: subject.id, meetingId: meeting.id, label: subject.subjectCode || `Subject ${subjectIndex + 1}` })} disabled={busy}>Remove</button>
           </div>)}</div>}
         </article>)}</div>

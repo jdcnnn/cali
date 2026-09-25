@@ -35,6 +35,12 @@ export type ImportedScheduleDraft = {
   warnings: ImportWarning[]
 }
 
+export type ImportedScheduleIssue = {
+  id: string
+  message: string
+  targetId: string
+}
+
 type Box = OcrLine & {
   left: number
   right: number
@@ -344,34 +350,44 @@ export function parseRtuSchedule(lines: OcrLine[], image: { width: number; heigh
   }
 }
 
-export function validateImportedSchedule(subjects: ImportedSubjectDraft[]) {
-  const errors: string[] = []
-  if (!subjects.length) return ['Add at least one subject.']
+export function getImportedScheduleIssues(subjects: ImportedSubjectDraft[]): ImportedScheduleIssue[] {
+  const issues: ImportedScheduleIssue[] = []
+  const addIssue = (message: string, targetId: string) => issues.push({ id: `${targetId}-${issues.length}`, message, targetId })
+  if (!subjects.length) {
+    addIssue('Add at least one subject.', 'schedule-scan-subjects')
+    return issues
+  }
   const subjectKeys = new Set<string>()
   for (const subject of subjects) {
     const label = subject.subjectCode || 'A subject'
-    if (!subject.subjectCode) errors.push('Add a subject code.')
-    else if (subject.subjectCode.length > 40) errors.push(`${label}: Shorten the subject code.`)
-    if (!clean(subject.title)) errors.push(`${label}: Add a subject title.`)
-    else if (clean(subject.title).length > 200) errors.push(`${label}: Shorten the subject title.`)
+    const subjectTarget = `schedule-scan-subject-${subject.id}`
+    if (!subject.subjectCode) addIssue('Add a subject code.', `${subjectTarget}-code`)
+    else if (subject.subjectCode.length > 40) addIssue(`${label}: Shorten the subject code.`, `${subjectTarget}-code`)
+    if (!clean(subject.title)) addIssue(`${label}: Add a subject title.`, `${subjectTarget}-title`)
+    else if (clean(subject.title).length > 200) addIssue(`${label}: Shorten the subject title.`, `${subjectTarget}-title`)
     const units = Number(subject.units)
-    if (!subject.units) errors.push(`${label}: Add the units.`)
-    else if (!Number.isFinite(units) || units < 0 || units > 30 || !/^\d+(?:\.\d)?$/.test(subject.units)) errors.push(`${label}: Check the units.`)
-    if (!clean(subject.blockSection)) errors.push(`${label}: Add a block section.`)
-    else if (clean(subject.blockSection).length > 80) errors.push(`${label}: Shorten the block section.`)
+    if (!subject.units) addIssue(`${label}: Add the units.`, `${subjectTarget}-units`)
+    else if (!Number.isFinite(units) || units < 0 || units > 30 || !/^\d+(?:\.\d)?$/.test(subject.units)) addIssue(`${label}: Check the units.`, `${subjectTarget}-units`)
+    if (!clean(subject.blockSection)) addIssue(`${label}: Add a block section.`, `${subjectTarget}-section`)
+    else if (clean(subject.blockSection).length > 80) addIssue(`${label}: Shorten the block section.`, `${subjectTarget}-section`)
     const subjectKey = `${subject.subjectCode.toLowerCase()}\u001f${subject.blockSection.toLowerCase()}`
-    if (subjectKeys.has(subjectKey)) errors.push(`${label}: Remove the duplicate subject.`)
+    if (subjectKeys.has(subjectKey)) addIssue(`${label}: Remove the duplicate subject.`, subjectTarget)
     subjectKeys.add(subjectKey)
     const meetingKeys = new Set<string>()
     for (const meeting of subject.meetings) {
-      if (!DAY_CODES.has(meeting.dayCode)) errors.push(`${label}: Choose a meeting day.`)
-      if (!/^\d{2}:\d{2}$/.test(meeting.startsAt) || !/^\d{2}:\d{2}$/.test(meeting.endsAt) || meeting.startsAt >= meeting.endsAt) errors.push(`${label}: Check the meeting time.`)
-      if (clean(meeting.room).length > 120) errors.push(`${label}: Shorten the room name.`)
-      else if (clean(meeting.room).toUpperCase() === 'N/A') errors.push(`${label}: Clear the room if it is unknown.`)
+      const meetingTarget = `${subjectTarget}-meeting-${meeting.id}`
+      if (!DAY_CODES.has(meeting.dayCode)) addIssue(`${label}: Choose a meeting day.`, `${meetingTarget}-day`)
+      if (!/^\d{2}:\d{2}$/.test(meeting.startsAt) || !/^\d{2}:\d{2}$/.test(meeting.endsAt) || meeting.startsAt >= meeting.endsAt) addIssue(`${label}: Check the meeting time.`, `${meetingTarget}-starts`)
+      if (clean(meeting.room).length > 120) addIssue(`${label}: Shorten the room name.`, `${meetingTarget}-room`)
+      else if (clean(meeting.room).toUpperCase() === 'N/A') addIssue(`${label}: Clear the room if it is unknown.`, `${meetingTarget}-room`)
       const meetingKey = `${meeting.dayCode}\u001f${meeting.startsAt}\u001f${meeting.endsAt}`
-      if (meetingKeys.has(meetingKey)) errors.push(`${label}: Remove the duplicate meeting.`)
+      if (meetingKeys.has(meetingKey)) addIssue(`${label}: Remove the duplicate meeting.`, meetingTarget)
       meetingKeys.add(meetingKey)
     }
   }
-  return [...new Set(errors)]
+  return issues
+}
+
+export function validateImportedSchedule(subjects: ImportedSubjectDraft[]) {
+  return getImportedScheduleIssues(subjects).map(issue => issue.message)
 }
