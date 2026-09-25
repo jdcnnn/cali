@@ -3,18 +3,21 @@ import { createClient } from '@supabase/supabase-js';
 import { normalizeMeetingsForReview, type ParsedMeeting } from "../src/lib/scheduleValidation.js";
 
 const MAX_OCR_LENGTH = 30000;
-const MODEL_TIMEOUT_MS = 28000;
+// Models are tried in PARALLEL (see parseScheduleText), so this is the max
+// time any single candidate gets — not a budget shared across all of them.
+// vercel.json sets maxDuration to 120s (Fluid Compute); keep this comfortably
+// under that so the function reports its own error instead of being killed.
+const MODEL_TIMEOUT_MS = 45000;
 // openrouter/free is OpenRouter's own router: it randomly selects a free model
 // that's currently healthy, so a single dead/throttled model behind it doesn't
 // sink the request. The explicit slugs after it are a second line of defense
 // in case the router call itself errors out.
 const DEFAULT_MODELS = [
-  'openrouter/free',
   'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
   'google/gemma-4-26b-a4b-it:free',
 ];
 // A 429 is transient — retry the same model once, after a short jittered
-// pause, before moving on to the next candidate.
+// pause, before giving up on it.
 const RATE_LIMIT_RETRY_MS = 1500;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -120,22 +123,33 @@ async function callOpenRouter(
   }
 }
 
+// Try every candidate model at the same time and return whichever succeeds
+// first. Sequential attempts were stacking each model's timeout back-to-back
+// (3 models x ~30s each easily blew past the function's time budget); racing
+// them means the total wait is bounded by the SLOWEST single attempt, not the
+// sum of all of them.
 export async function parseScheduleText(ocrText: string, apiKey: string, model = 'openrouter/free') {
   if (!apiKey) throw new Error('OPENROUTER_SCHEDULE_KEY is not configured on the server.');
   const models = [...new Set(model === 'openrouter/free' ? DEFAULT_MODELS : [model, ...DEFAULT_MODELS])];
-  let lastError: unknown;
-  for (const candidate of models) {
+
+  const attempts = models.map(async (candidate) => {
     console.info('[parse-schedule] trying model:', candidate);
     try {
       const meetings = await callOpenRouter(candidate, ocrText, apiKey);
-      console.info('[parse-schedule] parsed meetings:', meetings.length);
+      console.info('[parse-schedule] parsed meetings:', candidate, meetings.length);
       return meetings;
     } catch (error) {
-      lastError = error;
       console.error('[parse-schedule] model failed:', candidate, error);
+      throw error;
     }
+  });
+
+  try {
+    return await Promise.any(attempts);
+  } catch (aggregate) {
+    const lastError = aggregate instanceof AggregateError ? aggregate.errors.at(-1) : aggregate;
+    throw lastError ?? new Error('No parser model was available.');
   }
-  throw lastError ?? new Error('No parser model was available.');
 }
 
 export async function verifyScheduleUser(authorization: string | undefined, url: string | undefined, anonKey: string | undefined) {
