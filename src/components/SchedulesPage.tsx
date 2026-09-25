@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, RefObject } from 'react'
 import { supabase } from '../lib/supabase'
 import { StatusIcon } from './StatusIcon'
-import { ScheduleImport } from './ScheduleImport'
 import './schedules.css'
 import './skeleton.css'
 
@@ -157,7 +156,6 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
   const [busy, setBusy] = useState(false)
   const [discardPrompt, setDiscardPrompt] = useState(false)
   const [menuId, setMenuId] = useState<string | null>(null)
-  const [importOpen, setImportOpen] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   const load = useCallback(async () => {
@@ -302,8 +300,6 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
 
   return <div className="schedule-page">
     <header className="schedule-hero"><div><p className="workspace-overline">CALI WORKSPACE</p><h1>Schedules</h1><p>Keep your classes together in a weekly view.</p></div>{loading ? <span className="schedule-hero-count schedule-hero-count--loading cali-skeleton" role="status" aria-label="Loading meeting count" /> : <span className="schedule-hero-count">{meetings.length} {meetings.length === 1 ? 'meeting' : 'meetings'} this week</span>}</header>
-    <div className="schedule-import-entry"><button type="button" className="button-primary" onClick={() => setImportOpen(true)} disabled={loading || importOpen}>Import registration form</button><span>Upload a form and review its classes before saving.</span></div>
-    {importOpen && <ScheduleImport currentSubjectCount={subjects.length} onClose={() => setImportOpen(false)} onSaved={load} />}
     <div className="schedule-section-heading"><p className="workspace-overline">YOUR WEEK</p><h2>Weekly classes</h2><p>Select a class to see details. Use + on any day to add a meeting.</p></div>
     {pageError && <div className="schedule-error" role="alert"><p>{pageError}</p><button type="button" onClick={() => { setLoading(true); void load().catch(error => { setPageError(error instanceof Error ? error.message : 'Could not load your schedule.'); setLoading(false) }) }}>Try again</button></div>}
     {loading ? <div className="schedule-week-grid" role="status" aria-label="Loading weekly schedule">{days.map(day => <div className="schedule-day-card" key={day.code} aria-hidden="true"><div className="schedule-day-head"><h3>{day.name}</h3><span className="schedule-skeleton-add cali-skeleton" /></div><div className="schedule-day-body"><div className="schedule-skeleton-meeting"><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--short" /><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--long" /><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--medium" /></div></div></div>)}</div> : loaded && <div className="schedule-week-grid">{days.map(day => {

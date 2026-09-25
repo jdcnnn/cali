@@ -46,7 +46,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
 - The manual Schedules page now has Monday–Sunday cards, day-specific add forms, saved meeting details, edit and delete menus, and styled confirmations for unsaved edits and deletion. Deletion removes only the selected meeting. Subjects with no timed meetings remain visible below the day cards.
-- Registration-form image intake, browser OCR, AI parsing, review and atomic replacement, and closed-tab Web Push reminders are the remaining Schedule work. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
+- Closed-tab Web Push reminders are the remaining Schedule work. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - Tasks, Study, and Community routes still explain planned tools. The dashboard now shows live upcoming classes; task content remains future work.
 - Recent visual changes passed `npm.cmd run build` and `npm.cmd run lint`. The browser session was unavailable for a live visual check; review the dashboard and Schedules layouts at desktop and mobile sizes when continuing.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.

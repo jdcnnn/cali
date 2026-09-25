@@ -40,4 +40,4 @@ The reusable CALI logo assets are `src/assets/cali-wordmark.svg` and `src/assets
 - supabase/migrations/: database migrations
 - cali.md: current project decisions and plan
 
-The API and server folders are structural placeholders. Auth, onboarding, and manual weekly schedules are implemented. Registration-form import, class reminders, and the other application modules described in cali.md are planned work.
+Auth, onboarding, and manual weekly schedules are implemented. Class reminders and the other application modules described in cali.md are planned work.

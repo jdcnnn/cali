@@ -54,26 +54,11 @@ The exact boundary and acceptance criteria for each capability will be defined o
 
 ## 4. Schedule direction
 
-### Intake and review
+### Weekly schedule
 
-**Confirmed:** On desktop, students upload an image of their RTU registration form. On mobile, they can take a photo with the camera or upload an image. All entry paths feed an OCR and AI parsing pipeline to improve extraction. The result is a proposal that the student can review and correct before saving.
-
-**Confirmed weekly model:** Each student has one current repeating weekly schedule. CALI does not retain previous schedules or require schedule start/end dates. A new registration-form import replaces the saved subjects and meetings only after the student confirms the proposal; the replacement must be atomic so a failed save leaves the existing schedule intact. Students can add missing subjects or meetings manually during review and can add, edit, or delete individual subjects and meetings after saving.
+**Confirmed weekly model:** Each student has one current repeating weekly schedule. CALI does not retain previous schedules or require schedule start/end dates. Students can add, edit, or delete individual subjects and meetings manually.
 
 **Confirmed manual schedule interaction:** The Schedules page shows Monday through Sunday cards. Each day card has a plus control for adding a meeting on that fixed day; the form does not offer a day selector. The form title names the selected day. Fields appear in the order subject code and units, subject title, start and end times, room, then block/section. The styled time picker has scrollable Hour, Minute, and Period columns, and the form calculates a subtle duration below the time pickers. Saved meetings can be opened to view their details. Each saved meeting has a three-dot menu with edit and delete actions. Leaving an edited meeting with unsaved changes requires a styled discard confirmation; deleting a saved meeting requires a styled deletion confirmation. Deleting from a day card removes only that meeting, never the subject or its meetings on other days. A subject with no timed meetings remains visible in an Unscheduled subjects section and can be selected when adding a meeting from a day card.
-
-**Proposed processing boundary:**
-
-1. Validate the image and its size.
-2. Run Tesseract.js OCR in the student's browser to extract text from the image.
-3. Send the extracted text to the backend for preprocessing and server-side AI parsing.
-4. Validate the proposed fields and relationships.
-5. Present the proposal for student correction and confirmation.
-6. Persist only the confirmed schedule.
-
-The student's confirmation is essential because neither OCR nor AI parsing guarantees correctness. OpenRouter credentials remain on the backend.
-
-**Confirmed OCR placement and image retention:** Tesseract.js runs in the browser for the MVP. The registration-form image is processed locally and discarded after the student confirms or abandons the schedule flow; CALI does not retain it in Supabase Storage. Test real RTU forms on representative iOS and Android devices, especially lower-end phones. If OCR fails or produces incomplete text, the student must still be able to correct the proposed schedule.
 
 ### Schedule fields
 
@@ -115,9 +100,9 @@ Students can create study content manually or generate it from materials they su
 
 **Confirmed editing and deletion:** Students can edit and delete their own reviewers, flashcard sets, and quizzes. Editing one changes only that set. Deleting one removes only that set's stored content and associated source data. Flashcard sets and quizzes generated from a reviewer remain independent; later edits or deletion of the reviewer do not change them.
 
-**Confirmed file policy:** CALI discards every uploaded file after processing. Registration-form images are processed in the browser and are not retained. Study PDFs and `.docx` files may be placed in private Supabase Storage only as temporary processing inputs and must be deleted after extraction or on processing failure. A cleanup mechanism must remove abandoned temporary uploads.
+**Confirmed file policy:** CALI discards every uploaded study file after processing. Study PDFs and `.docx` files may be placed in private Supabase Storage only as temporary processing inputs and must be deleted after extraction or on processing failure. A cleanup mechanism must remove abandoned temporary uploads.
 
-The earlier context restricted AI to study workflows. The team's newer, explicit schedule decision adds **AI-assisted schedule parsing** to the allowed uses. No other AI use is currently planned for task management, reminders, analytics calculations, authentication, or database operations.
+AI use is currently planned for study workflows. No AI use is currently planned for schedules, task management, reminders, analytics calculations, authentication, or database operations.
 
 ## 6. Technology stack
 
@@ -136,8 +121,6 @@ The earlier context restricted AI to study workflows. The team's newer, explicit
 | Database | Supabase PostgreSQL | Confirmed |
 | File storage | Private Supabase Storage for temporary study-file processing | Confirmed; all uploaded files are discarded after processing |
 | Study-set source content | Private extracted text retained with its owning reviewer, flashcard set, or quiz | Confirmed; no independent material library |
-| Schedule intake | Browser OCR plus server-side AI parser | Confirmed |
-| Schedule OCR | Tesseract.js in the browser | Confirmed for the MVP |
 | Study document text extraction | PDF.js (`pdfjs-dist`) for PDF and Mammoth (`mammoth`) for `.docx` | Confirmed; deployment compatibility to test |
 | AI provider | OpenRouter | Confirmed; exact models to choose after evaluation |
 | Cross-platform delivery | Responsive website that is also installable as a Home Screen web app | Confirmed direction for iOS and Android |
@@ -183,7 +166,7 @@ These package names follow the confirmed stack and belong to **one root package*
 
 | Package group | Candidate packages |
 | --- | --- |
-| Browser runtime | `react`, `react-dom`, `react-router`, `@supabase/supabase-js`, `tesseract.js` |
+| Browser runtime | `react`, `react-dom`, `react-router`, `@supabase/supabase-js` |
 | Build and styles | `typescript`, `vite`, `@vitejs/plugin-react`, `tailwindcss`, `@tailwindcss/vite`, `@types/react`, `@types/react-dom` |
 | Server runtime | `@supabase/supabase-js`, `pdfjs-dist`, `mammoth` |
 | Server development | `tsx`, `@types/node` |
@@ -196,8 +179,8 @@ The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK 
 ### Deployment considerations
 
 - Vercel Node functions are the confirmed backend deployment shape, not a continuously running server.
-- Large study-material uploads should avoid passing through a function request body. Private Supabase Storage with controlled access is the temporary transfer path; files are deleted after processing. Registration-form images stay in the browser for OCR and are discarded after the flow.
-- Browser OCR needs a device trial with representative RTU forms on iOS and Android. Backend document processing needs a deployment trial with real PDF and `.docx` files.
+- Large study-material uploads should avoid passing through a function request body. Private Supabase Storage with controlled access is the temporary transfer path; files are deleted after processing.
+- Backend document processing needs a deployment trial with real PDF and `.docx` files.
 - cron-job.org is the preferred external trigger for closed-tab class reminders. It supports up to one request per minute, custom request headers, and failure monitoring. Its documented request timeout is 30 seconds, and it does not guarantee exact punctuality. Backend processing must be authenticated, bounded, idempotent, and able to handle late or repeated triggers. The endpoint must not return student data in its response. Sources: [cron-job.org FAQ](https://cron-job.org/en/faq/) and [service terms](https://cron-job.org/en/tos/).
 
 ## 7. Data and authorization principles
@@ -207,7 +190,7 @@ The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK 
 - Students can access and change their own private profiles, schedules, tasks, and study data. Temporary uploads must be private to their owners. Community content needs separate visibility and moderation rules.
 - The backend must verify the authenticated user and ownership before privileged operations. Database row-level security and Storage policies should enforce the same boundaries.
 - The Supabase service role key and OpenRouter API key are server-side secrets. Neither belongs in frontend code or committed files.
-- Study-material uploads require type, size, and processing-result checks. Every uploaded file must be deleted after processing or failure, with cleanup for abandoned temporary files. Registration-form images are discarded after the schedule flow.
+- Study-material uploads require type, size, and processing-result checks. Every uploaded file must be deleted after processing or failure, with cleanup for abandoned temporary files.
 
 ### Initial data domains, not a complete schema
 
@@ -224,7 +207,7 @@ The design should prioritize readable academic information and quick access to w
 1. **Create foundations:** Scaffold the single-project root, validate deployment limits, and finalize the security model and documentation conventions.
 2. **Identity and onboarding:** Define and implement eligibility, profile creation, route access, and account states.
 3. **Dashboard foundation:** Establish navigation and a dashboard backed by real schedule and task data, with useful empty states.
-4. **Schedules and class reminders:** Define the data model, image intake, OCR, AI parsing, student confirmation, manual correction, push subscription flow, and reminder delivery.
+4. **Schedules and class reminders:** Maintain manual subject and meeting management, then define the push subscription flow and reminder delivery.
 5. **Tasks:** Define task fields, due dates, status, and optional class links.
 6. **Study:** Deliver manual creation first, then direct PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; support creating flashcards and quizzes from an existing reviewer.
 7. **Learning analytics:** Derive understandable progress measures from study activity and quiz attempts.
@@ -235,7 +218,7 @@ Each phase should receive its own user flow, data contract, validation rules, fa
 
 ## 10. Open architecture decisions
 
-1. Select an OpenRouter model or model-selection policy after testing actual RTU form samples and study material examples.
+1. Select an OpenRouter model or model-selection policy after testing study material examples.
 2. Specify reminder lead times, late-delivery tolerance, backend batching, and the iOS Home Screen and notification-permission flow.
 3. Select a Web Push sender package and finalize the test tooling.
 4. Decide whether any code from the previously mentioned GitHub project should be brought into the new standalone project. The current planning workspace is separate from the requested project folder.
