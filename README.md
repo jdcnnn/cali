@@ -15,6 +15,14 @@ npm run dev
 
 The project also has npm run build and npm run lint scripts.
 
+## Scan a registration form
+
+On **Schedules**, upload a clear image of the registration form's schedule table. Mobile devices also offer a camera action. CALI reads the image, shows the meetings for review, and lets you edit, add, or delete rows before saving. Image-reading progress comes from the reader itself; the later parsing stage shows elapsed time, and saving shows how many meetings have been checked. The image stays in the browser; extracted text is sent to the server for schedule parsing. Images must be under 12 MB. Existing meetings with the same subject, section, day, and time are skipped on a repeat import.
+
+For local scanning, set `OPENROUTER_SCHEDULE_KEY` in `.env` alongside the Supabase variables below, then use `npm run dev`. The Vite development server provides `/api/parse-schedule` locally. For Vercel, set `OPENROUTER_SCHEDULE_KEY`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` in the deployment environment. `OPENROUTER_SCHEDULE_MODEL` optionally overrides the default free model router. Keep the OpenRouter key server-side; never prefix it with `VITE_`.
+
+Scanning depends on the quality of the form image and model availability. Review the results before adding them to your week. Deleting a subject on Schedules also removes all its weekly meetings.
+
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The anon key is the public browser key. Never put a service role key in a `VITE_` variable or commit `.env`.
 
 ## Auth and onboarding
