@@ -15,6 +15,12 @@ npm run dev
 
 The project also has npm run build and npm run lint scripts.
 
+## Local schedule scanning
+
+The Schedules page can read JPG, PNG, and WebP images of the RTU registration/assessment form. OCR runs entirely in the browser with the Apache-licensed PaddleOCR.js SDK and locally hosted PP-OCRv5 models. The form image is not uploaded or stored. Students must review every extracted subject and meeting before atomically replacing their current schedule.
+
+Manual schedule entry remains available when the browser cannot run local OCR or the form cannot be recognized. Apply the Supabase migrations before testing replacement saves.
+
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The anon key is the public browser key. Never put a service role key in a `VITE_` variable or commit `.env`.
 
 ## Auth and onboarding

@@ -102,7 +102,7 @@ Students can create study content manually or generate it from materials they su
 
 **Confirmed file policy:** CALI discards every uploaded study file after processing. Study PDFs and `.docx` files may be placed in private Supabase Storage only as temporary processing inputs and must be deleted after extraction or on processing failure. A cleanup mechanism must remove abandoned temporary uploads.
 
-AI use is currently planned for study workflows. No AI use is currently planned for schedules, task management, reminders, analytics calculations, authentication, or database operations.
+Generative AI use is currently planned only for study workflows. Schedule scanning uses local PaddleOCR text detection and deterministic RTU table parsing; it does not send forms to an OCR service or use an LLM. No generative AI use is planned for schedules, task management, reminders, analytics calculations, authentication, or database operations.
 
 ## 6. Technology stack
 
@@ -168,6 +168,7 @@ These package names follow the confirmed stack and belong to **one root package*
 | --- | --- |
 | Browser runtime | `react`, `react-dom`, `react-router`, `@supabase/supabase-js` |
 | Build and styles | `typescript`, `vite`, `@vitejs/plugin-react`, `tailwindcss`, `@tailwindcss/vite`, `@types/react`, `@types/react-dom` |
+| Browser schedule OCR | `@paddleocr/paddleocr-js` with locally hosted PP-OCRv5 models |
 | Server runtime | `@supabase/supabase-js`, `pdfjs-dist`, `mammoth` |
 | Server development | `tsx`, `@types/node` |
 | Tests, when relevant | `vitest`, `@testing-library/react`, `@testing-library/dom`, `jsdom` |

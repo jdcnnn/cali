@@ -1,0 +1,127 @@
+.schedule-scan-trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 9px 13px; border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-pale); color: var(--color-cali-accent); font-size: 12px; font-weight: 800; }
+.schedule-scan-trigger:hover { border-color: var(--color-cali-accent); }
+.schedule-scan-trigger svg { width: 18px; height: 18px; }
+.schedule-scan-dialog { position: fixed; inset: 50% auto auto 50%; width: min(940px, calc(100vw - 28px)); max-width: none; max-height: calc(100dvh - 28px); margin: 0; padding: 0; overflow-y: auto; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 22px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px #061f2d40; }
+.schedule-scan-dialog::backdrop { background: #07192399; backdrop-filter: blur(3px); }
+.schedule-scan-head { position: sticky; z-index: 4; top: 0; display: flex; align-items: start; justify-content: space-between; gap: 20px; padding: 25px 28px 20px; border-bottom: 1px solid var(--color-cali-border); background: var(--color-cali-surface); }
+.schedule-scan-head h2 { margin: 8px 0 0; font-family: Fredoka, sans-serif; font-size: 31px; font-weight: 500; line-height: 1.12; }
+.schedule-scan-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 0; padding: 14px 28px; border-bottom: 1px solid var(--color-cali-border); background: var(--color-cali-canvas); list-style: none; }
+.schedule-scan-steps li { display: flex; align-items: center; gap: 8px; color: var(--color-cali-slate); font-size: 11px; font-weight: 800; }
+.schedule-scan-steps li:not(:last-child)::after { width: min(90px, 35%); height: 1px; margin-left: auto; margin-right: 14px; background: var(--color-cali-border); content: ''; }
+.schedule-scan-steps span { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid var(--color-cali-border); border-radius: 50%; background: var(--color-cali-surface); font-size: 10px; }
+.schedule-scan-steps .is-active { color: var(--color-cali-accent); }
+.schedule-scan-steps .is-active span { border-color: var(--color-cali-accent); background: var(--color-cali-accent); color: white; }
+.schedule-scan-steps .is-complete span { border-color: var(--color-cali-action); background: var(--color-cali-action); color: white; }
+.schedule-scan-body { padding: 24px 28px 28px; }
+.schedule-scan-intro { max-width: 700px; margin: 0; color: var(--color-cali-slate); font-size: 14px; line-height: 1.65; }
+.schedule-scan-privacy { display: flex; align-items: center; gap: 11px; margin-top: 16px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--color-cali-action) 34%, var(--color-cali-border)); border-radius: 12px; background: color-mix(in srgb, var(--color-cali-action) 7%, var(--color-cali-surface)); }
+.schedule-scan-privacy > span { display: grid; width: 27px; height: 27px; flex: none; place-items: center; border-radius: 50%; background: var(--color-cali-action); color: white; font-size: 13px; font-weight: 900; }
+.schedule-scan-privacy strong { font-size: 12px; }
+.schedule-scan-privacy p { margin: 2px 0 0; color: var(--color-cali-slate); font-size: 11px; line-height: 1.4; }
+.schedule-scan-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.schedule-scan-picker { position: relative; display: grid; place-items: center; width: 100%; min-height: 260px; margin-top: 16px; overflow: hidden; border: 1px dashed var(--color-cali-accent); border-radius: 16px; background: var(--color-cali-canvas); color: var(--color-cali-ink); }
+.schedule-scan-picker:hover { border-color: var(--color-cali-deep); background: color-mix(in srgb, var(--color-cali-accent) 5%, var(--color-cali-canvas)); }
+.schedule-scan-picker--selected { background: #071923; }
+.schedule-scan-picker img { display: block; width: 100%; max-height: 430px; object-fit: contain; }
+.schedule-scan-picker-empty { display: grid; justify-items: center; gap: 7px; padding: 30px; }
+.schedule-scan-picker-icon { display: grid; width: 44px; height: 44px; margin-bottom: 4px; place-items: center; border-radius: 50%; background: var(--color-cali-pale); color: var(--color-cali-accent); font-size: 24px; }
+.schedule-scan-picker-empty strong { font-size: 16px; }
+.schedule-scan-picker-empty small { color: var(--color-cali-slate); font-size: 12px; font-weight: 600; }
+.schedule-scan-change { position: absolute; right: 12px; bottom: 12px; padding: 7px 10px; border-radius: 8px; background: #071923d9; color: white; font-size: 11px; font-weight: 800; }
+.schedule-scan-file { display: flex; justify-content: space-between; gap: 16px; margin-top: 10px; color: var(--color-cali-slate); font-size: 12px; }
+.schedule-scan-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-scan-file button { flex: none; padding: 0; border: 0; background: transparent; color: #b34139; font-size: 12px; font-weight: 800; }
+.schedule-scan-tip { margin: 14px 0 0; color: var(--color-cali-slate); font-size: 12px; line-height: 1.5; }
+.schedule-scan-actions, .schedule-scan-review-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--color-cali-border); }
+.schedule-scan-actions button, .schedule-scan-review-actions button { min-height: 44px; padding: 10px 16px; }
+.schedule-scan-primary { border: 1px solid var(--color-cali-action); border-radius: 11px; background: var(--color-cali-action); color: white; font-weight: 800; }
+.schedule-scan-primary:hover { background: var(--color-cali-deep); }
+.schedule-scan-primary:disabled { opacity: .5; }
+.schedule-scan-issues-link { margin-right: auto; border: 0; background: transparent; color: #a43b32; font-size: 13px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.schedule-scan-errors:focus { outline: 3px solid color-mix(in srgb, #c95449 30%, transparent); outline-offset: 3px; }
+.schedule-scan-error, .schedule-scan-errors, .schedule-scan-warnings { margin: 18px 0 0; padding: 13px 15px; border-radius: 11px; font-size: 13px; line-height: 1.5; }
+.schedule-scan-error, .schedule-scan-errors { border: 1px solid #efc6bf; background: #fff2f0; color: #8d3027; }
+.schedule-scan-warnings { border: 1px solid #e9d69b; background: #fff9e8; color: #765b13; }
+:root[data-theme="dark"] .schedule-scan-error, :root[data-theme="dark"] .schedule-scan-errors { background: #452824; color: #ffd5cf; }
+:root[data-theme="dark"] .schedule-scan-warnings { background: #443b20; color: #f8e7ac; }
+.schedule-scan-errors ul, .schedule-scan-warnings ul { margin: 7px 0 0; padding-left: 19px; }
+.schedule-scan-errors p, .schedule-scan-warnings p { margin: 3px 0 0; }
+.schedule-scan-processing { display: grid; min-height: 390px; place-items: center; align-content: center; gap: 13px; padding: 36px; text-align: center; }
+.schedule-scan-processing strong { font-size: 16px; }
+.schedule-scan-processing p { max-width: 420px; margin: 0; color: var(--color-cali-slate); font-size: 13px; line-height: 1.5; }
+.schedule-scan-processing-note { margin-top: 5px; color: var(--color-cali-action); font-size: 11px; font-weight: 800; }
+.schedule-scan-spinner { width: 42px; height: 42px; border: 4px solid var(--color-cali-border); border-top-color: var(--color-cali-accent); border-radius: 50%; animation: schedule-scan-spin .8s linear infinite; }
+@keyframes schedule-scan-spin { to { transform: rotate(360deg); } }
+.schedule-scan-review { padding: 22px 28px 28px; }
+.schedule-scan-summary { display: flex; flex-wrap: wrap; gap: 9px; }
+.schedule-scan-summary > div { display: grid; min-width: 105px; gap: 2px; padding: 11px 13px; border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-pale); }
+.schedule-scan-summary strong { font-size: 14px; }
+.schedule-scan-summary span { color: var(--color-cali-slate); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.schedule-scan-local-note { margin: 15px 0 0; color: var(--color-cali-slate); font-size: 12px; line-height: 1.55; }
+.schedule-review-status { display: grid; gap: 10px; margin-top: 18px; padding: 15px; border: 1px solid var(--color-cali-border); border-radius: 14px; background: var(--color-cali-surface); }
+.schedule-review-status:focus { outline: 3px solid color-mix(in srgb, var(--color-cali-accent) 24%, transparent); outline-offset: 3px; }
+.schedule-review-status-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 2px 4px; }
+.schedule-review-status-head strong { font-size: 14px; }
+.schedule-review-status-head p { margin: 3px 0 0; color: var(--color-cali-slate); font-size: 11px; line-height: 1.4; }
+.schedule-review-status-head > span { flex: none; padding: 5px 8px; border-radius: 999px; background: var(--color-cali-pale); color: var(--color-cali-accent); font-size: 10px; font-weight: 900; text-transform: uppercase; }
+.schedule-review-status-head > span.is-required { background: color-mix(in srgb, #c95449 12%, var(--color-cali-surface)); color: #a63f36; }
+.schedule-review-task { display: grid; grid-template-columns: auto 1fr; gap: 11px; padding: 12px 13px; border: 1px solid var(--color-cali-border); border-radius: 11px; background: var(--color-cali-canvas); }
+.schedule-review-task-icon { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; font-size: 12px; font-weight: 900; }
+.schedule-review-task--check .schedule-review-task-icon { background: color-mix(in srgb, #e0b83f 22%, var(--color-cali-surface)); color: #856a11; }
+.schedule-review-task--required .schedule-review-task-icon { background: color-mix(in srgb, #c95449 16%, var(--color-cali-surface)); color: #a63f36; }
+.schedule-review-task strong { font-size: 12px; }
+.schedule-review-task ul { display: grid; gap: 3px; margin: 6px 0 0; padding-left: 17px; color: var(--color-cali-slate); font-size: 12px; line-height: 1.45; }
+:root[data-theme="dark"] .schedule-review-status { background: #102f3b; }
+:root[data-theme="dark"] .schedule-review-task { border-color: #31515d; background: #173844; }
+:root[data-theme="dark"] .schedule-review-status-head > span.is-required { background: #3a3133; color: #ffb7af; }
+:root[data-theme="dark"] .schedule-review-task--check .schedule-review-task-icon { background: #4a421f; color: #ffe38a; }
+:root[data-theme="dark"] .schedule-review-task--required .schedule-review-task-icon { background: #4a2d2e; color: #ffb7af; }
+.schedule-scan-subjects { display: grid; gap: 14px; margin-top: 20px; }
+.schedule-scan-subject { padding: 17px; border: 1px solid var(--color-cali-border); border-radius: 15px; background: var(--color-cali-canvas); }
+.schedule-scan-subject--check, .schedule-scan-meeting--check { border-color: #d7b64d; }
+.schedule-scan-subject--invalid, .schedule-scan-meeting--invalid { border-color: #d77970; }
+.schedule-scan-subject-head, .schedule-scan-meetings-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.schedule-scan-subject-head > div { display: grid; gap: 2px; }
+.schedule-scan-subject-head span { color: var(--color-cali-slate); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.schedule-scan-subject-head strong { font-size: 16px; }
+.schedule-scan-subject-head button, .schedule-scan-meetings-head button, .schedule-scan-meeting > button { padding: 5px 0; border: 0; background: transparent; color: #b34139; font-size: 11px; font-weight: 800; }
+.schedule-scan-meetings-head button { color: var(--color-cali-accent); }
+.schedule-scan-fields { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-top: 14px; }
+.schedule-scan-fields label, .schedule-scan-meeting label { display: grid; gap: 5px; color: var(--color-cali-slate); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.schedule-scan-fields input, .schedule-scan-meeting input, .schedule-scan-meeting select { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-surface); color: var(--color-cali-ink); font-size: 12px; font-weight: 600; letter-spacing: normal; text-transform: none; }
+.schedule-scan-fields input[aria-invalid="true"], .schedule-scan-meeting input[aria-invalid="true"] { border-color: #c95449; background: color-mix(in srgb, #c95449 6%, var(--color-cali-surface)); }
+.schedule-scan-wide { grid-column: 1 / -1; }
+.schedule-scan-meetings-head { margin-top: 17px; padding-top: 14px; border-top: 1px solid var(--color-cali-border); }
+.schedule-scan-meetings-head strong { font-size: 12px; }
+.schedule-scan-meetings { display: grid; gap: 8px; margin-top: 9px; }
+.schedule-scan-meeting { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1.3fr auto; align-items: end; gap: 8px; padding: 10px; border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-surface); }
+.schedule-scan-meeting > button { min-height: 40px; padding-inline: 6px; }
+.schedule-scan-unscheduled { margin: 9px 0 0; color: var(--color-cali-slate); font-size: 12px; }
+.schedule-scan-confirm { margin-top: 20px; padding: 16px; border: 1px solid #e3bbb5; border-radius: 13px; background: #fff5f3; color: #77332d; }
+:root[data-theme="dark"] .schedule-scan-confirm { background: #452824; color: #ffd5cf; }
+.schedule-scan-confirm > p { margin: 7px 0 0; font-size: 12px; line-height: 1.5; }
+.schedule-scan-confirm > div { display: flex; justify-content: flex-end; gap: 9px; margin-top: 14px; }
+.schedule-scan-confirm button { min-height: 42px; padding: 9px 13px; }
+.schedule-remove-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: #0719238f; backdrop-filter: blur(3px); }
+.schedule-remove-dialog { width: min(410px, 100%); padding: 24px; border: 1px solid var(--color-cali-border); border-radius: 17px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 22px 60px #061f2d4d; text-align: center; }
+.schedule-remove-icon { display: grid; width: 42px; height: 42px; margin: 0 auto 13px; place-items: center; border-radius: 50%; background: color-mix(in srgb, #c95449 13%, var(--color-cali-surface)); color: #b34139; font-size: 24px; font-weight: 800; }
+.schedule-remove-dialog h3 { margin: 0; font-size: 18px; }
+.schedule-remove-dialog p { margin: 8px auto 0; color: var(--color-cali-slate); font-size: 13px; line-height: 1.55; }
+.schedule-remove-dialog > div { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 20px; }
+.schedule-remove-dialog button { min-height: 42px; padding: 9px 13px; }
+.schedule-scan-review-actions { position: sticky; z-index: 3; bottom: -28px; margin-inline: -28px; padding: 18px 28px 28px; background: linear-gradient(to bottom, color-mix(in srgb, var(--color-cali-surface) 80%, transparent), var(--color-cali-surface) 18px); }
+@media (max-width: 700px) {
+  .schedule-scan-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 18px; }
+  .schedule-scan-head { padding: 21px 19px 17px; }
+  .schedule-scan-head h2 { font-size: 26px; }
+  .schedule-scan-steps { padding-inline: 19px; }
+  .schedule-scan-steps li { gap: 5px; font-size: 9px; }
+  .schedule-scan-steps li:not(:last-child)::after { margin-right: 7px; }
+  .schedule-scan-body, .schedule-scan-review { padding: 18px 19px 22px; }
+  .schedule-scan-picker { min-height: 210px; }
+  .schedule-scan-meeting { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .schedule-scan-meeting > button { justify-self: start; min-height: 30px; }
+  .schedule-scan-actions, .schedule-scan-review-actions, .schedule-scan-confirm > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .schedule-scan-review-actions { bottom: -22px; margin-inline: -19px; padding: 16px 19px 22px; }
+  .schedule-scan-issues-link { grid-column: 1 / -1; margin-right: 0; }
+}
