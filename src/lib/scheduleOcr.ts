@@ -43,10 +43,12 @@ async function prepareImage(file: File) {
     const scale = Math.min(1, MAX_EDGE / Math.max(sourceWidth, sourceHeight))
     const width = Math.max(1, Math.round(sourceWidth * scale))
     const height = Math.max(1, Math.round(sourceHeight * scale))
-    const canvas = document.createElement('canvas')
+    const canvas = typeof OffscreenCanvas !== 'undefined'
+      ? new OffscreenCanvas(width, height)
+      : document.createElement('canvas')
     canvas.width = width
     canvas.height = height
-    const context = canvas.getContext('2d', { alpha: false })
+    const context = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null
     if (!context) throw new Error('This browser could not prepare the image.')
     context.fillStyle = '#fff'
     context.fillRect(0, 0, width, height)
@@ -54,9 +56,10 @@ async function prepareImage(file: File) {
     context.imageSmoothingQuality = 'high'
     context.drawImage(source, 0, 0, width, height)
 
-    // Passing pixels avoids asking a module worker to decode a canvas-created
-    // Blob, which fails in some installed-PWA browser contexts.
-    return context.getImageData(0, 0, width, height)
+    // This creates the bitmap without decoding or cloning the source again.
+    // That avoids a createImageBitmap(canvas) failure seen in Android PWAs.
+    if (typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas) return canvas.transferToImageBitmap()
+    return await createImageBitmap(canvas)
   } finally {
     bitmap?.close()
     if (objectUrl) URL.revokeObjectURL(objectUrl)
@@ -69,22 +72,28 @@ export async function runScheduleOcr(file: File, onStatus?: (status: string) => 
   const image = await prepareImage(file)
   onStatus?.('Getting the scanner ready…')
   const { PaddleOCR } = await import('@paddleocr/paddleocr-js')
-  const ocr = await PaddleOCR.create({
-    worker: true,
-    textDetectionModelName: 'PP-OCRv5_mobile_det',
-    textDetectionModelAsset: { url: '/ocr/models/PP-OCRv5_mobile_det_onnx_infer.tar' },
-    textRecognitionModelName: 'en_PP-OCRv5_mobile_rec',
-    textRecognitionModelAsset: { url: '/ocr/models/en_PP-OCRv5_mobile_rec_onnx_infer.tar' },
-    textDetectionBatchSize: 1,
-    textRecognitionBatchSize: 6,
-    ortOptions: {
-      backend: 'wasm',
-      wasmPaths: '/ocr/runtime/',
-      numThreads: 1,
-      simd: true,
-    },
-  })
+  const standalone = matchMedia('(display-mode: standalone)').matches
+    || ('standalone' in navigator && navigator.standalone === true)
+  let ocr: Awaited<ReturnType<typeof PaddleOCR.create>> | null = null
   try {
+    ocr = await PaddleOCR.create({
+      // PaddleOCR clones images with createImageBitmap before sending them to
+      // its worker. Installed apps use the direct local WASM pipeline so the
+      // already-prepared ImageBitmap can be consumed without another clone.
+      worker: !standalone,
+      textDetectionModelName: 'PP-OCRv5_mobile_det',
+      textDetectionModelAsset: { url: '/ocr/models/PP-OCRv5_mobile_det_onnx_infer.tar' },
+      textRecognitionModelName: 'en_PP-OCRv5_mobile_rec',
+      textRecognitionModelAsset: { url: '/ocr/models/en_PP-OCRv5_mobile_rec_onnx_infer.tar' },
+      textDetectionBatchSize: 1,
+      textRecognitionBatchSize: standalone ? 2 : 6,
+      ortOptions: {
+        backend: 'wasm',
+        wasmPaths: '/ocr/runtime/',
+        numThreads: 1,
+        simd: true,
+      },
+    })
     onStatus?.('Reading your class schedule…')
     const [result] = await ocr.predict(image, {
       textDetLimitSideLen: MAX_EDGE,
@@ -99,6 +108,7 @@ export async function runScheduleOcr(file: File, onStatus?: (status: string) => 
       elapsedMs: result.metrics.totalMs,
     }
   } finally {
-    await ocr.dispose()
+    await ocr?.dispose()
+    image.close()
   }
 }
