@@ -41,7 +41,7 @@ export function InstallCali() {
 
   return <>
     <section className="workspace-install-card" aria-labelledby="install-cali-title">
-      <div className="workspace-install-copy"><div className="workspace-install-heading"><div className="workspace-install-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4" /><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" /></svg></div><div><p className="workspace-overline">APP INSTALLATION</p><h2 id="install-cali-title">{installState.installed ? 'Cali is installed' : 'Install Cali'}</h2></div></div><p>{detail}</p>{error && <p className="workspace-install-error" role="alert">{error}</p>}</div>
+      <div className="workspace-install-copy"><p className="workspace-overline">APP INSTALLATION</p><h2 id="install-cali-title">{installState.installed ? 'Cali is installed' : 'Install Cali'}</h2><p>{detail}</p>{error && <p className="workspace-install-error" role="alert">{error}</p>}</div>
       {!installState.installed && installState.canPrompt && <button type="button" className="button-primary workspace-install-action" onClick={() => { void install() }} disabled={busy}>{busy ? 'Opening...' : 'Install Cali'}</button>}
       {!installState.installed && installState.isIos && <button ref={triggerRef} type="button" className="button-primary workspace-install-action" onClick={() => setInstructionsOpen(true)}>How to install</button>}
     </section>
