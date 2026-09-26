@@ -431,7 +431,7 @@ em { color: var(--color-cali-accent); font-style: normal; }
 .workspace-profile-save-error { margin: 0; color: #A2352F; font-size: 12px; line-height: 1.5; }
 :root[data-theme="dark"] .workspace-profile-save-error { color: #FFB8B4; }
 .workspace-profile-saved { margin: 8px 0 0; color: var(--color-cali-accent); font-size: 12px; font-weight: 700; }
-.workspace-install-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 22px; margin-top: 20px; padding: 24px 29px; border: 1px solid var(--color-cali-border); border-radius: 19px; background: var(--color-cali-surface); }
+.workspace-install-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 22px; margin-top: 20px; padding: 24px 29px; border: 1px solid var(--color-cali-border); border-radius: 19px; background: var(--color-cali-surface); }
 .workspace-install-heading { display: flex; align-items: center; gap: 14px; }
 .workspace-install-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: var(--color-cali-pale); color: var(--color-cali-accent); }
 .workspace-install-icon svg { width: 23px; height: 23px; }
@@ -476,6 +476,9 @@ em { color: var(--color-cali-accent); font-style: normal; }
   .workspace-profile-section + .workspace-profile-section { border-left: 0; border-top: 1px solid var(--color-cali-border); }
   .workspace-profile-section dl > div { min-height: 0; padding: 14px 0; }
   .workspace-install-card { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 21px; }
+  .workspace-install-heading { display: block; padding-right: 62px; }
+  .workspace-install-icon { position: absolute; top: 21px; right: 21px; }
+  .workspace-install-copy > p { margin-left: 0; padding-right: 8px; }
   .workspace-install-action { width: 100%; }
 }
 
