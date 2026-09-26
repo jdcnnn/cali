@@ -41,6 +41,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
   const dialogRef = useRef<HTMLDialogElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const validationRef = useRef<HTMLDivElement>(null)
+  const scanAbortRef = useRef<AbortController | null>(null)
   const [open, setOpen] = useState(false)
   const [stage, setStage] = useState<Stage>('select')
   const [file, setFile] = useState<File | null>(null)
@@ -49,6 +50,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [confirmStop, setConfirmStop] = useState(false)
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null)
 
   const validationIssues = useMemo(() => schedule ? getImportedScheduleIssues(schedule.subjects) : [], [schedule])
@@ -59,10 +61,10 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       .map(warning => schedule.subjects.find(subject => subject.id === warning.subjectId)?.subjectCode)
       .filter((code): code is string => Boolean(code)))]
     const notes: string[] = []
-    if (subjectCodes.length) notes.push(`Check ${subjectCodes.join(', ')} against your form.`)
+    if (subjectCodes.length) notes.push(`Verify ${subjectCodes.join(', ')} against your registration form.`)
     const unitsWarning = schedule.warnings.find(warning => warning.message.startsWith('The form states'))
     if (unitsWarning) notes.push(unitsWarning.message)
-    if (schedule.warnings.some(warning => !warning.subjectId && warning !== unitsWarning)) notes.push('Check the subject and meeting counts.')
+    if (schedule.warnings.some(warning => !warning.subjectId && warning !== unitsWarning)) notes.push('Verify the subject and meeting counts against your registration form.')
     return notes
   }, [schedule])
   const busy = stage === 'processing' || stage === 'saving'
@@ -80,7 +82,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     if (!open && dialog?.open) dialog.close()
   }, [open])
 
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
+  useEffect(() => () => { scanAbortRef.current?.abort(); if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
   function reset() {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -91,12 +93,28 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     setStatus('')
     setError('')
     setConfirming(false)
+    setConfirmStop(false)
     setPendingRemoval(null)
     if (inputRef.current) inputRef.current.value = ''
   }
 
   function closeScanner() {
     if (busy) return
+    setOpen(false)
+    reset()
+  }
+
+  function requestCloseScanner() {
+    if (stage === 'processing') {
+      setConfirmStop(true)
+      return
+    }
+    closeScanner()
+  }
+
+  function stopScanning() {
+    scanAbortRef.current?.abort()
+    scanAbortRef.current = null
     setOpen(false)
     reset()
   }
@@ -112,20 +130,26 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
 
   async function scan() {
     if (!file || busy) return
+    const controller = new AbortController()
+    scanAbortRef.current = controller
     setStage('processing')
     setError('')
     setStatus('Preparing the image…')
     try {
-      const result = await runScheduleOcr(file, setStatus)
+      const result = await runScheduleOcr(file, nextStatus => { if (!controller.signal.aborted) setStatus(nextStatus) }, controller.signal)
+      if (controller.signal.aborted) return
       setStatus('Building your editable schedule…')
       const parsed = parseRtuSchedule(result.lines, result.image)
       setSchedule(parsed)
       setStage('review')
       setStatus(`Scanned on this device in ${Math.max(1, Math.round(result.elapsedMs / 1000))} seconds.`)
     } catch (caught) {
+      if (controller.signal.aborted) return
       setStage('select')
       setError(caught instanceof Error ? caught.message : 'The schedule could not be read. Try a clearer image or add it manually.')
       setStatus('')
+    } finally {
+      if (scanAbortRef.current === controller) scanAbortRef.current = null
     }
   }
 
@@ -212,10 +236,10 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><path d="M7 12h10M7 15h7" /></svg>
       Scan form
     </button>
-    <dialog ref={dialogRef} className="schedule-scan-dialog" aria-labelledby="schedule-scan-title" onCancel={event => { event.preventDefault(); if (pendingRemoval) setPendingRemoval(null); else closeScanner() }}>
+    <dialog ref={dialogRef} className="schedule-scan-dialog" aria-labelledby="schedule-scan-title" onCancel={event => { event.preventDefault(); if (stage === 'saving') return; if (confirmStop) setConfirmStop(false); else if (stage === 'processing') setConfirmStop(true); else if (pendingRemoval) setPendingRemoval(null); else if (confirming) setConfirming(false); else closeScanner() }}>
       <div className="schedule-scan-head">
         <div><p className="workspace-overline">SCHEDULE IMPORT</p><h2 id="schedule-scan-title">{stage === 'review' || stage === 'saving' ? 'Check the scanned schedule' : stage === 'processing' ? 'Reading your form' : 'Upload registration form'}</h2></div>
-        <button type="button" className="schedule-close" aria-label="Close schedule scanner" onClick={closeScanner} disabled={busy}><CloseIcon /></button>
+        <button type="button" className="schedule-close" aria-label={stage === 'processing' ? 'Stop scanning and close' : 'Close schedule scanner'} onClick={requestCloseScanner} disabled={stage === 'saving'}><CloseIcon /></button>
       </div>
 
       <ol className="schedule-scan-steps" aria-label="Schedule import progress">
@@ -242,6 +266,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
         <strong>{status}</strong>
         <p>The first scan can take about a minute. Keep this window open.</p>
         <span className="schedule-scan-processing-note">Your image remains on this device.</span>
+        <button type="button" className="schedule-scan-stop" onClick={() => setConfirmStop(true)}>Stop scanning</button>
       </div>}
 
       {(stage === 'review' || stage === 'saving') && schedule && <div className="schedule-scan-review">
@@ -250,19 +275,20 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
           <div><strong>{schedule.subjects.reduce((sum, subject) => sum + subject.meetings.length, 0)}</strong><span>meetings</span></div>
           <div><strong>{schedule.subjects.reduce((sum, subject) => sum + (Number(subject.units) || 0), 0)}</strong><span>units</span></div>
         </div>
-        <p className="schedule-scan-local-note"><strong>Scan complete.</strong> Check the details below against your form, especially the yellow cards.</p>
+        <aside className="schedule-scan-accuracy-note" aria-label="Important scanning notice">
+          <strong>Review every detail before saving</strong>
+          <p>Scanner results may be inaccurate. Compare the subject codes, titles, units, sections, days, times, and rooms below with your registration form.</p>
+        </aside>
         {(reviewNotes.length > 0 || validationErrors.length > 0) && <div ref={validationRef} className="schedule-review-status" tabIndex={-1}>
           <div className="schedule-review-status-head">
-            <div><strong>Review status</strong><p>Complete these steps, then save your schedule.</p></div>
-            <span className={validationErrors.length ? 'is-required' : ''}>{validationErrors.length ? `${validationErrors.length} to add` : 'Check details'}</span>
+            <div><strong>Review status</strong><p>Resolve the flagged items before saving your schedule.</p></div>
+            <span className={validationErrors.length ? 'is-required' : ''}>{validationErrors.length ? `${validationErrors.length} to add` : 'Verify details'}</span>
           </div>
           {reviewNotes.length > 0 && <div className="schedule-review-task schedule-review-task--check" role="status">
-            <span className="schedule-review-task-icon" aria-hidden="true">!</span>
-            <div><strong>Check against your form</strong><ul>{reviewNotes.map(note => <li key={note}>{note}</li>)}</ul></div>
+            <div><strong>Details to verify</strong><ul>{reviewNotes.map(note => <li key={note}>{note}</li>)}</ul></div>
           </div>}
           {validationErrors.length > 0 && <div className="schedule-review-task schedule-review-task--required" role="alert">
-            <span className="schedule-review-task-icon" aria-hidden="true">+</span>
-            <div><strong>{validationIssues.length} {validationIssues.length === 1 ? 'detail' : 'details'} to add</strong><ul>{validationIssues.map(issue => <li key={issue.id}><button type="button" onClick={() => goToIssue(issue.targetId)}>{issue.message}<span aria-hidden="true">Go to field →</span></button></li>)}</ul></div>
+            <div><strong>Complete {validationIssues.length} missing {validationIssues.length === 1 ? 'detail' : 'details'}</strong><ul>{validationIssues.map(issue => <li key={issue.id}><button type="button" onClick={() => goToIssue(issue.targetId)}>{issue.message}<span aria-hidden="true">Go to field →</span></button></li>)}</ul></div>
           </div>}
         </div>}
         {error && <p className="schedule-scan-error" role="alert">{error}</p>}
@@ -285,7 +311,6 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
           </div>)}</div>}
         </article>)}</div>
 
-        {confirming && <div className="schedule-scan-confirm" role="alert"><strong>{currentSubjectCount ? 'Replace your saved schedule?' : 'Save this schedule?'}</strong><p>{currentSubjectCount ? `CALI will remove your ${currentSubjectCount} saved ${currentSubjectCount === 1 ? 'subject' : 'subjects'} and replace them with the reviewed details above.` : 'CALI will add the reviewed subjects and meetings to your schedule.'}</p><div><button type="button" className="schedule-secondary" onClick={() => setConfirming(false)} disabled={busy}>Go back</button><button type="button" className="schedule-danger" onClick={() => { void replaceSchedule() }} disabled={busy}>{stage === 'saving' ? 'Saving…' : currentSubjectCount ? 'Replace schedule' : 'Save schedule'}</button></div></div>}
         <div className="schedule-scan-review-actions">
           {validationErrors.length > 0 && <button type="button" className="schedule-scan-issues-link" onClick={() => { validationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); validationRef.current?.focus({ preventScroll: true }) }} disabled={busy}>View {validationErrors.length} missing {validationErrors.length === 1 ? 'detail' : 'details'}</button>}
           <button type="button" className="schedule-secondary" onClick={() => { setStage('select'); setSchedule(null); setConfirming(false); setError('') }} disabled={busy}>Start over</button><button type="button" className="schedule-scan-primary" onClick={() => setConfirming(true)} disabled={busy || validationErrors.length > 0}>{currentSubjectCount ? 'Continue to replace' : 'Continue to save'}</button>
@@ -298,6 +323,24 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
           <h3 id="schedule-remove-title">{pendingRemoval.kind === 'subject' ? `Remove ${pendingRemoval.label}?` : 'Remove this meeting?'}</h3>
           <p id="schedule-remove-description">{pendingRemoval.kind === 'subject' ? 'This subject and all of its meetings will be removed from the scanned schedule.' : `This meeting will be removed from ${pendingRemoval.label}.`}</p>
           <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setPendingRemoval(null)}>Keep it</button><button type="button" className="schedule-danger" onClick={confirmRemoval}>{pendingRemoval.kind === 'subject' ? 'Remove subject' : 'Remove meeting'}</button></div>
+        </div>
+      </div>}
+
+      {confirming && <div className="schedule-confirm-backdrop" role="presentation" onMouseDown={event => { if (!busy && event.target === event.currentTarget) setConfirming(false) }}>
+        <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-confirm-title" aria-describedby="schedule-confirm-description">
+          <span className="schedule-confirm-icon" aria-hidden="true">!</span>
+          <h3 id="schedule-confirm-title">{currentSubjectCount ? 'Replace your saved schedule?' : 'Save this schedule?'}</h3>
+          <p id="schedule-confirm-description">{currentSubjectCount ? `CALI will remove your ${currentSubjectCount} saved ${currentSubjectCount === 1 ? 'subject' : 'subjects'} and replace them with the reviewed details.` : 'CALI will add the reviewed subjects and meetings to your schedule.'}</p>
+          <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirming(false)} disabled={busy}>Go back</button><button type="button" className="schedule-danger" onClick={() => { void replaceSchedule() }} disabled={busy}>{stage === 'saving' ? 'Saving…' : currentSubjectCount ? 'Replace schedule' : 'Save schedule'}</button></div>
+        </div>
+      </div>}
+
+      {confirmStop && <div className="schedule-confirm-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setConfirmStop(false) }}>
+        <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-stop-title" aria-describedby="schedule-stop-description">
+          <span className="schedule-confirm-icon" aria-hidden="true">!</span>
+          <h3 id="schedule-stop-title">Stop scanning?</h3>
+          <p id="schedule-stop-description">The current scan will be cancelled. Your selected image and any unfinished results will be discarded.</p>
+          <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirmStop(false)}>Keep scanning</button><button type="button" className="schedule-danger" onClick={stopScanning}>Stop scanning</button></div>
         </div>
       </div>}
     </dialog>
