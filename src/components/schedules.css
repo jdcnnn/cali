@@ -54,6 +54,7 @@
 .schedule-unscheduled-list strong { font-size: 13px; }
 .schedule-unscheduled-list span { overflow: hidden; color: var(--color-cali-slate); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .schedule-unscheduled-list button { flex: none; padding: 9px 12px; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-pale); color: var(--color-cali-accent); font-size: 12px; font-weight: 800; }
+.schedule-unscheduled-list .schedule-unscheduled-delete { border-color: color-mix(in srgb, #b34139 32%, var(--color-cali-border)); background: color-mix(in srgb, #c95449 6%, var(--color-cali-surface)); color: #a63f36; }
 .schedule-dialog { position: fixed; inset: 50% auto auto 50%; width: min(600px, calc(100vw - 28px)); max-width: none; max-height: calc(100dvh - 28px); margin: 0; padding: 0; overflow-y: auto; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 22px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px #061F2D40; }
 .schedule-dialog::backdrop { background: #07192399; backdrop-filter: blur(3px); }
 .schedule-dialog-content { padding: 27px 30px 20px; }
@@ -101,6 +102,12 @@
 .schedule-secondary:hover { background: var(--color-cali-pale); }
 .schedule-danger { border: 1px solid #bc4c42; border-radius: 11px; background: #bc4c42; color: white; font-weight: 800; }
 .schedule-danger:hover { background: #a83c33; }
+:root[data-theme="dark"] .schedule-menu-panel .schedule-menu-danger,
+:root[data-theme="dark"] .schedule-unscheduled-list .schedule-unscheduled-delete { color: #ffaaa2; }
+:root[data-theme="dark"] .schedule-unscheduled-list .schedule-unscheduled-delete { border-color: #70443f; background: #34282a; }
+:root[data-theme="dark"] .schedule-error { border-color: #70443f; background: #452824; color: #ffd5cf; }
+:root[data-theme="dark"] .schedule-danger { border-color: #cf5c52; background: #c65349; color: #fff; }
+:root[data-theme="dark"] .schedule-danger:hover { background: #d56359; }
 .schedule-detail-title { margin: 9px 0 0; color: var(--color-cali-slate) !important; font-size: 15px !important; font-weight: 500; line-height: 1.5; }
 .schedule-detail-when { display: grid; gap: 5px; margin-top: 22px; padding: 18px 0; border-top: 1px solid var(--color-cali-border); }
 .schedule-detail-when span { color: var(--color-cali-slate); font-size: 12px; font-weight: 700; }

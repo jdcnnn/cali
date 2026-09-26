@@ -48,6 +48,11 @@
 .schedule-scan-warnings { border: 1px solid #e9d69b; background: #fff9e8; color: #765b13; }
 :root[data-theme="dark"] .schedule-scan-error, :root[data-theme="dark"] .schedule-scan-errors { background: #452824; color: #ffd5cf; }
 :root[data-theme="dark"] .schedule-scan-warnings { background: #443b20; color: #f8e7ac; }
+:root[data-theme="dark"] .schedule-scan-file button,
+:root[data-theme="dark"] .schedule-scan-issues-link,
+:root[data-theme="dark"] .schedule-scan-stop,
+:root[data-theme="dark"] .schedule-scan-subject-head button,
+:root[data-theme="dark"] .schedule-scan-meeting > button { color: #ffaaa2; }
 .schedule-scan-errors ul, .schedule-scan-warnings ul { margin: 7px 0 0; padding-left: 19px; }
 .schedule-scan-errors p, .schedule-scan-warnings p { margin: 3px 0 0; }
 .schedule-scan-processing { display: grid; min-height: 390px; place-items: center; align-content: center; gap: 13px; padding: 36px; text-align: center; }

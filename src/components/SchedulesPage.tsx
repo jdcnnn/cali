@@ -10,7 +10,7 @@ type DayCode = 'M' | 'T' | 'W' | 'H' | 'F' | 'S' | 'U'
 type Subject = { id: string; user_id: string; subject_code: string; title: string; units: number; block_section: string }
 type Meeting = { id: string; subject_id: string; day_code: DayCode; starts_at: string; ends_at: string; room: string | null }
 type Draft = { subjectId: string; code: string; title: string; units: string; block: string; day: DayCode; start: string; end: string; room: string }
-type Modal = { kind: 'details' | 'delete'; meetingId: string } | { kind: 'editor'; meetingId: string | null; initial: Draft }
+type Modal = { kind: 'details' | 'delete'; meetingId: string } | { kind: 'delete-subject'; subjectId: string } | { kind: 'editor'; meetingId: string | null; initial: Draft }
 
 const days: { code: DayCode; name: string }[] = [
   { code: 'M', name: 'Monday' }, { code: 'T', name: 'Tuesday' }, { code: 'W', name: 'Wednesday' },
@@ -214,8 +214,9 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
   const meetingsByDay = useMemo(() => new Map(days.map(day => [day.code, meetings.filter(meeting => meeting.day_code === day.code).sort((a, b) => a.starts_at.localeCompare(b.starts_at))])), [meetings])
   const scheduledIds = useMemo(() => new Set(meetings.map(meeting => meeting.subject_id)), [meetings])
   const unscheduled = subjects.filter(subject => !scheduledIds.has(subject.id))
-  const selectedMeeting = modal && modal.kind !== 'editor' ? meetings.find(meeting => meeting.id === modal.meetingId) : null
+  const selectedMeeting = modal && (modal.kind === 'details' || modal.kind === 'delete') ? meetings.find(meeting => meeting.id === modal.meetingId) : null
   const selectedSubject = selectedMeeting ? subjectById.get(selectedMeeting.subject_id) : null
+  const selectedUnscheduledSubject = modal?.kind === 'delete-subject' ? subjectById.get(modal.subjectId) : null
   const selectedSubjectMeetingCount = selectedSubject ? meetings.filter(meeting => meeting.subject_id === selectedSubject.id).length : 0
 
   function openEditor(day: DayCode, meeting?: Meeting) {
@@ -285,10 +286,11 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
   }
 
   async function deleteSubject() {
-    if (busy || modal?.kind !== 'delete' || !supabase) return
-    const meeting = meetings.find(item => item.id === modal.meetingId)
-    const subject = meeting ? subjectById.get(meeting.subject_id) : null
-    if (!meeting || !subject) return
+    if (busy || !modal || (modal.kind !== 'delete' && modal.kind !== 'delete-subject') || !supabase) return
+    const subject = modal.kind === 'delete-subject'
+      ? subjectById.get(modal.subjectId)
+      : subjectById.get(meetings.find(item => item.id === modal.meetingId)?.subject_id ?? '')
+    if (!subject) return
     setBusy(true)
     setFormError('')
     try {
@@ -319,7 +321,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
         }) : <div className="schedule-day-empty"><span className="schedule-day-empty-icon"><StatusIcon name={day.code === dayCodeByWeekday[now.getDay()] ? 'sun' : 'calendar'} /></span><span className="schedule-day-empty-label">{day.code === dayCodeByWeekday[now.getDay()] ? 'No classes today' : 'No classes'}</span>{day.code === dayCodeByWeekday[now.getDay()] && <span className="schedule-day-empty-note">Enjoy the break.</span>}</div>}</div>
       </section>
     })}</div>}
-    {!loading && loaded && unscheduled.length > 0 && <section className="schedule-unscheduled"><div className="schedule-section-heading"><div><p className="workspace-overline">NO MEETING TIME</p><h2>Unscheduled subjects</h2></div><p>Use the plus button on the right day to add a meeting for one of these subjects.</p></div><div className="schedule-unscheduled-list">{unscheduled.map(subject => <div key={subject.id}><div><strong>{subject.subject_code}</strong><span>{subject.title}</span></div></div>)}</div></section>}
+    {!loading && loaded && unscheduled.length > 0 && <section className="schedule-unscheduled"><div className="schedule-section-heading"><div><p className="workspace-overline">NO MEETING TIME</p><h2>Unscheduled subjects</h2></div><p>Use the plus button on the right day to add a meeting for one of these subjects.</p></div><div className="schedule-unscheduled-list">{unscheduled.map(subject => <div key={subject.id}><div><strong>{subject.subject_code}</strong><span>{subject.title}</span></div><button type="button" className="schedule-unscheduled-delete" onClick={() => { setFormError(''); setModal({ kind: 'delete-subject', subjectId: subject.id }) }}>Delete</button></div>)}</div></section>}
 
     <dialog ref={dialogRef} className={`schedule-dialog${modal?.kind === 'editor' && discardPrompt ? ' schedule-dialog--discard' : ''}`} aria-labelledby="schedule-dialog-title" onCancel={event => { event.preventDefault(); requestClose() }}>
       {modal?.kind === 'editor' && <form onSubmit={save}>
@@ -362,6 +364,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
         </dl>
       </div>}
       {modal?.kind === 'delete' && selectedMeeting && selectedSubject && <div className="schedule-dialog-content"><p className="workspace-overline">DELETE SUBJECT</p><h2 id="schedule-dialog-title">Delete {selectedSubject.subject_code}?</h2><p className="schedule-delete-copy">This removes the subject and {selectedSubjectMeetingCount === 1 ? `its meeting on ${days.find(day => day.code === selectedMeeting.day_code)?.name}, ${clock(selectedMeeting.starts_at)} - ${clock(selectedMeeting.ends_at)}` : `all ${selectedSubjectMeetingCount} of its weekly meetings`}. This cannot be undone.</p>{formError && <p className="schedule-error" role="alert">{formError}</p>}<div className="schedule-dialog-actions"><button type="button" className="schedule-secondary" onClick={requestClose} disabled={busy}>Keep subject</button><button type="button" className="schedule-danger" onClick={() => { void deleteSubject() }} disabled={busy}>{busy ? 'Deleting...' : 'Delete subject'}</button></div></div>}
+      {modal?.kind === 'delete-subject' && selectedUnscheduledSubject && <div className="schedule-dialog-content"><p className="workspace-overline">DELETE SUBJECT</p><h2 id="schedule-dialog-title">Delete {selectedUnscheduledSubject.subject_code}?</h2><p className="schedule-delete-copy">This unscheduled subject will be permanently removed. This cannot be undone.</p>{formError && <p className="schedule-error" role="alert">{formError}</p>}<div className="schedule-dialog-actions"><button type="button" className="schedule-secondary" onClick={requestClose} disabled={busy}>Keep subject</button><button type="button" className="schedule-danger" onClick={() => { void deleteSubject() }} disabled={busy}>{busy ? 'Deleting...' : 'Delete subject'}</button></div></div>}
     </dialog>
   </div>
 }
