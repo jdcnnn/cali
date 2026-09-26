@@ -11,31 +11,38 @@ export type ScheduleOcrResult = {
   elapsedMs: number
 }
 
-async function decodeImage(file: File) {
-  try {
-    return await createImageBitmap(file, { imageOrientation: 'from-image' })
-  } catch {
-    const url = URL.createObjectURL(file)
-    try {
-      const image = new Image()
-      image.src = url
-      await image.decode()
-      return await createImageBitmap(image)
-    } finally {
-      URL.revokeObjectURL(url)
-    }
-  }
-}
-
 async function prepareImage(file: File) {
   if (!ACCEPTED_TYPES.has(file.type)) throw new Error('Choose a JPG, PNG, or WebP image.')
   if (file.size > MAX_FILE_BYTES) throw new Error('Choose an image smaller than 12 MB.')
-  const bitmap = await decodeImage(file)
+
+  let source: CanvasImageSource
+  let sourceWidth: number
+  let sourceHeight: number
+  let bitmap: ImageBitmap | null = null
+  let objectUrl = ''
+
   try {
-    if (bitmap.width * bitmap.height > MAX_PIXELS) throw new Error('This image is too large. Use a photo under 20 megapixels.')
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
-    const width = Math.max(1, Math.round(bitmap.width * scale))
-    const height = Math.max(1, Math.round(bitmap.height * scale))
+    try {
+      bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+      source = bitmap
+      sourceWidth = bitmap.width
+      sourceHeight = bitmap.height
+    } catch {
+      objectUrl = URL.createObjectURL(file)
+      const image = new Image()
+      image.decoding = 'async'
+      image.src = objectUrl
+      await image.decode()
+      source = image
+      sourceWidth = image.naturalWidth
+      sourceHeight = image.naturalHeight
+    }
+
+    if (!sourceWidth || !sourceHeight) throw new Error('The selected image has no readable dimensions.')
+    if (sourceWidth * sourceHeight > MAX_PIXELS) throw new Error('This image is too large. Use a photo under 20 megapixels.')
+    const scale = Math.min(1, MAX_EDGE / Math.max(sourceWidth, sourceHeight))
+    const width = Math.max(1, Math.round(sourceWidth * scale))
+    const height = Math.max(1, Math.round(sourceHeight * scale))
     const canvas = document.createElement('canvas')
     canvas.width = width
     canvas.height = height
@@ -45,12 +52,14 @@ async function prepareImage(file: File) {
     context.fillRect(0, 0, width, height)
     context.imageSmoothingEnabled = true
     context.imageSmoothingQuality = 'high'
-    context.drawImage(bitmap, 0, 0, width, height)
-    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.94))
-    if (!blob) throw new Error('This browser could not prepare the image.')
-    return blob
+    context.drawImage(source, 0, 0, width, height)
+
+    // Passing pixels avoids asking a module worker to decode a canvas-created
+    // Blob, which fails in some installed-PWA browser contexts.
+    return context.getImageData(0, 0, width, height)
   } finally {
-    bitmap.close()
+    bitmap?.close()
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
   }
 }
 
