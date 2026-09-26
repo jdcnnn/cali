@@ -1,4 +1,4 @@
-# CALI
+# Cali
 
 CALI is a web-based academic workspace for Rizal Technological University students. The current repository is one React, Vite, and TypeScript npm project. The planned Node API will live in api/, with server-only logic in server/.
 
@@ -53,3 +53,11 @@ The reusable CALI logo assets are `src/assets/cali-wordmark.svg` and `src/assets
 - cali.md: current project decisions and plan
 
 Auth, onboarding, manual weekly schedule management, and local schedule scanning are implemented. Closed-tab class reminders and the other application modules described in cali.md remain planned work.
+
+## Progressive web app
+
+Cali is installable from supported desktop and mobile browsers. Signed-in students can find installation guidance under Profile. On iPhone and iPad, open Cali in Safari and use Share → Add to Home Screen.
+
+The current PWA is intentionally online-only. Its service worker provides the root-scoped foundation needed for future class-reminder notifications and a navigation-only connection-unavailable page. It does not cache the app, Supabase data, or OCR files for offline use.
+
+Returning students keep their Supabase session. Public-page calls to action open the dashboard directly when a completed signed-in session is present instead of starting Google OAuth again.

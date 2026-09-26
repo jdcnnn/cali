@@ -96,6 +96,8 @@ The database enforces lowercase 3–30-character unique usernames, nonblank prog
 
 **Agreed cross-platform direction:** CALI remains a responsive website and will also be installable as a Home Screen web app on iOS and Android. On iPhone and iPad, students who want closed-tab lock-screen reminders must add CALI to the Home Screen and grant notification permission. Core features remain accessible in the browser without installation. The app must explain the iOS Home Screen step clearly.
 
+**Implemented PWA foundation (2026-09-26):** Cali is installable with a manifest, platform icons, Profile installation guidance, and a root-scoped service worker. The app remains online-only: the service worker provides only a self-contained message when a navigation fails without internet and does not cache application, Supabase, or OCR resources. Future class reminders will add push and notification-click handling to this worker.
+
 **Delivery limit:** A notification cannot be guaranteed if the student denies permission, the device is offline, or operating-system settings suppress alerts.
 
 **Open:** Since schedules have no end date, define how students pause or stop repeating reminders when classes end.

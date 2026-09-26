@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
-import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
+import { Component, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { ErrorInfo, FormEvent, ReactNode } from 'react'
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { AuthProvider } from './auth/AuthProvider'
 import { useAuth } from './auth/AuthContext'
 import type { Student } from './auth/AuthContext'
@@ -12,6 +12,8 @@ import { TeamPage } from './components/TeamPage'
 import { PolicyPage } from './components/PolicyPage'
 import { SchedulesPage } from './components/SchedulesPage'
 import { DashboardSchedules } from './components/DashboardSchedules'
+import { InstallCali } from './components/InstallCali'
+import { ConnectionNotice } from './components/ConnectionNotice'
 import { ThemePicker } from './theme/ThemePicker'
 
 const programs = [
@@ -81,21 +83,59 @@ function LoadingScreen() {
   return <main className="splash-screen"><div className="session-loading" role="status" aria-live="polite"><Brand /><p>Opening your workspace...</p></div></main>
 }
 
-function StatusScreen({ title, detail, action, onAction, busy = false }: { title: string; detail: string; action: string; onAction: () => void; busy?: boolean }) {
-  return <main className="grid min-h-screen place-items-center bg-cali-canvas px-5 py-12">
-    <section className="status-card w-full max-w-md rounded-2xl border border-cali-border bg-white p-8 shadow-sm">
-      <Brand />
-      <p className="section-number mt-12">ACCOUNT / STATUS</p>
-      <h1 className="mt-5 font-display text-3xl font-semibold text-cali-ink">{title}</h1>
-      <p className="mt-3 leading-7 text-cali-slate">{detail}</p>
-      <button className="button-primary mt-8 w-full" onClick={onAction} disabled={busy}>{busy ? 'Please wait...' : action}</button>
+type StatusKind = 'error' | 'offline' | 'access' | 'not-found'
+
+function StatusArtwork({ kind }: { kind: StatusKind }) {
+  const paths = {
+    error: <><circle cx="12" cy="12" r="9" /><path d="M12 7v6m0 4h.01" /></>,
+    offline: <><path d="m3 3 18 18M8.5 8.7A8.8 8.8 0 0 1 12 8c3.6 0 6.7 2.1 8.2 5M5 12.8c.3-.4.7-.8 1.1-1.1M9 16.5a4.6 4.6 0 0 1 6 0M12 20h.01" /></>,
+    access: <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></>,
+    'not-found': <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 5 5M8.5 8.5l4 4m0-4-4 4" /></>,
+  }
+  return <span className={`status-artwork status-artwork--${kind}`}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[kind]}</svg></span>
+}
+
+function StatusScreen({ title, detail, action, onAction, busy = false, kind = 'error', label = 'Something went wrong' }: { title: string; detail: string; action: string; onAction: () => void; busy?: boolean; kind?: StatusKind; label?: string }) {
+  return <main className="status-page">
+    <section className="status-card" aria-labelledby="status-title">
+      <div className="status-card-brand"><Brand /></div>
+      <StatusArtwork kind={kind} />
+      <p className="status-label">{label}</p>
+      <h1 id="status-title">{title}</h1>
+      <p className="status-detail">{detail}</p>
+      <button className="button-primary status-action" onClick={onAction} disabled={busy}>{busy ? 'Please wait...' : action}</button>
+      <p className="status-support">If this keeps happening, close Cali and try again in a moment.</p>
     </section>
   </main>
 }
 
+class AppErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('Cali encountered an unexpected application error.', error, info)
+  }
+
+  render() {
+    if (this.state.failed) return <StatusScreen title="Something went wrong" detail="Cali ran into an unexpected problem while opening this page. Reload the app to try again." action="Reload Cali" onAction={() => window.location.reload()} />
+    return this.props.children
+  }
+}
+
 function AuthError() {
   const { state, reload } = useAuth()
-  return <StatusScreen title="We couldn't open Cali" detail={state.message ?? 'Please check your connection and try again.'} action="Try again" onAction={() => { void reload() }} />
+  const offline = !navigator.onLine
+  useEffect(() => {
+    if (!offline) return
+    const retry = () => { void reload() }
+    window.addEventListener('online', retry, { once: true })
+    return () => window.removeEventListener('online', retry)
+  }, [offline, reload])
+  return <StatusScreen kind={offline ? 'offline' : 'error'} label={offline ? 'Connection unavailable' : 'Unable to load'} title={offline ? "You're offline" : "We couldn't open Cali"} detail={offline ? 'Reconnect to the internet and Cali will try to open your workspace again.' : state.message ?? 'Please check your connection and try again.'} action="Try again" onAction={() => { void reload() }} />
 }
 
 function AccessDeniedPage() {
@@ -107,7 +147,7 @@ function AccessDeniedPage() {
   if (state.status === 'ready') return <Navigate to="/dashboard" replace />
   if (state.status === 'needsOnboarding') return <Navigate to="/onboarding" replace />
   if (state.status === 'error') return <AuthError />
-  return <StatusScreen title="This account can't access Cali" detail={error || 'Cali is available to students with a verified @rtu.edu.ph Google account. Choose your institutional account and try again.'} action="Use another account" busy={busy} onAction={() => { setBusy(true); void signOut().catch(() => { setError('Could not sign out. Please try again.'); setBusy(false) }) }} />
+  return <StatusScreen kind="access" label="Access unavailable" title="This account can't access Cali" detail={error || 'Cali is available to students with a verified @rtu.edu.ph Google account. Choose your institutional account and try again.'} action="Use another account" busy={busy} onAction={() => { setBusy(true); void signOut().catch(() => { setError('Could not sign out. Please try again.'); setBusy(false) }) }} />
 }
 
 function CallbackPage() {
@@ -121,6 +161,18 @@ function CallbackPage() {
   if (state.status === 'ineligible') return <Navigate to="/access-denied" replace />
   if (state.status === 'error') return <AuthError />
   return <Navigate to="/login" replace />
+}
+
+function NotFoundPage() {
+  const { state } = useAuth()
+  const destination = state.status === 'ready' ? '/dashboard' : state.status === 'needsOnboarding' ? '/onboarding' : '/'
+  const action = state.status === 'ready' ? 'Open dashboard' : state.status === 'needsOnboarding' ? 'Continue setup' : 'Back to home'
+  useEffect(() => {
+    const previousTitle = document.title
+    document.title = 'Page not found | Cali'
+    return () => { document.title = previousTitle }
+  }, [])
+  return <main className="status-page"><section className="status-card" aria-labelledby="not-found-title"><div className="status-card-brand"><Brand /></div><StatusArtwork kind="not-found" /><p className="status-label">404 / Page not found</p><h1 id="not-found-title">That page isn't here.</h1><p className="status-detail">The address may be incorrect, or the page may have moved.</p><Link className="button-primary status-action" to={destination}>{action}</Link><p className="status-support">Your Cali account and saved work are unaffected.</p></section></main>
 }
 
 function GoogleProfile({ email, name, avatar }: { email: string; name: string | null; avatar: string | null }) {
@@ -438,6 +490,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
         </form> : <><dl><div><dt>Username</dt><dd>{student.username}</dd></div><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div></dl>{saved && <p className="workspace-profile-saved" role="status">Profile details saved.</p>}</>}
       </section>
     </div>
+    <InstallCali />
     <section className="workspace-danger-zone" aria-labelledby="danger-zone-title"><div><p className="workspace-danger-label">DANGER ZONE</p><h2 id="danger-zone-title">Delete account</h2><p>Delete your Cali profile, saved schedules, and institutional email stored in Cali.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></section>
     <dialog ref={deleteDialogRef} className="signout-dialog workspace-delete-dialog" aria-labelledby="delete-account-title" aria-describedby="delete-account-description" onCancel={event => { if (deleting) event.preventDefault() }} onClose={() => { setDeleteOpen(false); deleteTriggerRef.current?.focus() }}>
       <form className="signout-dialog-content" onSubmit={confirmDeleteAccount}>
@@ -558,7 +611,9 @@ function HomeRedirect() {
 
 function AppRoutes() {
   const [splashPhase, setSplashPhase] = useState<'showing' | 'leaving' | 'done'>(() => {
+    const knownPaths = ['/', '/login', '/team', '/terms-and-conditions', '/privacy-policy', '/community-guidelines', '/auth/callback', '/access-denied', '/onboarding', '/dashboard', '/schedules', '/tasks', '/study', '/community', '/profile']
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'done'
+    if (!knownPaths.includes(window.location.pathname)) return 'done'
     if (['/terms-and-conditions', '/privacy-policy', '/community-guidelines'].includes(window.location.pathname)) return 'done'
     if (window.location.pathname === '/auth/callback' || new URLSearchParams(window.location.search).has('code')) return 'done'
     return 'showing'
@@ -589,10 +644,10 @@ function AppRoutes() {
     <Route path="/study" element={<WorkspacePage section="study" />} />
     <Route path="/community" element={<WorkspacePage section="community" />} />
     <Route path="/profile" element={<WorkspacePage section="profile" />} />
-    <Route path="*" element={<HomeRedirect />} />
-  </Routes></div>{splashPhase !== 'done' && <SplashScreen leaving={splashPhase === 'leaving'} />}</>
+    <Route path="*" element={<NotFoundPage />} />
+  </Routes></div><ConnectionNotice />{splashPhase !== 'done' && <SplashScreen leaving={splashPhase === 'leaving'} />}</>
 }
 
 export default function App() {
-  return <BrowserRouter><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter>
+  return <BrowserRouter><AppErrorBoundary><AuthProvider><AppRoutes /></AuthProvider></AppErrorBoundary></BrowserRouter>
 }

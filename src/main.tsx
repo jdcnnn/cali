@@ -9,3 +9,11 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider><App /></ThemeProvider>
   </StrictMode>,
 )
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => {
+      console.error('Cali service worker registration failed.', error)
+    })
+  })
+}

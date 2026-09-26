@@ -73,6 +73,40 @@ em { color: var(--color-cali-accent); font-style: normal; }
 
 .form-error { padding: 14px 16px; border: 1px solid #f1c9c3; border-radius: 10px; background: #fff1ef; color: #822d20; font-size: 14px; line-height: 1.6; }
 
+.status-page { display: grid; min-height: 100svh; place-items: center; padding: 42px 20px; background-color: var(--color-cali-canvas); background-image: radial-gradient(circle at 50% 12%, color-mix(in srgb, var(--color-cali-accent) 10%, transparent), transparent 38%), repeating-linear-gradient(to bottom, transparent 0 35px, color-mix(in srgb, var(--color-cali-accent) 7%, transparent) 35px 36px); }
+.status-card { position: relative; width: min(100%, 520px); overflow: hidden; padding: 31px clamp(25px, 6vw, 48px) 34px; border: 1px solid var(--color-cali-border); border-radius: 25px; background: var(--color-cali-surface); box-shadow: 0 24px 65px #12384D12; text-align: center; }
+.status-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(90deg, var(--color-cali-accent), #71C7EC); }
+.status-card-brand { display: flex; justify-content: center; }
+.status-card-brand img { height: 43px; width: auto; }
+.status-artwork { display: grid; place-items: center; width: 72px; height: 72px; margin: 34px auto 0; border-radius: 22px; background: var(--color-cali-pale); color: var(--color-cali-accent); }
+.status-artwork svg { width: 34px; height: 34px; }
+.status-artwork--error { background: #FFF1EF; color: #A2352F; }
+.status-artwork--access { background: #FFF7E8; color: #A06416; }
+.status-label { margin: 22px 0 0; color: var(--color-cali-accent); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.status-card h1 { margin: 10px 0 0; color: var(--color-cali-ink); font-family: Fredoka, sans-serif; font-size: clamp(31px, 7vw, 39px); font-weight: 500; letter-spacing: -.035em; line-height: 1.12; }
+.status-detail { max-width: 390px; margin: 13px auto 0; color: var(--color-cali-slate); font-size: 14px; line-height: 1.7; }
+.status-action { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 49px; margin-top: 27px; text-decoration: none; }
+.status-support { margin: 17px 0 0; color: var(--color-cali-slate); font-size: 11px; line-height: 1.5; }
+.connection-notice { position: fixed; z-index: 120; top: max(14px, env(safe-area-inset-top)); left: 50%; display: flex; align-items: center; gap: 12px; width: min(calc(100% - 28px), 480px); padding: 12px 16px; border: 1px solid #E8B7B1; border-radius: 14px; background: #FFF6F4; box-shadow: 0 14px 38px #142E3D24; color: #7E3027; transform: translateX(-50%); }
+.connection-notice--restored { border-color: #A7D9C2; background: #F0FBF6; color: #176B49; }
+.connection-notice-icon { display: grid; flex: none; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: currentColor; color: #fff; }
+.connection-notice-icon svg { width: 20px; height: 20px; }
+.connection-notice > span:last-child { display: grid; min-width: 0; gap: 2px; }
+.connection-notice strong { font-size: 13px; }
+.connection-notice small { font-size: 11px; line-height: 1.4; }
+:root[data-theme="dark"] .status-artwork--error { background: #442B30; color: #FFB8B4; }
+:root[data-theme="dark"] .status-artwork--access { background: #453A28; color: #FFD18C; }
+:root[data-theme="dark"] .connection-notice { border-color: #79494E; background: #38292F; color: #FFD9DC; }
+:root[data-theme="dark"] .connection-notice--restored { border-color: #356B55; background: #203A31; color: #B8F0D4; }
+
+@media (max-width: 480px) {
+  .status-page { align-items: center; padding: 20px 14px; }
+  .status-card { padding: 27px 22px 29px; border-radius: 21px; }
+  .status-artwork { width: 64px; height: 64px; margin-top: 29px; border-radius: 19px; }
+  .status-artwork svg { width: 30px; height: 30px; }
+  .connection-notice { align-items: flex-start; }
+}
+
 /* Onboarding and the current profile-only dashboard. */
 .onboarding-page .site-header { min-height: 78px; }
 .onboarding-page .site-header img { height: 45px; }
@@ -394,6 +428,20 @@ em { color: var(--color-cali-accent); font-style: normal; }
 .workspace-profile-save-error { margin: 0; color: #A2352F; font-size: 12px; line-height: 1.5; }
 :root[data-theme="dark"] .workspace-profile-save-error { color: #FFB8B4; }
 .workspace-profile-saved { margin: 8px 0 0; color: var(--color-cali-accent); font-size: 12px; font-weight: 700; }
+.workspace-install-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px; margin-top: 20px; padding: 24px 29px; border: 1px solid var(--color-cali-border); border-radius: 19px; background: var(--color-cali-surface); }
+.workspace-install-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: var(--color-cali-pale); color: var(--color-cali-accent); }
+.workspace-install-icon svg { width: 23px; height: 23px; }
+.workspace-install-copy { min-width: 0; }
+.workspace-install-copy .workspace-overline { margin: 0 0 5px; }
+.workspace-install-copy h2 { margin: 0; color: var(--profile-ink); font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 700; }
+.workspace-install-copy > p { margin: 6px 0 0; color: var(--color-cali-slate); font-size: 13px; line-height: 1.55; }
+.workspace-install-action { min-width: 110px; min-height: 42px; padding: 9px 16px; font-size: 12px; white-space: nowrap; }
+.workspace-install-error { color: #A2352F !important; }
+:root[data-theme="dark"] .workspace-install-error { color: #FFB8B4 !important; }
+.workspace-install-dialog { width: min(470px, calc(100vw - 32px)); }
+.workspace-install-dialog h2 { margin-top: 11px; font-size: 29px; }
+.workspace-install-dialog ol { display: grid; gap: 12px; margin: 20px 0 0; padding-left: 22px; color: var(--color-cali-slate); font-size: 14px; line-height: 1.6; }
+.workspace-install-dialog-close { width: 100%; margin-top: 25px; }
 .workspace-danger-zone, .workspace-delete-dialog { --danger-ink: #9B3F42; --danger-button: #9B3F42; --danger-border: #E9BFC0; --danger-surface: #FFF6F5; }
 :root[data-theme="dark"] .workspace-danger-zone, :root[data-theme="dark"] .workspace-delete-dialog { --danger-ink: #F2A8AB; --danger-button: #A34D53; --danger-border: #79494E; --danger-surface: #38292F; }
 .workspace-danger-zone { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 46px; padding: 25px 29px; border: 1px solid var(--danger-border); border-radius: 19px; background: var(--danger-surface); }
@@ -423,6 +471,8 @@ em { color: var(--color-cali-accent); font-style: normal; }
   .workspace-profile-section { padding: 22px 23px 14px; }
   .workspace-profile-section + .workspace-profile-section { border-left: 0; border-top: 1px solid var(--color-cali-border); }
   .workspace-profile-section dl > div { min-height: 0; padding: 14px 0; }
+  .workspace-install-card { grid-template-columns: auto minmax(0, 1fr); gap: 15px; padding: 21px; }
+  .workspace-install-action { grid-column: 1 / -1; width: 100%; }
 }
 
 .workspace-overview-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, 1fr); gap: 30px; align-items: start; max-width: 1120px; margin-top: 30px; }

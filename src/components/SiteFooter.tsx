@@ -1,9 +1,12 @@
 import { Link, useLocation } from 'react-router'
 import { CaliWordmark } from './CaliWordmark'
+import { useAuth } from '../auth/AuthContext'
 import './entry.css'
 
 export function SiteFooter() {
   const location = useLocation()
+  const { state } = useAuth()
+  const workspacePath = state.status === 'ready' ? '/dashboard' : state.status === 'needsOnboarding' ? '/onboarding' : null
 
   function scrollToTop() {
     window.requestAnimationFrame(() => {
@@ -20,7 +23,7 @@ export function SiteFooter() {
       <nav className="entry-footer-links" aria-label="Footer navigation">
         <h3>Explore</h3>
         <Link to="/#features">Features</Link>
-        <Link to="/#how-it-works">Get started</Link>
+        <Link to={workspacePath ?? '/#how-it-works'}>{workspacePath ? state.status === 'ready' ? 'Dashboard' : 'Continue setup' : 'Get started'}</Link>
         <Link to="/#about">About Cali</Link>
       </nav>
       <div className="entry-footer-note">

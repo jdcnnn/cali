@@ -4,6 +4,7 @@ import { CaliWordmark } from './CaliWordmark'
 import { SiteFooter } from './SiteFooter'
 import { ThemePicker } from '../theme/ThemePicker'
 import { startGoogleSignIn } from '../lib/supabase'
+import { useAuth } from '../auth/AuthContext'
 import jadePhoto from '../assets/jade-cunanan-temp.png'
 import ramPhoto from '../assets/ram.jpg'
 import carlPhoto from '../assets/carl.jpg'
@@ -50,9 +51,11 @@ const teamMembers: TeamMember[] = [
 ]
 
 export function TeamPage() {
+  const { state } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => { window.scrollTo(0, 0) }, [])
+  const workspacePath = state.status === 'ready' ? '/dashboard' : state.status === 'needsOnboarding' ? '/onboarding' : null
 
   async function signIn() {
     if (busy) return
@@ -71,7 +74,7 @@ export function TeamPage() {
     <header className="team-header">
       <div className="entry-container team-header-inner">
         <Link to="/" aria-label="Cali home"><CaliWordmark /></Link>
-        <div className="team-header-actions"><ThemePicker /><Link className="team-back" to="/">Back to Cali</Link></div>
+        <div className="team-header-actions"><ThemePicker /><Link className="team-back" to={workspacePath ?? '/'}>{workspacePath ? state.status === 'ready' ? 'Dashboard' : 'Continue setup' : 'Back to Cali'}</Link></div>
       </div>
     </header>
 
@@ -97,12 +100,14 @@ export function TeamPage() {
 
       <section className="team-cta" aria-labelledby="team-cta-title">
         <div>
-          <p className="entry-kicker">GET STARTED</p>
-          <h2 id="team-cta-title">Make Cali your academic space.</h2>
-          <p>Sign in with your institutional email.</p>
+          <p className="entry-kicker">{workspacePath ? 'YOUR WORKSPACE' : 'GET STARTED'}</p>
+          <h2 id="team-cta-title">{workspacePath ? 'Continue where you left off.' : 'Make Cali your academic space.'}</h2>
+          <p>{workspacePath ? 'Your Cali session is active on this device.' : 'Sign in with your institutional email.'}</p>
           {error && <p className="team-cta-error" role="alert">{error}</p>}
         </div>
-        <button className="team-cta-link" type="button" onClick={() => { void signIn() }} disabled={busy}>{busy ? 'Connecting to Google...' : 'Start with Cali now'} <span aria-hidden="true">→</span></button>
+        {workspacePath
+          ? <Link className="team-cta-link" to={workspacePath}>{state.status === 'ready' ? 'Open workspace' : 'Continue setup'} <span aria-hidden="true">→</span></Link>
+          : <button className="team-cta-link" type="button" onClick={() => { void signIn() }} disabled={busy || state.status === 'loading'}>{state.status === 'loading' ? 'Checking session...' : busy ? 'Connecting to Google...' : 'Start with Cali now'} <span aria-hidden="true">→</span></button>}
       </section>
     </main>
 
