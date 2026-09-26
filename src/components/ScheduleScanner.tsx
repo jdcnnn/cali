@@ -59,6 +59,7 @@ function meetingNeedsAttention(meeting: ImportedMeetingDraft) {
 
 export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubjectCount: number; onSaved: () => Promise<void> }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const confirmationDialogRef = useRef<HTMLDialogElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const validationRef = useRef<HTMLDivElement>(null)
   const scanAbortRef = useRef<AbortController | null>(null)
@@ -89,6 +90,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     return notes
   }, [schedule])
   const busy = stage === 'processing' || stage === 'saving'
+  const confirmationOpen = Boolean(confirmStop || confirming || pendingRemoval)
 
   function goToIssue(targetId: string) {
     const target = document.getElementById(targetId)
@@ -102,6 +104,12 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     if (open && dialog && !dialog.open) dialog.showModal()
     if (!open && dialog?.open) dialog.close()
   }, [open])
+
+  useEffect(() => {
+    const dialog = confirmationDialogRef.current
+    if (confirmationOpen && dialog && !dialog.open) dialog.showModal()
+    if (!confirmationOpen && dialog?.open) dialog.close()
+  }, [confirmationOpen])
 
   useEffect(() => () => { scanAbortRef.current?.abort(); if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
@@ -267,7 +275,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><path d="M7 12h10M7 15h7" /></svg>
       Scan form
     </button>
-    <dialog ref={dialogRef} className={`schedule-scan-dialog${confirmStop || confirming || pendingRemoval ? ' schedule-scan-dialog--overlay-open' : ''}`} aria-labelledby="schedule-scan-title" onCancel={event => { event.preventDefault(); if (stage === 'saving') return; if (confirmStop) setConfirmStop(false); else if (stage === 'processing') setConfirmStop(true); else if (pendingRemoval) setPendingRemoval(null); else if (confirming) setConfirming(false); else closeScanner() }}>
+    <dialog ref={dialogRef} className="schedule-scan-dialog" aria-labelledby="schedule-scan-title" onCancel={event => { event.preventDefault(); if (stage === 'saving') return; if (stage === 'processing') setConfirmStop(true); else closeScanner() }}>
       <div className="schedule-scan-head">
         <div><p className="workspace-overline">SCHEDULE IMPORT</p><h2 id="schedule-scan-title">{stage === 'review' || stage === 'saving' ? 'Check the scanned schedule' : stage === 'processing' ? 'Reading your form' : 'Upload registration form'}</h2></div>
         <button type="button" className="schedule-close" aria-label={stage === 'processing' ? 'Stop scanning and close' : 'Close schedule scanner'} onClick={requestCloseScanner} disabled={stage === 'saving'}><CloseIcon /></button>
@@ -350,31 +358,28 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
         </div>
       </div>}
 
-      {pendingRemoval && <div className="schedule-remove-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setPendingRemoval(null) }}>
-        <div className="schedule-remove-dialog" role="alertdialog" aria-modal="true" aria-labelledby="schedule-remove-title" aria-describedby="schedule-remove-description">
-          <span className="schedule-remove-icon" aria-hidden="true">−</span>
-          <h3 id="schedule-remove-title">{pendingRemoval.kind === 'subject' ? `Remove ${pendingRemoval.label}?` : 'Remove this meeting?'}</h3>
-          <p id="schedule-remove-description">{pendingRemoval.kind === 'subject' ? 'This subject and all of its meetings will be removed from the scanned schedule.' : `This meeting will be removed from ${pendingRemoval.label}.`}</p>
-          <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setPendingRemoval(null)}>Keep it</button><button type="button" className="schedule-danger" onClick={confirmRemoval}>{pendingRemoval.kind === 'subject' ? 'Remove subject' : 'Remove meeting'}</button></div>
-        </div>
+    </dialog>
+
+    <dialog ref={confirmationDialogRef} className="schedule-confirm-dialog" aria-label="Schedule scanner confirmation" onCancel={event => { event.preventDefault(); if (stage === 'saving') return; if (confirmStop) setConfirmStop(false); else if (pendingRemoval) setPendingRemoval(null); else if (confirming) setConfirming(false) }} onMouseDown={event => { if (stage === 'saving' || event.target !== event.currentTarget) return; if (confirmStop) setConfirmStop(false); else if (pendingRemoval) setPendingRemoval(null); else if (confirming) setConfirming(false) }}>
+      {pendingRemoval && <div className="schedule-remove-dialog" role="alertdialog" aria-modal="true" aria-labelledby="schedule-remove-title" aria-describedby="schedule-remove-description">
+        <span className="schedule-remove-icon" aria-hidden="true">−</span>
+        <h3 id="schedule-remove-title">{pendingRemoval.kind === 'subject' ? `Remove ${pendingRemoval.label}?` : 'Remove this meeting?'}</h3>
+        <p id="schedule-remove-description">{pendingRemoval.kind === 'subject' ? 'This subject and all of its meetings will be removed from the scanned schedule.' : `This meeting will be removed from ${pendingRemoval.label}.`}</p>
+        <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setPendingRemoval(null)}>Keep it</button><button type="button" className="schedule-danger" onClick={confirmRemoval}>{pendingRemoval.kind === 'subject' ? 'Remove subject' : 'Remove meeting'}</button></div>
       </div>}
 
-      {confirming && <div className="schedule-confirm-backdrop" role="presentation" onMouseDown={event => { if (!busy && event.target === event.currentTarget) setConfirming(false) }}>
-        <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-confirm-title" aria-describedby="schedule-confirm-description">
-          <span className="schedule-confirm-icon" aria-hidden="true">!</span>
-          <h3 id="schedule-confirm-title">{currentSubjectCount ? 'Replace your saved schedule?' : 'Save this schedule?'}</h3>
-          <p id="schedule-confirm-description">{currentSubjectCount ? `CALI will remove your ${currentSubjectCount} saved ${currentSubjectCount === 1 ? 'subject' : 'subjects'} and replace them with the reviewed details.` : 'CALI will add the reviewed subjects and meetings to your schedule.'}</p>
-          <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirming(false)} disabled={busy}>Go back</button><button type="button" className="schedule-danger" onClick={() => { void replaceSchedule() }} disabled={busy}>{stage === 'saving' ? 'Saving…' : currentSubjectCount ? 'Replace schedule' : 'Save schedule'}</button></div>
-        </div>
+      {confirming && <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-confirm-title" aria-describedby="schedule-confirm-description">
+        <span className="schedule-confirm-icon" aria-hidden="true">!</span>
+        <h3 id="schedule-confirm-title">{currentSubjectCount ? 'Replace your saved schedule?' : 'Save this schedule?'}</h3>
+        <p id="schedule-confirm-description">{currentSubjectCount ? `CALI will remove your ${currentSubjectCount} saved ${currentSubjectCount === 1 ? 'subject' : 'subjects'} and replace them with the reviewed details.` : 'CALI will add the reviewed subjects and meetings to your schedule.'}</p>
+        <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirming(false)} disabled={busy}>Go back</button><button type="button" className="schedule-danger" onClick={() => { void replaceSchedule() }} disabled={busy}>{stage === 'saving' ? 'Saving…' : currentSubjectCount ? 'Replace schedule' : 'Save schedule'}</button></div>
       </div>}
 
-      {confirmStop && <div className="schedule-confirm-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setConfirmStop(false) }}>
-        <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-stop-title" aria-describedby="schedule-stop-description">
-          <span className="schedule-confirm-icon" aria-hidden="true">!</span>
-          <h3 id="schedule-stop-title">Stop scanning?</h3>
-          <p id="schedule-stop-description">The current scan will be cancelled. Your selected image and any unfinished results will be discarded.</p>
-          <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirmStop(false)}>Keep scanning</button><button type="button" className="schedule-danger" onClick={stopScanning}>Stop scanning</button></div>
-        </div>
+      {confirmStop && <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-stop-title" aria-describedby="schedule-stop-description">
+        <span className="schedule-confirm-icon" aria-hidden="true">!</span>
+        <h3 id="schedule-stop-title">Stop scanning?</h3>
+        <p id="schedule-stop-description">The current scan will be cancelled. Your selected image and any unfinished results will be discarded.</p>
+        <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirmStop(false)}>Keep scanning</button><button type="button" className="schedule-danger" onClick={stopScanning}>Stop scanning</button></div>
       </div>}
     </dialog>
   </>
