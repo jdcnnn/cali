@@ -1,14 +1,14 @@
 .schedule-scan-trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 9px 13px; border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-pale); color: var(--color-cali-accent); font-size: 12px; font-weight: 800; }
 .schedule-scan-trigger:hover { border-color: var(--color-cali-accent); }
 .schedule-scan-trigger svg { width: 18px; height: 18px; }
-.schedule-scan-dialog { position: fixed; inset: 50% auto auto 50%; width: min(940px, calc(100vw - 28px)); max-width: none; max-height: calc(100dvh - 28px); margin: 0; padding: 0; overflow-y: auto; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 22px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px #061f2d40; }
+.schedule-scan-dialog { position: fixed; inset: 50% auto auto 50%; width: min(940px, calc(100vw - 28px)); max-width: none; max-height: calc(100dvh - 28px); margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 22px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px #061f2d40; }
 .schedule-scan-dialog::backdrop { background: #07192399; backdrop-filter: blur(3px); }
 .schedule-scan-head { position: sticky; z-index: 4; top: 0; display: flex; align-items: start; justify-content: space-between; gap: 20px; padding: 25px 28px 20px; border-bottom: 1px solid var(--color-cali-border); background: var(--color-cali-surface); }
 .schedule-scan-head h2 { margin: 8px 0 0; font-family: Fredoka, sans-serif; font-size: 31px; font-weight: 500; line-height: 1.12; }
 .schedule-scan-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 0; padding: 14px 28px; border-bottom: 1px solid var(--color-cali-border); background: var(--color-cali-canvas); list-style: none; }
-.schedule-scan-steps li { display: flex; align-items: center; gap: 8px; color: var(--color-cali-slate); font-size: 11px; font-weight: 800; }
-.schedule-scan-steps li:not(:last-child)::after { width: min(90px, 35%); height: 1px; margin-left: auto; margin-right: 14px; background: var(--color-cali-border); content: ''; }
-.schedule-scan-steps span { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid var(--color-cali-border); border-radius: 50%; background: var(--color-cali-surface); font-size: 10px; }
+.schedule-scan-steps li { display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--color-cali-slate); font-size: 11px; font-weight: 800; line-height: 1.25; }
+.schedule-scan-steps li:not(:last-child)::after { width: min(90px, 35%); min-width: 8px; height: 1px; flex-shrink: 1; margin-left: auto; margin-right: 14px; background: var(--color-cali-border); content: ''; }
+.schedule-scan-steps span { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border: 1px solid var(--color-cali-border); border-radius: 50%; background: var(--color-cali-surface); font-size: 10px; line-height: 1; }
 .schedule-scan-steps .is-active { color: var(--color-cali-accent); }
 .schedule-scan-steps .is-active span { border-color: var(--color-cali-accent); background: var(--color-cali-accent); color: white; }
 .schedule-scan-steps .is-complete span { border-color: var(--color-cali-action); background: var(--color-cali-action); color: white; }
@@ -115,17 +115,40 @@
 .schedule-remove-dialog button { min-height: 42px; padding: 9px 13px; }
 .schedule-scan-review-actions { position: sticky; z-index: 3; bottom: -28px; margin-inline: -28px; padding: 18px 28px 28px; background: linear-gradient(to bottom, color-mix(in srgb, var(--color-cali-surface) 80%, transparent), var(--color-cali-surface) 18px); }
 @media (max-width: 700px) {
-  .schedule-scan-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 18px; }
-  .schedule-scan-head { padding: 21px 19px 17px; }
-  .schedule-scan-head h2 { font-size: 26px; }
-  .schedule-scan-steps { padding-inline: 19px; }
-  .schedule-scan-steps li { gap: 5px; font-size: 9px; }
-  .schedule-scan-steps li:not(:last-child)::after { margin-right: 7px; }
-  .schedule-scan-body, .schedule-scan-review { padding: 18px 19px 22px; }
-  .schedule-scan-picker { min-height: 210px; }
+  .schedule-scan-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 18px; }
+  .schedule-scan-head { gap: 12px; padding: 17px 16px 14px; }
+  .schedule-scan-head h2 { margin-top: 5px; font-size: clamp(22px, 7vw, 26px); line-height: 1.08; }
+  .schedule-scan-head .workspace-overline { font-size: 9px; }
+  .schedule-scan-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 10px 16px; }
+  .schedule-scan-steps li { gap: 6px; overflow-wrap: anywhere; font-size: 9px; }
+  .schedule-scan-steps li:not(:last-child)::after { min-width: 5px; margin-right: 6px; }
+  .schedule-scan-steps span { width: 26px; height: 26px; flex-basis: 26px; font-size: 10px; }
+  .schedule-scan-body, .schedule-scan-review { padding: 16px 16px 18px; }
+  .schedule-scan-intro { font-size: 13px; line-height: 1.5; }
+  .schedule-scan-privacy { gap: 9px; margin-top: 12px; padding: 10px 11px; }
+  .schedule-scan-privacy > span { width: 25px; height: 25px; }
+  .schedule-scan-picker { min-height: 168px; margin-top: 12px; }
+  .schedule-scan-picker-empty { gap: 5px; padding: 22px 18px; }
+  .schedule-scan-picker-icon { width: 38px; height: 38px; margin-bottom: 2px; font-size: 21px; }
+  .schedule-scan-picker-empty strong { max-width: 260px; font-size: 14px; line-height: 1.3; }
+  .schedule-scan-picker-empty small { font-size: 11px; }
+  .schedule-scan-tip { margin-top: 11px; font-size: 11px; line-height: 1.45; }
   .schedule-scan-meeting { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .schedule-scan-meeting > button { justify-self: start; min-height: 30px; }
   .schedule-scan-actions, .schedule-scan-review-actions, .schedule-scan-confirm > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .schedule-scan-review-actions { bottom: -22px; margin-inline: -19px; padding: 16px 19px 22px; }
+  .schedule-scan-actions { position: sticky; z-index: 3; bottom: -18px; margin: 16px -16px -18px; padding: 12px 16px max(18px, env(safe-area-inset-bottom)); background: linear-gradient(to bottom, color-mix(in srgb, var(--color-cali-surface) 80%, transparent), var(--color-cali-surface) 12px); }
+  .schedule-scan-actions button, .schedule-scan-review-actions button { min-width: 0; min-height: 42px; padding-inline: 10px; }
+  .schedule-scan-review-actions { bottom: -18px; margin-inline: -16px; padding: 14px 16px max(18px, env(safe-area-inset-bottom)); }
   .schedule-scan-issues-link { grid-column: 1 / -1; margin-right: 0; }
+}
+
+@media (max-width: 420px) {
+  .schedule-scan-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 16px; }
+  .schedule-scan-head { padding-inline: 14px; }
+  .schedule-scan-steps { padding-inline: 14px; }
+  .schedule-scan-steps li:not(:last-child)::after { display: none; }
+  .schedule-scan-body, .schedule-scan-review { padding-inline: 14px; }
+  .schedule-scan-picker-empty small { max-width: 220px; line-height: 1.35; }
+  .schedule-scan-actions { margin-inline: -14px; padding-inline: 14px; }
+  .schedule-scan-review-actions { margin-inline: -14px; padding-inline: 14px; }
 }

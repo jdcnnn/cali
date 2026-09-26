@@ -1,6 +1,6 @@
-# CALI handoff
+# Cali handoff
 
-Updated: 2026-09-25
+Updated: 2026-09-26
 
 ## What this repository is
 
@@ -57,6 +57,14 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - The service worker creates no offline caches. It handles navigation failures only to return a self-contained connection-unavailable page; Supabase-backed features and the large OCR runtime remain network-dependent.
 - Added an installation section to Profile. Chromium browsers can launch their native install prompt; iPhone and iPad users receive Safari Add to Home Screen instructions; installed instances show their installed status.
 - Public-page actions now respect the restored Supabase session. Ready students go directly to the dashboard, and students with unfinished onboarding resume setup instead of restarting Google OAuth.
+- Added branded 404, authentication failure, access-denied, and unexpected application error states. A global notice reports when Cali goes offline and briefly confirms when Cali is back online.
+- The navigation-only offline fallback is self-contained inside `public/sw.js`; it explains that Cali requires a connection and offers a retry action without caching the application.
+
+### Recent responsive refinements (2026-09-26)
+
+- Centered the calendar icon, copy, and Add a schedule action in the mobile dashboard's empty Your classes state.
+- Simplified the Profile installation card by removing its decorative download icon. Its action remains full width on mobile.
+- Corrected the offline and restored-connection notice icon contrast in light and dark themes and changed the restored copy to “Cali is back online.”
 
 ## Current behavior and known follow-ups
 
@@ -65,7 +73,8 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
 - Tasks, Study, and Community routes still explain planned tools. The dashboard now shows live upcoming classes; task content remains future work.
-- Recent visual changes passed `npm.cmd run build` and `npm.cmd run lint`. The browser session was unavailable for a live visual check; review the dashboard and Schedules layouts at desktop and mobile sizes when continuing.
+- The next requested work area is the registration-form scanner. Review the current extraction, review, and save behavior before changing it; no scanner changes were made during the PWA and responsive-polish work.
+- Recent changes passed `npm.cmd run build`, `npm.cmd run lint`, service-worker syntax validation, `git diff --check`, and `npm audit` with no reported vulnerabilities. Device screenshots were used to correct the connection notice, dashboard empty state, and Profile installation card; a full automated browser/device matrix has not been run.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.
 
 ## Key files
@@ -78,6 +87,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
 | Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |
 | Theme state and picker | `src/theme/ThemeProvider.tsx`, `ThemeContext.ts`, `ThemePicker.tsx`, `index.html` |
+| PWA, installation, and connection states | `public/manifest.webmanifest`, `public/sw.js`, `src/components/InstallCali.tsx`, `src/components/ConnectionNotice.tsx`, `src/lib/pwaInstall.ts` |
 | Authentication and database | `src/auth/`, `src/lib/supabase.ts`, `supabase/migrations/` |
 | Product plan and setup | `cali.md`, `README.md` |
 

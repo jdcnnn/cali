@@ -61,3 +61,7 @@ Cali is installable from supported desktop and mobile browsers. Signed-in studen
 The current PWA is intentionally online-only. Its service worker provides the root-scoped foundation needed for future class-reminder notifications and a navigation-only connection-unavailable page. It does not cache the app, Supabase data, or OCR files for offline use.
 
 Returning students keep their Supabase session. Public-page calls to action open the dashboard directly when a completed signed-in session is present instead of starting Google OAuth again.
+
+Cali provides styled pages for unknown routes, authentication failures, denied access, and unexpected application errors. While an open page is offline, a status notice explains that loading and saving require internet access and briefly confirms when Cali reconnects. The service worker provides the same connection-unavailable explanation for failed page navigations after it has been installed.
+
+Schedule deletion is subject-based: choosing Delete subject from any meeting card removes that subject and all of its weekly meetings through the database cascade. It does not leave the deleted subject in Unscheduled. Subjects intentionally imported without a real meeting time may still remain unscheduled.
