@@ -44,7 +44,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ### Schedule management and local scanning (2026-09-25)
 
-- Completed manual weekly schedule management: students can create subjects and meetings, edit saved details, delete individual meetings with confirmation, and keep subjects without meeting times in the Unscheduled section.
+- Completed manual weekly schedule management: students can create subjects and meetings, edit saved details, and delete a subject with confirmation from any of its meeting cards. Subject deletion cascades to all of its meetings and does not leave an unscheduled subject behind. Imported subjects explicitly lacking a meeting time can remain in the Unscheduled section.
 - Added a free, browser-only RTU registration-form scanner using PaddleOCR.js, locally hosted PP-OCRv5 models, and deterministic table parsing. Images are not uploaded or stored, and semester and term values are ignored.
 - Added an editable three-step import flow for image selection, review, and saving. It supports subject and meeting corrections, additions, removal confirmations, simple review guidance, and direct links from missing-detail instructions to the affected fields.
 - Added client and database validation for required schedule fields, duplicate records, valid RTU day codes, ordered meeting times, and bounded payload sizes.
@@ -61,7 +61,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 ## Current behavior and known follow-ups
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
-- Core schedule management and intake are complete: manual creation, editing, deletion, unscheduled subjects, local form scanning, editable review, validation, and atomic replacement are working.
+- Core schedule management and intake are complete: manual creation, editing, cascading subject deletion, intentionally unscheduled imported subjects, local form scanning, editable review, validation, and atomic replacement are working.
 - Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
 - Tasks, Study, and Community routes still explain planned tools. The dashboard now shows live upcoming classes; task content remains future work.

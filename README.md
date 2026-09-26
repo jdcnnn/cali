@@ -17,7 +17,7 @@ The project also has npm run build and npm run lint scripts.
 
 ## Schedule module
 
-The schedule management and intake flow is implemented. Students can create subjects and meetings manually, edit saved details, remove individual meetings, and keep subjects without meeting times in the Unscheduled section. Destructive actions and unsaved edits use confirmation dialogs.
+The schedule management and intake flow is implemented. Students can create subjects and meetings manually, edit saved details, and delete a subject from any of its meeting cards. Deleting a subject also removes all of its weekly meetings, so deletion does not leave an unscheduled subject behind. Imported subjects explicitly marked without a meeting time can remain in the Unscheduled section. Destructive actions and unsaved edits use confirmation dialogs.
 
 Students can also import a schedule from an RTU registration/assessment form. The scanner accepts JPG, PNG, and WebP images and runs entirely in the browser with the Apache-licensed PaddleOCR.js SDK and locally hosted PP-OCRv5 models. Images are not uploaded or stored, and no paid OCR service or generative AI is used. Semester and term text are ignored.
 

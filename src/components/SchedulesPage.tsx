@@ -216,6 +216,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
   const unscheduled = subjects.filter(subject => !scheduledIds.has(subject.id))
   const selectedMeeting = modal && modal.kind !== 'editor' ? meetings.find(meeting => meeting.id === modal.meetingId) : null
   const selectedSubject = selectedMeeting ? subjectById.get(selectedMeeting.subject_id) : null
+  const selectedSubjectMeetingCount = selectedSubject ? meetings.filter(meeting => meeting.subject_id === selectedSubject.id).length : 0
 
   function openEditor(day: DayCode, meeting?: Meeting) {
     const owner = meeting ? subjectById.get(meeting.subject_id) : undefined
@@ -283,19 +284,20 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
     } finally { setBusy(false) }
   }
 
-  async function deleteMeeting() {
+  async function deleteSubject() {
     if (busy || modal?.kind !== 'delete' || !supabase) return
     const meeting = meetings.find(item => item.id === modal.meetingId)
-    if (!meeting) return
+    const subject = meeting ? subjectById.get(meeting.subject_id) : null
+    if (!meeting || !subject) return
     setBusy(true)
     setFormError('')
     try {
-      const { error } = await supabase.from('schedule_meetings').delete().eq('id', meeting.id).eq('subject_id', meeting.subject_id).select('id').single()
+      const { error } = await supabase.from('schedule_subjects').delete().eq('id', subject.id).eq('user_id', studentId).select('id').single()
       if (error) throw error
       setModal(null)
-      try { await load() } catch { setPageError('Deleted, but the schedule could not refresh. Use Try again to reload it.') }
+      try { await load() } catch { setPageError('Subject deleted, but the schedule could not refresh. Use Try again to reload it.') }
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Could not delete the meeting.')
+      setFormError(error instanceof Error ? error.message : 'Could not delete the subject.')
     } finally { setBusy(false) }
   }
 
@@ -312,7 +314,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
           if (!subject) return null
           return <article className="schedule-item" key={meeting.id}>
             <button type="button" className="schedule-item-main" onClick={() => { setMenuId(null); setModal({ kind: 'details', meetingId: meeting.id }) }} aria-label={`View ${subject.subject_code} on ${day.name}`}><strong className="schedule-item-code">{subject.subject_code}</strong><span className="schedule-item-title">{subject.title}</span><span className="schedule-item-meta"><span className="schedule-item-meta-group"><small>TIME</small><span className="schedule-item-time">{clock(meeting.starts_at)} - {clock(meeting.ends_at)}</span></span><span className="schedule-item-meta-group schedule-item-room"><small>{meeting.room ? 'ROOM' : 'SECTION'}</small><span className="schedule-item-location">{meeting.room || subject.block_section}</span></span></span></button>
-            <div className="schedule-item-menu"><button type="button" className="schedule-menu-trigger" aria-label={`More options for ${subject.subject_code} on ${day.name}`} aria-expanded={menuId === meeting.id} onClick={() => setMenuId(menuId === meeting.id ? null : meeting.id)}><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="12" cy="19" r="1.7" /></svg></button>{menuId === meeting.id && <div className="schedule-menu-panel"><button type="button" onClick={() => openEditor(meeting.day_code, meeting)}>Edit schedule</button><button type="button" className="schedule-menu-danger" onClick={() => { setMenuId(null); setFormError(''); setModal({ kind: 'delete', meetingId: meeting.id }) }}>Delete schedule</button></div>}</div>
+            <div className="schedule-item-menu"><button type="button" className="schedule-menu-trigger" aria-label={`More options for ${subject.subject_code} on ${day.name}`} aria-expanded={menuId === meeting.id} onClick={() => setMenuId(menuId === meeting.id ? null : meeting.id)}><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="12" cy="19" r="1.7" /></svg></button>{menuId === meeting.id && <div className="schedule-menu-panel"><button type="button" onClick={() => openEditor(meeting.day_code, meeting)}>Edit schedule</button><button type="button" className="schedule-menu-danger" onClick={() => { setMenuId(null); setFormError(''); setModal({ kind: 'delete', meetingId: meeting.id }) }}>Delete subject</button></div>}</div>
           </article>
         }) : <div className="schedule-day-empty"><span className="schedule-day-empty-icon"><StatusIcon name={day.code === dayCodeByWeekday[now.getDay()] ? 'sun' : 'calendar'} /></span><span className="schedule-day-empty-label">{day.code === dayCodeByWeekday[now.getDay()] ? 'No classes today' : 'No classes'}</span>{day.code === dayCodeByWeekday[now.getDay()] && <span className="schedule-day-empty-note">Enjoy the break.</span>}</div>}</div>
       </section>
@@ -359,7 +361,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
           <div><dt>Units</dt><dd>{selectedSubject.units}</dd></div>
         </dl>
       </div>}
-      {modal?.kind === 'delete' && selectedMeeting && selectedSubject && <div className="schedule-dialog-content"><p className="workspace-overline">DELETE MEETING</p><h2 id="schedule-dialog-title">Delete this schedule?</h2><p className="schedule-delete-copy">Remove {selectedSubject.subject_code} on {days.find(day => day.code === selectedMeeting.day_code)?.name}, {clock(selectedMeeting.starts_at)} - {clock(selectedMeeting.ends_at)}? Other meetings for this subject will stay saved.</p>{formError && <p className="schedule-error" role="alert">{formError}</p>}<div className="schedule-dialog-actions"><button type="button" className="schedule-secondary" onClick={requestClose} disabled={busy}>Keep schedule</button><button type="button" className="schedule-danger" onClick={() => { void deleteMeeting() }} disabled={busy}>{busy ? 'Deleting...' : 'Delete meeting'}</button></div></div>}
+      {modal?.kind === 'delete' && selectedMeeting && selectedSubject && <div className="schedule-dialog-content"><p className="workspace-overline">DELETE SUBJECT</p><h2 id="schedule-dialog-title">Delete {selectedSubject.subject_code}?</h2><p className="schedule-delete-copy">This removes the subject and {selectedSubjectMeetingCount === 1 ? `its meeting on ${days.find(day => day.code === selectedMeeting.day_code)?.name}, ${clock(selectedMeeting.starts_at)} - ${clock(selectedMeeting.ends_at)}` : `all ${selectedSubjectMeetingCount} of its weekly meetings`}. This cannot be undone.</p>{formError && <p className="schedule-error" role="alert">{formError}</p>}<div className="schedule-dialog-actions"><button type="button" className="schedule-secondary" onClick={requestClose} disabled={busy}>Keep subject</button><button type="button" className="schedule-danger" onClick={() => { void deleteSubject() }} disabled={busy}>{busy ? 'Deleting...' : 'Delete subject'}</button></div></div>}
     </dialog>
   </div>
 }

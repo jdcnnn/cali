@@ -89,7 +89,8 @@ em { color: var(--color-cali-accent); font-style: normal; }
 .status-support { margin: 17px 0 0; color: var(--color-cali-slate); font-size: 11px; line-height: 1.5; }
 .connection-notice { position: fixed; z-index: 120; top: max(14px, env(safe-area-inset-top)); left: 50%; display: flex; align-items: center; gap: 12px; width: min(calc(100% - 28px), 480px); padding: 12px 16px; border: 1px solid #E8B7B1; border-radius: 14px; background: #FFF6F4; box-shadow: 0 14px 38px #142E3D24; color: #7E3027; transform: translateX(-50%); }
 .connection-notice--restored { border-color: #A7D9C2; background: #F0FBF6; color: #176B49; }
-.connection-notice-icon { display: grid; flex: none; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: currentColor; color: #fff; }
+.connection-notice-icon { display: grid; flex: none; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #7E3027; color: #fff; }
+.connection-notice--restored .connection-notice-icon { background: #176B49; }
 .connection-notice-icon svg { width: 20px; height: 20px; }
 .connection-notice > span:last-child { display: grid; min-width: 0; gap: 2px; }
 .connection-notice strong { font-size: 13px; }
@@ -98,6 +99,8 @@ em { color: var(--color-cali-accent); font-style: normal; }
 :root[data-theme="dark"] .status-artwork--access { background: #453A28; color: #FFD18C; }
 :root[data-theme="dark"] .connection-notice { border-color: #79494E; background: #38292F; color: #FFD9DC; }
 :root[data-theme="dark"] .connection-notice--restored { border-color: #356B55; background: #203A31; color: #B8F0D4; }
+:root[data-theme="dark"] .connection-notice .connection-notice-icon { background: #FFD9DC; color: #38292F; }
+:root[data-theme="dark"] .connection-notice--restored .connection-notice-icon { background: #B8F0D4; color: #203A31; }
 
 @media (max-width: 480px) {
   .status-page { align-items: center; padding: 20px 14px; }
@@ -428,13 +431,14 @@ em { color: var(--color-cali-accent); font-style: normal; }
 .workspace-profile-save-error { margin: 0; color: #A2352F; font-size: 12px; line-height: 1.5; }
 :root[data-theme="dark"] .workspace-profile-save-error { color: #FFB8B4; }
 .workspace-profile-saved { margin: 8px 0 0; color: var(--color-cali-accent); font-size: 12px; font-weight: 700; }
-.workspace-install-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px; margin-top: 20px; padding: 24px 29px; border: 1px solid var(--color-cali-border); border-radius: 19px; background: var(--color-cali-surface); }
+.workspace-install-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 22px; margin-top: 20px; padding: 24px 29px; border: 1px solid var(--color-cali-border); border-radius: 19px; background: var(--color-cali-surface); }
+.workspace-install-heading { display: flex; align-items: center; gap: 14px; }
 .workspace-install-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: var(--color-cali-pale); color: var(--color-cali-accent); }
 .workspace-install-icon svg { width: 23px; height: 23px; }
 .workspace-install-copy { min-width: 0; }
 .workspace-install-copy .workspace-overline { margin: 0 0 5px; }
 .workspace-install-copy h2 { margin: 0; color: var(--profile-ink); font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 700; }
-.workspace-install-copy > p { margin: 6px 0 0; color: var(--color-cali-slate); font-size: 13px; line-height: 1.55; }
+.workspace-install-copy > p { margin: 9px 0 0 60px; color: var(--color-cali-slate); font-size: 13px; line-height: 1.55; }
 .workspace-install-action { min-width: 110px; min-height: 42px; padding: 9px 16px; font-size: 12px; white-space: nowrap; }
 .workspace-install-error { color: #A2352F !important; }
 :root[data-theme="dark"] .workspace-install-error { color: #FFB8B4 !important; }
@@ -471,8 +475,8 @@ em { color: var(--color-cali-accent); font-style: normal; }
   .workspace-profile-section { padding: 22px 23px 14px; }
   .workspace-profile-section + .workspace-profile-section { border-left: 0; border-top: 1px solid var(--color-cali-border); }
   .workspace-profile-section dl > div { min-height: 0; padding: 14px 0; }
-  .workspace-install-card { grid-template-columns: auto minmax(0, 1fr); gap: 15px; padding: 21px; }
-  .workspace-install-action { grid-column: 1 / -1; width: 100%; }
+  .workspace-install-card { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 21px; }
+  .workspace-install-action { width: 100%; }
 }
 
 .workspace-overview-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, 1fr); gap: 30px; align-items: start; max-width: 1120px; margin-top: 30px; }
