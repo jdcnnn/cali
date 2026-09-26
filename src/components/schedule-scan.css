@@ -3,6 +3,7 @@
 .schedule-scan-trigger svg { width: 18px; height: 18px; }
 .schedule-scan-dialog { position: fixed; inset: 50% auto auto 50%; width: min(940px, calc(100vw - 28px)); max-width: none; max-height: calc(100dvh - 28px); margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 22px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px #061f2d40; }
 .schedule-scan-dialog.schedule-scan-dialog--overlay-open { inset: 0; width: 100vw; height: 100dvh; max-height: none; overflow: hidden; transform: none; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.schedule-scan-dialog--overlay-open > :not(.schedule-confirm-backdrop):not(.schedule-remove-backdrop) { visibility: hidden; }
 .schedule-scan-dialog::backdrop { background: #07192399; backdrop-filter: blur(3px); }
 .schedule-scan-head { position: sticky; z-index: 4; top: 0; display: flex; align-items: start; justify-content: space-between; gap: 20px; padding: 25px 28px 20px; border-bottom: 1px solid var(--color-cali-border); background: var(--color-cali-surface); }
 .schedule-scan-head h2 { margin: 8px 0 0; font-family: Fredoka, sans-serif; font-size: 31px; font-weight: 500; line-height: 1.12; }
