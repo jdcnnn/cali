@@ -29,6 +29,26 @@ function clean(value: string) {
   return value.replace(/\s+/g, ' ').trim()
 }
 
+function isStaleChunkError(value: unknown) {
+  const message = value instanceof Error ? value.message : String(value)
+  return /dynamically imported module|module script failed|loading chunk/i.test(message)
+}
+
+function friendlyScanError(value: unknown) {
+  const message = value instanceof Error ? value.message : ''
+  if (!navigator.onLine || /failed to fetch|networkerror|network request failed/i.test(message)) {
+    return 'The scanner could not load. Check your internet connection, then try again.'
+  }
+  if (/source image cannot be decoded|decode|readable dimensions/i.test(message)) {
+    return 'This image could not be opened. Choose another JPG, PNG, or WebP image and try again.'
+  }
+  if (/too large|smaller than|under 20 megapixels|choose a jpg/i.test(message)) return message
+  if (/could not read this image|clearer photo/i.test(message)) {
+    return 'The scanner could not read enough details. Try a clearer, straighter photo with even lighting.'
+  }
+  return 'The scanner could not finish reading this form. Close and reopen the scanner, then try again.'
+}
+
 function subjectNeedsAttention(subject: ImportedSubjectDraft) {
   return !clean(subject.subjectCode) || !clean(subject.title) || !clean(subject.blockSection) || !/^\d+(?:\.\d)?$/.test(subject.units)
 }
@@ -49,6 +69,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
   const [schedule, setSchedule] = useState<ImportedScheduleDraft | null>(null)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const [updateRequired, setUpdateRequired] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [confirmStop, setConfirmStop] = useState(false)
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null)
@@ -92,6 +113,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     setStage('select')
     setStatus('')
     setError('')
+    setUpdateRequired(false)
     setConfirming(false)
     setConfirmStop(false)
     setPendingRemoval(null)
@@ -125,6 +147,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     setFile(nextFile)
     setSchedule(null)
     setError('')
+    setUpdateRequired(false)
     setConfirming(false)
   }
 
@@ -134,6 +157,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     scanAbortRef.current = controller
     setStage('processing')
     setError('')
+    setUpdateRequired(false)
     setStatus('Preparing the image…')
     try {
       const result = await runScheduleOcr(file, nextStatus => { if (!controller.signal.aborted) setStatus(nextStatus) }, controller.signal)
@@ -146,7 +170,13 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     } catch (caught) {
       if (controller.signal.aborted) return
       setStage('select')
-      setError(caught instanceof Error ? caught.message : 'The schedule could not be read. Try a clearer image or add it manually.')
+      if (isStaleChunkError(caught)) {
+        setUpdateRequired(true)
+        setError('Cali was updated while this page was open. Reload to use the latest scanner.')
+      } else {
+        console.error('Cali schedule scan failed.', caught)
+        setError(friendlyScanError(caught))
+      }
       setStatus('')
     } finally {
       if (scanAbortRef.current === controller) scanAbortRef.current = null
@@ -215,9 +245,10 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     }))
     const { error: saveError } = await supabase.rpc('replace_own_schedule', { p_subjects: payload })
     if (saveError) {
+      console.error('Cali could not save the scanned schedule.', saveError)
       setStage('review')
       setConfirming(false)
-      setError(saveError.message || 'The schedule could not be replaced.')
+      setError('The schedule could not be saved. Check your connection and try again.')
       return
     }
     try {
@@ -257,7 +288,9 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
         </button>
         {file && <div className="schedule-scan-file"><span><strong>Ready to scan:</strong> {file.name}</span><button type="button" onClick={() => chooseFile(null)}>Remove</button></div>}
         <p className="schedule-scan-tip"><strong>For the best result:</strong> show the full page, use even lighting, and keep the class table straight and readable.</p>
-        {error && <p className="schedule-scan-error" role="alert">{error}</p>}
+        {error && (updateRequired
+          ? <div className="schedule-scan-error schedule-scan-update" role="alert"><strong>Update required</strong><p>{error}</p><button type="button" onClick={() => window.location.reload()}>Reload Cali</button></div>
+          : <p className="schedule-scan-error" role="alert">{error}</p>)}
         <div className="schedule-scan-actions"><button type="button" className="schedule-secondary" onClick={closeScanner}>Cancel</button><button type="button" className="schedule-scan-primary" disabled={!file} onClick={() => { void scan() }}>Scan schedule</button></div>
       </div>}
 

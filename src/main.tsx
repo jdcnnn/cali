@@ -12,8 +12,10 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(error => {
-      console.error('Cali service worker registration failed.', error)
-    })
+    void navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+      .then(registration => registration.update())
+      .catch(error => {
+        console.error('Cali service worker registration failed.', error)
+      })
   })
 }

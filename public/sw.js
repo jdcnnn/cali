@@ -13,7 +13,7 @@ const offlinePage = `<!doctype html>
 
 self.addEventListener('fetch', event => {
   if (event.request.mode !== 'navigate') return
-  event.respondWith(fetch(event.request).catch(() => new Response(offlinePage, {
+  event.respondWith(fetch(event.request, { cache: 'no-store' }).catch(() => new Response(offlinePage, {
     status: 503,
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
   })))

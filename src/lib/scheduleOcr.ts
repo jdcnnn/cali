@@ -19,6 +19,11 @@ function throwIfAborted(signal?: AbortSignal) {
   if (signal?.aborted) throw abortError()
 }
 
+function stopWorkerImmediately(ocr: unknown) {
+  const transport = (ocr as { transportClient?: { dispose?: () => void } }).transportClient
+  transport?.dispose?.()
+}
+
 async function abortable<T>(work: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return work
   throwIfAborted(signal)
@@ -112,10 +117,8 @@ export async function runScheduleOcr(file: File, onStatus?: (status: string) => 
   try {
     throwIfAborted(signal)
     ocr = await PaddleOCR.create({
-      // PaddleOCR clones images with createImageBitmap before sending them to
-      // its worker. Installed apps use the direct local WASM pipeline so the
-      // already-prepared ImageBitmap can be consumed without another clone.
-      worker: !standalone,
+      worker: true,
+      initialize: false,
       textDetectionModelName: 'PP-OCRv5_mobile_det',
       textDetectionModelAsset: { url: '/ocr/models/PP-OCRv5_mobile_det_onnx_infer.tar' },
       textRecognitionModelName: 'en_PP-OCRv5_mobile_rec',
@@ -131,12 +134,26 @@ export async function runScheduleOcr(file: File, onStatus?: (status: string) => 
     })
     throwIfAborted(signal)
     onStatus?.('Reading your class schedule…')
-    const [result] = await abortable(ocr.predict(image, {
-      textDetLimitSideLen: MAX_EDGE,
-      textDetLimitType: 'max',
-      textDetMaxSideLimit: MAX_EDGE,
-      textRecScoreThresh: 0.3,
-    }), signal)
+    const nativeCreateImageBitmap = globalThis.createImageBitmap
+    const cloneBypass = ((source: ImageBitmapSource, ...args: unknown[]) => {
+      if (source === image && args.length === 0) return Promise.resolve(image)
+      return Reflect.apply(nativeCreateImageBitmap, globalThis, [source, ...args]) as Promise<ImageBitmap>
+    }) as typeof createImageBitmap
+    const stopWorker = () => stopWorkerImmediately(ocr)
+    signal?.addEventListener('abort', stopWorker, { once: true })
+    globalThis.createImageBitmap = cloneBypass
+    let result
+    try {
+      ;[result] = await abortable(ocr.predict(image, {
+        textDetLimitSideLen: MAX_EDGE,
+        textDetLimitType: 'max',
+        textDetMaxSideLimit: MAX_EDGE,
+        textRecScoreThresh: 0.3,
+      }), signal)
+    } finally {
+      signal?.removeEventListener('abort', stopWorker)
+      if (globalThis.createImageBitmap === cloneBypass) globalThis.createImageBitmap = nativeCreateImageBitmap
+    }
     if (!result) throw new Error('The scanner could not read this image. Try a clearer photo.')
     return {
       lines: result.items.map(item => ({ poly: item.poly.map(([x, y]) => ({ x, y })), text: item.text, score: item.score })),
