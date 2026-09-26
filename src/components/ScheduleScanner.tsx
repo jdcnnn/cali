@@ -267,7 +267,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><path d="M7 12h10M7 15h7" /></svg>
       Scan form
     </button>
-    <dialog ref={dialogRef} className="schedule-scan-dialog" aria-labelledby="schedule-scan-title" onCancel={event => { event.preventDefault(); if (stage === 'saving') return; if (confirmStop) setConfirmStop(false); else if (stage === 'processing') setConfirmStop(true); else if (pendingRemoval) setPendingRemoval(null); else if (confirming) setConfirming(false); else closeScanner() }}>
+    <dialog ref={dialogRef} className={`schedule-scan-dialog${confirmStop || confirming || pendingRemoval ? ' schedule-scan-dialog--overlay-open' : ''}`} aria-labelledby="schedule-scan-title" onCancel={event => { event.preventDefault(); if (stage === 'saving') return; if (confirmStop) setConfirmStop(false); else if (stage === 'processing') setConfirmStop(true); else if (pendingRemoval) setPendingRemoval(null); else if (confirming) setConfirming(false); else closeScanner() }}>
       <div className="schedule-scan-head">
         <div><p className="workspace-overline">SCHEDULE IMPORT</p><h2 id="schedule-scan-title">{stage === 'review' || stage === 'saving' ? 'Check the scanned schedule' : stage === 'processing' ? 'Reading your form' : 'Upload registration form'}</h2></div>
         <button type="button" className="schedule-close" aria-label={stage === 'processing' ? 'Stop scanning and close' : 'Close schedule scanner'} onClick={requestCloseScanner} disabled={stage === 'saving'}><CloseIcon /></button>
