@@ -370,7 +370,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
 
       {confirming && <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-confirm-title" aria-describedby="schedule-confirm-description">
         <h3 id="schedule-confirm-title">{currentSubjectCount ? 'Replace your saved schedule?' : 'Save this schedule?'}</h3>
-        <p id="schedule-confirm-description">{currentSubjectCount ? `CALI will remove your ${currentSubjectCount} saved ${currentSubjectCount === 1 ? 'subject' : 'subjects'} and replace them with the reviewed details.` : 'CALI will add the reviewed subjects and meetings to your schedule.'}</p>
+        <p id="schedule-confirm-description">{currentSubjectCount ? `Cali will remove your ${currentSubjectCount} saved ${currentSubjectCount === 1 ? 'subject' : 'subjects'} and replace them with the reviewed details.` : 'Cali will add the reviewed subjects and meetings to your schedule.'}</p>
         <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirming(false)} disabled={busy}>Go back</button><button type="button" className="schedule-danger" onClick={() => { void replaceSchedule() }} disabled={busy}>{stage === 'saving' ? 'Saving…' : currentSubjectCount ? 'Replace schedule' : 'Save schedule'}</button></div>
       </div>}
 

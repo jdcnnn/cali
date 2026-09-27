@@ -12,6 +12,8 @@ import { TeamPage } from './components/TeamPage'
 import { PolicyPage } from './components/PolicyPage'
 import { SchedulesPage } from './components/SchedulesPage'
 import { DashboardSchedules } from './components/DashboardSchedules'
+import { DashboardTasks } from './components/DashboardTasks'
+import { TasksPage } from './components/TasksPage'
 import { InstallCali } from './components/InstallCali'
 import { ConnectionNotice } from './components/ConnectionNotice'
 import { ThemePicker } from './theme/ThemePicker'
@@ -574,7 +576,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
         <div className="workspace-overview-grid">
           <DashboardSchedules studentId={student.user_id} now={now} />
           <div className="dashboard-side-panel">
-            <section className="dashboard-tasks" aria-labelledby="dashboard-tasks-title"><div className="dashboard-tasks-head"><h2 id="dashboard-tasks-title">Tasks</h2><NavLink to="/tasks">View tasks</NavLink></div><p className="dashboard-tasks-empty">Assignments and due dates will appear here when Tasks is ready.</p></section>
+            <DashboardTasks studentId={student.user_id} now={now} />
             <section className="dashboard-quick-actions" aria-labelledby="dashboard-quick-actions-title"><h2 id="dashboard-quick-actions-title">Quick actions</h2><div className="dashboard-quick-actions-list">
               {([
                 { to: '/schedules', section: 'schedules', label: 'Add a class meeting' },
@@ -584,7 +586,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
             </div></section>
           </div>
         </div>
-      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : <ModuleScreen section={section} />}
+      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : <ModuleScreen section={section} />}
     </div>
   </main>
 }

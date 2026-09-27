@@ -50,7 +50,7 @@ The exact boundary and acceptance criteria for each capability will be defined o
 
 ## 3. Dashboard direction
 
-**Current dashboard:** Below the greeting card, a compact schedule panel highlights classes whose saved day and time include the current local time, then shows up to three upcoming weekly meetings in start-time order. A Tasks panel states that task tracking is not yet available. Quick actions link to Schedules, Profile, and Study. Live task content awaits the Tasks module.
+**Current dashboard:** Below the greeting card, a compact schedule panel highlights classes whose saved day and time include the current local time, then shows up to three upcoming weekly meetings in start-time order. The Tasks panel shows up to three incomplete tasks, prioritizing overdue work and then the nearest deadlines, and links directly to task creation. Quick actions link to Schedules, Profile, and Study.
 
 ## 4. Schedule direction
 
@@ -58,13 +58,15 @@ The exact boundary and acceptance criteria for each capability will be defined o
 
 **Confirmed weekly model:** Each student has one current repeating weekly schedule. CALI does not retain previous schedules or require schedule start/end dates. Students can add, edit, or delete individual subjects and meetings manually.
 
-**Confirmed manual schedule interaction:** The Schedules page shows Monday through Sunday cards. Each day card has a plus control for adding a meeting on that fixed day; the form does not offer a day selector. The form title names the selected day. Fields appear in the order subject code and units, subject title, start and end times, room, then block/section. The styled time picker has scrollable Hour, Minute, and Period columns, and the form calculates a subtle duration below the time pickers. Saved meetings can be opened to view their details. Each saved meeting has a three-dot menu with edit and delete actions. Leaving an edited meeting with unsaved changes requires a styled discard confirmation. Deleting from any meeting card removes its subject and, through the database cascade, all meetings belonging to that subject; the confirmation states how many meetings will be removed. Deletion never leaves that subject in the Unscheduled section. Subjects imported with no real meeting time remain visible in Unscheduled subjects and can be selected when adding a meeting from a day card.
+**Confirmed manual schedule interaction:** The Schedules page shows Monday through Sunday cards. Each day card has a plus control for adding a meeting on that fixed day; the form does not offer a day selector. The form title names the selected day. Fields appear in the order subject code and units, subject title, start and end times, room, then block/section. The styled time picker has scrollable Hour, Minute, and Period columns, and the form calculates a subtle duration below the time pickers. Saved meetings can be opened to view their details. Each saved meeting has a three-dot menu with edit and delete actions. Leaving an edited meeting with unsaved changes requires a styled discard confirmation. Deleting from any meeting card removes its subject and, through the database cascade, all meetings belonging to that subject; the confirmation states how many meetings will be removed. Deletion never leaves that subject in the Unscheduled section. Subjects imported with no real meeting time remain visible in Unscheduled subjects and can be selected when adding a meeting from a day card or deleted directly from the Unscheduled section with confirmation.
 
 ### Schedule scanning
 
-**Implemented local import:** Students can scan a JPG, PNG, or WebP image of an RTU registration/assessment form. PaddleOCR.js and locally hosted PP-OCRv5 models run in the browser; the image is not uploaded or stored, and the flow has no paid OCR service, generative AI, scan quota, or subscription dependency. The scanner extracts only schedule data: subject code, title, units, block section, meetings, and rooms. Semester and term text are ignored.
+**Implemented local import:** Students can scan a JPG, PNG, or WebP image of an RTU registration/assessment form. PaddleOCR.js, a background browser worker, and locally hosted PP-OCRv5 models run on the device in both the regular web app and installed PWA; the image is not uploaded or stored, and the flow has no paid OCR service, generative AI, scan quota, or subscription dependency. The scanner extracts only schedule data: subject code, title, units, block section, meetings, and rooms. Semester and term text are ignored.
 
-The three-step flow covers image selection, editable review, and saving. It summarizes extracted subjects, meetings, and units; highlights details that should be checked; blocks saving when required fields are missing or invalid; and links each missing-detail instruction directly to its field. Students can correct extracted values, add meetings, and remove subjects or meetings with confirmation. A subject marked `N/A` remains unscheduled instead of receiving a fictitious meeting.
+The three-step flow covers image selection, editable review, and saving. It summarizes extracted subjects, meetings, and units; prominently explains that OCR may be inaccurate and every detail should be compared with the form; uses subtle yellow and red emphasis for details that need attention; blocks saving when required fields are missing or invalid; and links each missing-detail instruction directly to its field. Students can correct extracted values, add meetings, and remove subjects or meetings with confirmation. A subject marked `N/A` remains unscheduled instead of receiving a fictitious meeting. Saving opens a final replacement confirmation on desktop and mobile.
+
+Scanning is cancellable from the close and Cancel controls. If recognition is active, a stop-scanning confirmation appears above the still-visible live scanner; keeping the scan resumes the progress view, while stopping discards the image and unfinished result. Runtime failures use nontechnical recovery messages, including a reload action when an old deployed JavaScript chunk is stale. Technical details are limited to the developer console.
 
 The scanner accepts images up to 12 MB and 20 megapixels and reduces the longest image edge to 2048 pixels before recognition. Accuracy still depends on a readable, complete, reasonably straight form, so manual review is required and manual schedule management remains available.
 
@@ -96,7 +98,7 @@ The database enforces lowercase 3–30-character unique usernames, nonblank prog
 
 **Agreed cross-platform direction:** CALI remains a responsive website and will also be installable as a Home Screen web app on iOS and Android. On iPhone and iPad, students who want closed-tab lock-screen reminders must add CALI to the Home Screen and grant notification permission. Core features remain accessible in the browser without installation. The app must explain the iOS Home Screen step clearly.
 
-**Implemented PWA foundation (2026-09-26):** Cali is installable with a manifest, platform icons, Profile installation guidance, and a root-scoped service worker. The app remains online-only: the service worker provides only a self-contained message when a navigation fails without internet and does not cache application, Supabase, or OCR resources. Future class reminders will add push and notification-click handling to this worker.
+**Implemented PWA foundation (2026-09-26):** Cali is installable with a manifest, platform icons, Profile installation guidance, and a root-scoped service worker. The app remains online-only: the service worker provides only a self-contained message when a navigation fails without internet and does not cache application, Supabase, or OCR resources. Navigation requests use `no-store`, registration bypasses the browser cache when checking the service-worker script, and the app requests an update at startup. Deployments therefore do not require reinstalling the PWA. Future class reminders will add push and notification-click handling to this worker.
 
 **Implemented connection and error states (2026-09-26):** Cali shows styled pages for unknown routes, authentication failures, access denial, and unexpected application errors. An open page reports loss of connectivity and briefly confirms when Cali is back online. These messages do not imply offline feature support; schedule, account, OCR, and other data operations still require a connection.
 
@@ -104,7 +106,17 @@ The database enforces lowercase 3–30-character unique usernames, nonblank prog
 
 **Open:** Since schedules have no end date, define how students pause or stop repeating reminders when classes end.
 
-## 5. Study direction
+## 5. Task direction
+
+**Implemented Kanban workflow (2026-09-27):** Tasks use fixed To do, In progress, and Done columns. Students can drag cards across and within columns, while each card also has keyboard- and touch-friendly Move to actions. Custom order persists across sessions and devices. Mobile keeps the board model through horizontally swipeable, snap-aligned columns.
+
+Each task has a required title and due date, optional due time and notes, low/medium/high priority, and an optional link to one of the student's schedule subjects. Date-only work remains due through the end of the local calendar day. Subject and priority filters are available; dragging is paused while filters hide cards so saved positions remain unambiguous.
+
+Task creation and movement use trusted database functions. `tasks` rows are private to their owner through row-level security, and a linked subject must belong to that owner. Deleting a subject sets the link to null without deleting the task. Moving into Done records `completed_at`; reopening clears it. The dashboard shows the next three actionable incomplete tasks.
+
+Migration `20260927000000_create_tasks.sql` adds the table, indexes, grants, policies, ownership checks, and atomic create/move functions. Subtasks, attachments, recurrence, reminders, search, custom columns, and task types remain outside the initial module.
+
+## 6. Study direction
 
 Students can create study content manually or generate it from materials they supply. To generate a reviewer, flashcard set, or quiz, the student can provide a PDF, `.docx`, or notes/text directly in that creation flow. A student can also generate flashcards or a quiz from an existing reviewer. AI-generated structures and extracted text require validation before storage.
 
@@ -116,7 +128,7 @@ Students can create study content manually or generate it from materials they su
 
 Generative AI use is currently planned only for study workflows. Schedule scanning uses local PaddleOCR text detection and deterministic RTU table parsing; it does not send forms to an OCR service or use an LLM. No generative AI use is planned for schedules, task management, reminders, analytics calculations, authentication, or database operations.
 
-## 6. Technology stack
+## 7. Technology stack
 
 ### Confirmed choices
 
@@ -197,7 +209,7 @@ The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK 
 - Backend document processing needs a deployment trial with real PDF and `.docx` files.
 - cron-job.org is the preferred external trigger for closed-tab class reminders. It supports up to one request per minute, custom request headers, and failure monitoring. Its documented request timeout is 30 seconds, and it does not guarantee exact punctuality. Backend processing must be authenticated, bounded, idempotent, and able to handle late or repeated triggers. The endpoint must not return student data in its response. Sources: [cron-job.org FAQ](https://cron-job.org/en/faq/) and [service terms](https://cron-job.org/en/tos/).
 
-## 7. Data and authorization principles
+## 8. Data and authorization principles
 
 - Supabase Auth provides the stable user identity. Student-owned data should relate to that identity through stable IDs, not through email or username.
 - Institutional email and public username are separate attributes. Both must be unique under their chosen normalization rules.
@@ -210,22 +222,22 @@ The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK 
 
 Student profile, schedule meetings and their class reminders, push subscriptions, tasks, reviewers, flashcard sets, quizzes, source content owned by those study sets, study activity, and community shares. Original uploaded files and standalone study-material records are not persistent domains. Tables and relationships will be designed when the corresponding module requirements are settled rather than created all at once.
 
-## 8. Design direction
+## 9. Design direction
 
 The confirmed font pairing uses **Fredoka** for CALI branding and major headings, and **DM Sans** for navigation, forms, buttons, and body text. Proposed brand colors are primary blue `#1E90FF`, action blue `#0758B8`, deep ink `#172B42`, slate `#526579`, pale blue `#EAF4FF`, canvas `#F6FAFE`, border `#D7E5F3`, and white `#FFFFFF`.
 
 The design should prioritize readable academic information and quick access to work. Final component and page specifications remain to be planned.
 
-## 9. Development status and sequence
+## 10. Development status and sequence
 
 | Phase | Status | Scope |
 | --- | --- | --- |
 | 1. Product foundation | **Complete** | Single React and Vite project, routing, responsive workspace shell, themes, shared visual system, policy pages, documentation conventions, and Vercel SPA configuration. |
 | 2. Identity and onboarding | **Complete** | Google OAuth, verified RTU account eligibility, session restoration, onboarding, profile editing, authorization policies, and confirmed account deletion. |
-| 3. Dashboard foundation | **Complete** | Personalized dashboard, current and upcoming class summaries, schedule-aware empty states, quick actions, and module availability panels. Live task data begins with the Tasks phase. |
-| 4. Schedule management and intake | **Complete** | Manual subjects and meetings, weekly and unscheduled views, editing and deletion confirmations, local RTU form scanning, editable validation, direct links to missing fields, and atomic schedule replacement. |
+| 3. Dashboard foundation | **Complete** | Personalized dashboard, current and upcoming class summaries, next actionable tasks, schedule-aware empty states, quick actions, and module panels. |
+| 4. Schedule management and intake | **Complete** | Manual subjects and meetings, weekly and unscheduled views, confirmed deletion from both views, local web/PWA RTU form scanning, cancellable recognition, responsive editable validation, direct links to missing fields, and confirmed atomic schedule replacement. |
 | 5. Class reminders | **Planned** | Push subscriptions, Web Push delivery, reminder timing, idempotency, service worker behavior, and pause controls. |
-| 6. Tasks | **Planned** | Task fields, due dates, status, and optional class links. |
+| 6. Tasks | **Complete** | Responsive three-column Kanban board, persistent drag and menu movement, deadlines, priorities, notes, optional subject links, filters, secure ownership policies, and dashboard integration. |
 | 7. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
 | 8. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
 | 9. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |
@@ -233,7 +245,7 @@ The design should prioritize readable academic information and quick access to w
 
 Each remaining phase should receive its own user flow, data contract, validation rules, failure states, and acceptance criteria before development begins. Completed phases remain subject to release-level accessibility, performance, and deployment verification.
 
-## 10. Open architecture decisions
+## 11. Open architecture decisions
 
 1. Select an OpenRouter model or model-selection policy after testing study material examples.
 2. Specify reminder lead times, late-delivery tolerance, backend batching, and the iOS Home Screen and notification-permission flow.

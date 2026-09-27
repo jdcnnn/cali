@@ -13,21 +13,33 @@ npm install
 npm run dev
 ~~~
 
-The project also has npm run build and npm run lint scripts.
+The project also has `npm run build`, `npm run lint`, and `npm test` scripts.
 
 ## Schedule module
 
-The schedule management and intake flow is implemented. Students can create subjects and meetings manually, edit saved details, and delete a subject from any of its meeting cards. Deleting a subject also removes all of its weekly meetings, so deletion does not leave an unscheduled subject behind. Imported subjects explicitly marked without a meeting time can remain in the Unscheduled section. Destructive actions and unsaved edits use confirmation dialogs.
+The schedule management and intake flow is implemented. Students can create subjects and meetings manually, edit saved details, and delete a subject from either one of its meeting cards or the Unscheduled section. Deleting a subject also removes all of its weekly meetings, so deletion does not leave an unscheduled copy behind. Imported subjects explicitly marked without a meeting time can remain in Unscheduled until the student schedules or deletes them. Destructive actions and unsaved edits use confirmation dialogs.
 
-Students can also import a schedule from an RTU registration/assessment form. The scanner accepts JPG, PNG, and WebP images and runs entirely in the browser with the Apache-licensed PaddleOCR.js SDK and locally hosted PP-OCRv5 models. Images are not uploaded or stored, and no paid OCR service or generative AI is used. Semester and term text are ignored.
+Students can also import a schedule from an RTU registration/assessment form. The scanner accepts JPG, PNG, and WebP images and runs entirely on the device with the Apache-licensed PaddleOCR.js SDK, a background browser worker, and locally hosted PP-OCRv5 models. It works in the regular web app and the installed PWA. Images are not uploaded or stored, and no paid OCR service or generative AI is used. Semester and term text are ignored.
 
-The import flow extracts subjects, units, block sections, meetings, and rooms into an editable review. Missing details prevent saving and link directly to the affected field. Students can correct results, add or remove meetings, and confirm removals before saving. The reviewed import replaces the current schedule atomically through `replace_own_schedule`, so a failed replacement does not leave a partial schedule.
+The import flow extracts subjects, units, block sections, meetings, and rooms into an editable review. OCR can be inaccurate, so the review prominently asks students to compare every detail with the source form. Missing or questionable details use restrained warning and error highlights; missing required values prevent saving and link directly to the affected field. Students can correct results, add or remove meetings, and confirm the final replacement in a modal before saving. The reviewed import replaces the current schedule atomically through `replace_own_schedule`, so a failed replacement does not leave a partial schedule.
+
+Scanning can be cancelled from the scanner's close or Cancel controls. Because cancellation discards the selected image and unfinished results, Cali asks for confirmation while keeping the live scanner visible behind the confirmation dialog. Scanner failures are shown as concise, user-facing recovery messages rather than raw module or worker errors. If a deployment leaves an old JavaScript chunk open, the scanner offers a reload action to update Cali.
 
 Scanner limits are 12 MB per image and 20 megapixels. Images are reduced to a maximum 2048-pixel edge for processing. There is no scan count, daily quota, subscription, or API usage limit. Manual entry remains available when local scanning is unsupported or a form cannot be recognized.
 
 Apply all Supabase migrations before testing. `20260925010000_replace_own_schedule.sql` adds the authenticated atomic replacement function used by the scanner.
 
 Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The anon key is the public browser key. Never put a service role key in a `VITE_` variable or commit `.env`.
+
+## Task module
+
+The Tasks page is a responsive Kanban board with To do, In progress, and Done columns. Students can create and edit tasks with a required title and due date, optional due time and notes, low/medium/high priority, and an optional link to one of their schedule subjects. Cards support persistent drag-and-drop ordering plus an accessible Move to menu. Subject and priority filters pause dragging so hidden cards do not make saved positions ambiguous.
+
+Task creation and movement use authenticated database functions so ordering changes are atomic. Row-level security keeps tasks private to their owner, and linked subjects must belong to the same student. Deleting a schedule subject keeps its tasks and changes their subject to General. Completed tasks remain in Done until reopened or deleted.
+
+The dashboard shows the next three actionable tasks, prioritizing overdue work and then the nearest deadlines. Date-only tasks remain due through the end of their local calendar day; a supplied due time makes the deadline precise.
+
+Apply `20260927000000_create_tasks.sql` before opening the deployed Tasks page. The migration adds the `tasks` table, policies, indexes, and the `cali_create_own_task` and `cali_move_own_task` functions.
 
 ## Auth and onboarding
 
@@ -52,16 +64,20 @@ The reusable CALI logo assets are `src/assets/cali-wordmark.svg` and `src/assets
 - supabase/migrations/: database migrations
 - cali.md: current project decisions and plan
 
-Auth, onboarding, manual weekly schedule management, and local schedule scanning are implemented. Closed-tab class reminders and the other application modules described in cali.md remain planned work.
+Auth, onboarding, manual weekly schedule management, local schedule scanning, and Kanban task management are implemented. Closed-tab class reminders and the remaining application modules described in cali.md remain planned work.
+
+## Vercel deployment
+
+The repository is configured as a Vite project with `dist` as its build output. `vercel.json` preserves the service-worker and manifest headers and rewrites application routes such as `/tasks` to `index.html`. Run `npm run build`, `npm test`, and `npm run lint` before deployment, apply all Supabase migrations to the target project, and configure the deployed origin in Supabase Auth redirect URLs.
 
 ## Progressive web app
 
 Cali is installable from supported desktop and mobile browsers. Signed-in students can find installation guidance under Profile. On iPhone and iPad, open Cali in Safari and use Share → Add to Home Screen.
 
-The current PWA is intentionally online-only. Its service worker provides the root-scoped foundation needed for future class-reminder notifications and a navigation-only connection-unavailable page. It does not cache the app, Supabase data, or OCR files for offline use.
+The current PWA is intentionally online-only. Its service worker provides the root-scoped foundation needed for future class-reminder notifications and a navigation-only connection-unavailable page. It does not cache the app, Supabase data, or OCR files for offline use. Navigations bypass HTTP caches, service-worker updates bypass the browser cache, and the app checks for a worker update when it starts so deployed versions are adopted without requiring a PWA reinstall.
 
 Returning students keep their Supabase session. Public-page calls to action open the dashboard directly when a completed signed-in session is present instead of starting Google OAuth again.
 
 Cali provides styled pages for unknown routes, authentication failures, denied access, and unexpected application errors. While an open page is offline, a status notice explains that loading and saving require internet access and briefly confirms when Cali reconnects. The service worker provides the same connection-unavailable explanation for failed page navigations after it has been installed.
 
-Schedule deletion is subject-based: choosing Delete subject from any meeting card removes that subject and all of its weekly meetings through the database cascade. It does not leave the deleted subject in Unscheduled. Subjects intentionally imported without a real meeting time may still remain unscheduled.
+Schedule deletion is subject-based: choosing Delete subject from a meeting card or an Unscheduled subject removes that subject and all of its weekly meetings through the database cascade. It does not leave a second copy in Unscheduled. Subjects intentionally imported without a real meeting time may remain unscheduled until they are scheduled or deleted.

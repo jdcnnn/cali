@@ -1,6 +1,6 @@
 # Cali handoff
 
-Updated: 2026-09-26
+Updated: 2026-09-27
 
 ## What this repository is
 
@@ -14,7 +14,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added Supabase migrations for student profiles and repeating weekly schedule subjects/meetings, with ownership and eligibility policies.
 - Added Google OAuth with PKCE, session restoration, sign-out, error and access-denied states, and a verified `@rtu.edu.ph` Google account eligibility check.
 - Added first-sign-in onboarding for a unique lowercase username, program (listed or custom), and year level. Trusted database functions populate and refresh the Google name and avatar.
-- Completed the workspace foundation: a responsive sidebar and mobile navigation, a personalized `/dashboard`, a `/profile` page, and routed Schedules, Tasks, Study, and Community pages. The dashboard shows a compact live schedule summary, a Tasks availability panel, and quick actions. It highlights classes happening now and the next three weekly meetings. Dashboard and Schedules data use skeleton loading; empty states distinguish an unconfigured schedule, a day with no classes, and a day whose classes have finished.
+- Completed the workspace foundation: a responsive sidebar and mobile navigation, a personalized `/dashboard`, a `/profile` page, and routed Schedules, Tasks, Study, and Community pages. The dashboard shows compact live schedule and task summaries plus quick actions. It highlights classes happening now, the next three weekly meetings, and the next three actionable tasks. Dashboard and Schedules data use skeleton loading; empty states distinguish an unconfigured schedule, a day with no classes, and a day whose classes have finished.
 - Added profile editing for the unique username, program, and year level, plus a confirmed account deletion flow backed by `20260925000000_delete_own_account.sql`.
 
 ### Landing page and splash
@@ -44,9 +44,9 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ### Schedule management and local scanning (2026-09-25)
 
-- Completed manual weekly schedule management: students can create subjects and meetings, edit saved details, and delete a subject with confirmation from any of its meeting cards. Subject deletion cascades to all of its meetings and does not leave an unscheduled subject behind. Imported subjects explicitly lacking a meeting time can remain in the Unscheduled section.
-- Added a free, browser-only RTU registration-form scanner using PaddleOCR.js, locally hosted PP-OCRv5 models, and deterministic table parsing. Images are not uploaded or stored, and semester and term values are ignored.
-- Added an editable three-step import flow for image selection, review, and saving. It supports subject and meeting corrections, additions, removal confirmations, simple review guidance, and direct links from missing-detail instructions to the affected fields.
+- Completed manual weekly schedule management: students can create subjects and meetings, edit saved details, and delete a subject with confirmation from any meeting card or directly from the Unscheduled section. Subject deletion cascades to all of its meetings and does not leave an unscheduled copy behind. Imported subjects explicitly lacking a meeting time can remain in Unscheduled until scheduled or deleted.
+- Added a free, on-device RTU registration-form scanner using PaddleOCR.js, a background browser worker, locally hosted PP-OCRv5 models, and deterministic table parsing. It works in both the web app and installed PWA. Images are not uploaded or stored, and semester and term values are ignored.
+- Added an editable three-step import flow for image selection, review, and saving. It supports subject and meeting corrections, additions, removal confirmations, prominent accuracy guidance, and direct links from missing-detail instructions to the affected fields. Final schedule replacement uses a confirmation modal on desktop and mobile.
 - Added client and database validation for required schedule fields, duplicate records, valid RTU day codes, ordered meeting times, and bounded payload sizes.
 - Added `20260925010000_replace_own_schedule.sql`. Its authenticated `replace_own_schedule` function validates the full import and replaces the current schedule in one transaction.
 - Scanner limits are 12 MB and 20 megapixels per JPG, PNG, or WebP image, with a 2048-pixel maximum processing edge. There is no scan quota or paid OCR service.
@@ -54,7 +54,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 ### Installable web app foundation (2026-09-26)
 
 - Made Cali installable as an online-only PWA on supported desktop and mobile browsers with a web app manifest, regular and maskable icons, Apple touch metadata, and a root-scoped service worker.
-- The service worker creates no offline caches. It handles navigation failures only to return a self-contained connection-unavailable page; Supabase-backed features and the large OCR runtime remain network-dependent.
+- The service worker creates no offline caches. It handles navigation failures only to return a self-contained connection-unavailable page; Supabase-backed features and the large OCR runtime remain network-dependent. Navigation requests use `no-store`, service-worker registration uses `updateViaCache: 'none'`, and startup requests a worker update to reduce stale deployed assets without requiring users to reinstall the PWA.
 - Added an installation section to Profile. Chromium browsers can launch their native install prompt; iPhone and iPad users receive Safari Add to Home Screen instructions; installed instances show their installed status.
 - Public-page actions now respect the restored Supabase session. Ready students go directly to the dashboard, and students with unfinished onboarding resume setup instead of restarting Google OAuth.
 - Added branded 404, authentication failure, access-denied, and unexpected application error states. A global notice reports when Cali goes offline and briefly confirms when Cali is back online.
@@ -66,15 +66,33 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Simplified the Profile installation card by removing its decorative download icon. Its action remains full width on mobile.
 - Corrected the offline and restored-connection notice icon contrast in light and dark themes and changed the restored copy to “Cali is back online.”
 
+### Scanner reliability, review, and modal refinements (completed 2026-09-27)
+
+- Reworked image preparation and OCR worker startup so the same local scanner runs reliably in the regular browser and installed PWA. The worker installs its abort path before model initialization, and cancellation disposes its internal transport immediately.
+- The scanner can now be closed while recognition is active. Close and Cancel open a stop-scanning confirmation; keeping the scan returns to the live progress view, while stopping discards the selected image and unfinished result.
+- Confirmation dialogs are layered above the still-visible scanner instead of replacing or hiding it. Their backdrops dim and blur the scanner while preserving the page → scanner → confirmation visual hierarchy and working pointer controls.
+- Made the scanner fit small screens: progress markers keep circular proportions, summary counts remain in one row, content is contained without horizontal overflow, and review actions are smaller and safely inset from the bottom viewport.
+- Replaced technical runtime and stale-chunk messages with concise recovery guidance. A stale deployed module offers a Reload Cali action; detailed errors remain in the developer console.
+- Changed review guidance to “Details to verify,” removed decorative warning/missing-detail icons in favor of subtle yellow and red emphasis, added a prominent reminder that OCR may be inaccurate, and improved destructive/error contrast in dark mode. The final save confirmation no longer uses a warning icon.
+
+### Kanban task management (2026-09-27)
+
+- Replaced the Tasks placeholder with responsive To do, In progress, and Done columns. Cards retain a custom order and support drag-and-drop plus menu-based movement for touch and keyboard access.
+- Added task creation and editing with title, optional notes, required due date, optional due time, priority, and an optional schedule-subject link. Filters cover subject and priority; dragging pauses while filters are active.
+- Added confirmed deletion, unsaved-change protection, overdue states, reversible completion, mobile swipeable columns, dark-mode styling, loading/error/empty states, and a live dashboard summary of the next three actionable tasks.
+- Added `20260927000000_create_tasks.sql` with the private `tasks` table, indexes, validation, owner-only RLS, same-owner subject checks, `ON DELETE SET NULL` subject behavior, and atomic create/move functions.
+- Added focused Vitest coverage for task validation, local deadline semantics, Kanban ordering, completion transitions, and dashboard ranking.
+
 ## Current behavior and known follow-ups
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
-- Core schedule management and intake are complete: manual creation, editing, cascading subject deletion, intentionally unscheduled imported subjects, local form scanning, editable review, validation, and atomic replacement are working.
+- Core schedule management and intake are complete: manual creation, editing, cascading subject deletion from scheduled or unscheduled views, local web/PWA form scanning, cancellable recognition, editable review, validation, and atomic replacement are working.
+- The scanner fixes and modal enhancements are complete. No scanner-specific follow-up is currently planned.
+- All migrations through `20260927000000_create_tasks.sql` are applied to the linked Cali Supabase project. Remote migration history matches the repository.
 - Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
-- Tasks, Study, and Community routes still explain planned tools. The dashboard now shows live upcoming classes; task content remains future work.
-- The next requested work area is the registration-form scanner. Review the current extraction, review, and save behavior before changing it; no scanner changes were made during the PWA and responsive-polish work.
-- Recent changes passed `npm.cmd run build`, `npm.cmd run lint`, service-worker syntax validation, `git diff --check`, and `npm audit` with no reported vulnerabilities. Device screenshots were used to correct the connection notice, dashboard empty state, and Profile installation card; a full automated browser/device matrix has not been run.
+- Study and Community routes still explain planned tools. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
+- Scanner behavior has been verified by the user in both the regular web app and installed PWA. The Tasks implementation passes `npm test`, `npm.cmd run build`, and `npm.cmd run lint`; live browser interaction and a full device matrix still require manual verification because browser automation was unavailable in this environment.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.
 
 ## Key files
@@ -83,6 +101,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 | --- | --- |
 | Routes, onboarding, and dashboard | `src/App.tsx`, `src/components/DashboardSchedules.tsx`, `src/components/dashboard-schedules.css` |
 | Schedule page and scanner | `src/components/SchedulesPage.tsx`, `src/components/schedules.css`, `src/components/ScheduleScanner.tsx`, `src/components/schedule-scan.css`, `src/lib/scheduleOcr.ts`, `src/lib/rtuScheduleParser.ts` |
+| Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/DashboardTasks.tsx`, `src/components/tasks.css`, `src/lib/tasks.ts` |
 | Landing, team, policies, footer, and splash | `src/components/LandingPage.tsx`, `TeamPage.tsx`, `PolicyPage.tsx`, `SiteFooter.tsx`, `SplashScreen.tsx` |
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
 | Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |
@@ -93,6 +112,6 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ## Run and verify
 
-Install dependencies with `npm install`, then run `npm run dev`. Run `npm run build` and `npm run lint` before shipping. The local `.env` must define `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; it is ignored by Git. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
+Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations, including `20260927000000_create_tasks.sql`, before testing or deploying Tasks. The local `.env` must define `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; it is ignored by Git. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
 
 The generated `dist/` build can be recreated with `npm run build`.
