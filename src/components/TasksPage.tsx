@@ -4,6 +4,7 @@ import { DragDropProvider, useDroppable } from '@dnd-kit/react'
 import type { DragEndEvent } from '@dnd-kit/react'
 import { isSortable, useSortable } from '@dnd-kit/react/sortable'
 import { useSearchParams } from 'react-router'
+import { OnboardingDropdown } from './OnboardingDropdown'
 import { supabase } from '../lib/supabase'
 import {
   draftFromTask,
@@ -94,7 +95,7 @@ function TaskColumn({ status, tasks, subjects, dragDisabled, onEdit, onDelete, o
   </section>
 }
 
-function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequestClose, discardOpen, onKeepEditing, onDiscard }: {
+function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequestClose }: {
   editor: EditorState
   subjects: TaskSubject[]
   busy: boolean
@@ -102,9 +103,6 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
   onChange: (draft: TaskDraft) => void
   onSave: (event: FormEvent<HTMLFormElement>) => void
   onRequestClose: () => void
-  discardOpen: boolean
-  onKeepEditing: () => void
-  onDiscard: () => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -116,30 +114,42 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
   const draft = editor.draft
   return <dialog ref={dialogRef} className="task-editor-dialog" aria-labelledby="task-editor-title" onCancel={event => { event.preventDefault(); onRequestClose() }}>
     <form className="task-editor" onSubmit={onSave} noValidate>
-      <header><div><p className="workspace-overline">TASK DETAILS</p><h2 id="task-editor-title">{editor.taskId ? 'Edit task' : 'Add a task'}</h2></div><button type="button" className="task-close" aria-label="Close task editor" onClick={onRequestClose} disabled={busy}><CloseIcon /></button></header>
-      <div className="task-editor-fields">
-        <label className="task-field task-field--wide"><span>Task title</span><input autoFocus required maxLength={160} value={draft.title} onChange={event => onChange({ ...draft, title: event.target.value })} placeholder="e.g. Finish laboratory report" /></label>
-        <label className="task-field"><span>Subject <small>Optional</small></span><select value={draft.subjectId} onChange={event => onChange({ ...draft, subjectId: event.target.value })}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label>
-        <label className="task-field"><span>Priority</span><select value={draft.priority} onChange={event => onChange({ ...draft, priority: event.target.value as TaskPriority })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
-        <label className="task-field"><span>Due date</span><input type="date" required value={draft.dueDate} onChange={event => onChange({ ...draft, dueDate: event.target.value })} /></label>
-        <label className="task-field"><span>Due time <small>Optional</small></span><input type="time" value={draft.dueTime} onChange={event => onChange({ ...draft, dueTime: event.target.value })} /></label>
-        <label className="task-field task-field--wide"><span>Notes <small>Optional</small></span><textarea maxLength={4000} rows={5} value={draft.notes} onChange={event => onChange({ ...draft, notes: event.target.value })} placeholder="Add instructions, links, or a short checklist..." /><small className="task-character-count">{draft.notes.length.toLocaleString()} / 4,000</small></label>
+      <header className="task-editor-header"><div><p className="workspace-overline">TASK DETAILS</p><h2 id="task-editor-title">{editor.taskId ? 'Edit task' : 'Add a task'}</h2><p>{editor.taskId ? 'Update the details and deadline for this task.' : 'Capture the work, then move it across your board.'}</p></div><button type="button" className="task-close" aria-label="Close task editor" onClick={onRequestClose} disabled={busy}><CloseIcon /></button></header>
+      <div className="task-editor-body">
+        <section className="task-form-section" aria-labelledby="task-basics-title">
+          <div className="task-form-section-heading"><div><h3 id="task-basics-title">Task information</h3><p>What needs to be done?</p></div><span>1</span></div>
+          <div className="task-editor-fields">
+            <label className="task-field task-field--wide"><span>Task title</span><input autoFocus required maxLength={160} value={draft.title} onChange={event => onChange({ ...draft, title: event.target.value })} placeholder="e.g. Finish laboratory report" /></label>
+            <div className="task-field"><span>Subject <small>Optional</small></span><OnboardingDropdown id="task-subject" label="Subject" placeholder="General" value={draft.subjectId} options={[{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))]} onChange={subjectId => onChange({ ...draft, subjectId })} searchable={subjects.length > 6} /></div>
+            <div className="task-field"><span>Priority</span><OnboardingDropdown id="task-priority" label="Priority" placeholder="Select priority" value={draft.priority} options={Object.entries(priorityLabels).map(([value, label]) => ({ value, label }))} onChange={priority => onChange({ ...draft, priority: priority as TaskPriority })} /></div>
+          </div>
+        </section>
+        <section className="task-form-section" aria-labelledby="task-deadline-title">
+          <div className="task-form-section-heading"><div><h3 id="task-deadline-title">Deadline</h3><p>Choose when this task is due.</p></div><span>2</span></div>
+          <div className="task-editor-fields">
+            <label className="task-field"><span>Due date</span><input type="date" required value={draft.dueDate} onChange={event => onChange({ ...draft, dueDate: event.target.value })} /></label>
+            <label className="task-field"><span>Due time <small>Optional</small></span><input type="time" value={draft.dueTime} onChange={event => onChange({ ...draft, dueTime: event.target.value })} /></label>
+          </div>
+        </section>
+        <section className="task-form-section" aria-labelledby="task-notes-title">
+          <div className="task-form-section-heading"><div><h3 id="task-notes-title">Notes</h3><p>Add context that will help you finish.</p></div><span>3</span></div>
+          <label className="task-field"><span>Notes <small>Optional</small></span><textarea maxLength={4000} rows={4} value={draft.notes} onChange={event => onChange({ ...draft, notes: event.target.value })} placeholder="Add instructions, links, or a short checklist..." /><small className="task-character-count">{draft.notes.length.toLocaleString()} / 4,000</small></label>
+        </section>
+        {error && <p className="task-form-error" role="alert">{error}</p>}
       </div>
-      {error && <p className="task-form-error" role="alert">{error}</p>}
       <footer><button type="button" className="task-secondary" onClick={onRequestClose} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy}>{busy ? 'Saving...' : editor.taskId ? 'Save changes' : 'Add task'}</button></footer>
     </form>
-    {discardOpen && <div className="task-editor-confirm" role="alertdialog" aria-modal="true" aria-labelledby="task-discard-title"><h3 id="task-discard-title">Discard your changes?</h3><p>The task details you entered will not be saved.</p><div><button type="button" className="task-secondary" autoFocus onClick={onKeepEditing}>Keep editing</button><button type="button" className="task-danger" onClick={onDiscard}>Discard changes</button></div></div>}
   </dialog>
 }
 
-function DeleteTaskDialog({ task, busy, error, onCancel, onConfirm }: { task: Task; busy: boolean; error: string; onCancel: () => void; onConfirm: () => void }) {
+function TaskConfirmationDialog({ eyebrow, title, description, confirmLabel, busyLabel, busy, error = '', onCancel, onConfirm }: { eyebrow: string; title: string; description: string; confirmLabel: string; busyLabel: string; busy: boolean; error?: string; onCancel: () => void; onConfirm: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const dialog = dialogRef.current
     if (dialog && !dialog.open) dialog.showModal()
     return () => { if (dialog?.open) dialog.close() }
   }, [])
-  return <dialog ref={dialogRef} className="task-delete-dialog" aria-labelledby="task-delete-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><p className="workspace-overline">DELETE TASK</p><h2 id="task-delete-title">Delete “{task.title}”?</h2><p>This permanently removes the task. You cannot undo this action.</p>{error && <p className="task-form-error" role="alert">{error}</p>}<footer><button type="button" className="task-secondary" autoFocus onClick={onCancel} disabled={busy}>Keep task</button><button type="button" className="task-danger" onClick={onConfirm} disabled={busy}>{busy ? 'Deleting...' : 'Delete task'}</button></footer></div></dialog>
+  return <dialog ref={dialogRef} className="task-confirm-dialog" aria-labelledby="task-confirm-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><div className="task-confirm-icon" aria-hidden="true">!</div><p className="workspace-overline">{eyebrow}</p><h2 id="task-confirm-title">{title}</h2><p>{description}</p>{error && <p className="task-form-error" role="alert">{error}</p>}<footer><button type="button" className="task-secondary" autoFocus onClick={onCancel} disabled={busy}>Cancel</button><button type="button" className="task-danger" onClick={onConfirm} disabled={busy}>{busy ? busyLabel : confirmLabel}</button></footer></div></dialog>
 }
 
 export function TasksPage({ studentId }: { studentId: string }) {
@@ -198,6 +208,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const columns = useMemo(() => orderedColumns(filteredTasks), [filteredTasks])
   const allColumns = useMemo(() => orderedColumns(tasks), [tasks])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
+  const subjectFilterOptions = useMemo(() => [{ value: 'all', label: 'All subjects' }, { value: 'general', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))], [subjects])
 
   function openNewTask() {
     const draft = emptyTaskDraft()
@@ -313,14 +324,14 @@ export function TasksPage({ studentId }: { studentId: string }) {
   if (loading) return <div className="tasks-page"><header className="tasks-heading"><div><div className="skeleton skeleton-line skeleton-line--short" /><div className="skeleton skeleton-line skeleton-line--title" /></div></header><div className="tasks-board tasks-board--loading">{taskStatuses.map(status => <div className="task-column" key={status.id}><div className="skeleton skeleton-block" /></div>)}</div></div>
 
   return <div className="tasks-page">
-    <header className="tasks-heading"><div><p className="workspace-overline">ACADEMIC WORK</p><h1>Tasks</h1><p>Move coursework from plan to progress to done.</p></div><button type="button" className="button-primary tasks-add" onClick={openNewTask}><span aria-hidden="true">+</span> Add task</button></header>
+    <header className="tasks-heading"><div><p className="workspace-overline">ACADEMIC WORK</p><h1>Tasks</h1><p>Organize coursework, focus on what is active, and keep progress visible.</p></div><button type="button" className="button-primary tasks-add" onClick={openNewTask}><span aria-hidden="true">+</span> Add task</button></header>
 
     {pageError ? <section className="tasks-error-state" role="alert"><h2>Tasks could not be loaded</h2><p>{pageError}</p><button type="button" className="button-primary" onClick={() => { setLoading(true); void load().catch(cause => { setPageError(cause instanceof Error ? cause.message : 'Could not load your tasks.'); setLoading(false) }) }}>Try again</button></section> : <>
       <div className="task-toolbar" aria-label="Task filters">
-        <label><span>Subject</span><select value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)}><option value="all">All subjects</option><option value="general">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code}</option>)}</select></label>
-        <label><span>Priority</span><select value={priorityFilter} onChange={event => setPriorityFilter(event.target.value as 'all' | TaskPriority)}><option value="all">All priorities</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
-        {filtersActive && <button type="button" onClick={() => { setSubjectFilter('all'); setPriorityFilter('all') }}>Clear filters</button>}
-        <p>{filtersActive ? 'Drag is paused while filters are active. Use a task menu to move it.' : 'Drag cards or use their menus to update progress.'}</p>
+        <div className="task-toolbar-heading"><div><h2>Board filters</h2><p>{filtersActive ? 'Showing a focused view. Dragging is paused.' : 'Narrow the board by subject or priority.'}</p></div>{filtersActive && <button type="button" onClick={() => { setSubjectFilter('all'); setPriorityFilter('all') }}>Clear filters</button>}</div>
+        <div className="task-filter"><span>Subject</span><OnboardingDropdown id="task-filter-subject" label="Filter by subject" placeholder="All subjects" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /></div>
+        <div className="task-filter"><span>Priority</span><OnboardingDropdown id="task-filter-priority" label="Filter by priority" placeholder="All priorities" value={priorityFilter} options={[{ value: 'all', label: 'All priorities' }, { value: 'high', label: 'High priority' }, { value: 'medium', label: 'Medium priority' }, { value: 'low', label: 'Low priority' }]} onChange={priority => setPriorityFilter(priority as 'all' | TaskPriority)} /></div>
+        <p className="task-toolbar-tip"><span aria-hidden="true">↔</span>{filtersActive ? 'Use each card menu to change progress while filters are active.' : 'Drag cards between columns or use a card menu.'}</p>
       </div>
 
       {boardError && <div className="task-board-error" role="alert"><span>{boardError}</span><button type="button" onClick={() => setBoardError('')} aria-label="Dismiss error"><CloseIcon /></button></div>}
@@ -332,7 +343,8 @@ export function TasksPage({ studentId }: { studentId: string }) {
       </DragDropProvider>
     </>}
 
-    {editor && <TaskEditor editor={editor} subjects={subjects} busy={busy} error={formError} onChange={draft => setEditor(previous => previous ? { ...previous, draft } : previous)} onSave={saveTask} onRequestClose={requestEditorClose} discardOpen={discardOpen} onKeepEditing={() => setDiscardOpen(false)} onDiscard={() => { setDiscardOpen(false); setEditor(null) }} />}
-    {deleting && <DeleteTaskDialog task={deleting} busy={busy} error={deleteError} onCancel={() => { if (!busy) setDeleting(null) }} onConfirm={() => { void confirmDelete() }} />}
+    {editor && <TaskEditor editor={editor} subjects={subjects} busy={busy} error={formError} onChange={draft => setEditor(previous => previous ? { ...previous, draft } : previous)} onSave={saveTask} onRequestClose={requestEditorClose} />}
+    {discardOpen && <TaskConfirmationDialog eyebrow="UNSAVED CHANGES" title="Discard your changes?" description="The task details you entered will not be saved." confirmLabel="Discard changes" busyLabel="Discarding..." busy={false} onCancel={() => setDiscardOpen(false)} onConfirm={() => { setDiscardOpen(false); setEditor(null) }} />}
+    {deleting && <TaskConfirmationDialog eyebrow="DELETE TASK" title={`Delete “${deleting.title}”?`} description="This permanently removes the task. You cannot undo this action." confirmLabel="Delete task" busyLabel="Deleting..." busy={busy} error={deleteError} onCancel={() => { if (!busy) setDeleting(null) }} onConfirm={() => { void confirmDelete() }} />}
   </div>
 }

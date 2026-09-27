@@ -80,6 +80,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Replaced the Tasks placeholder with responsive To do, In progress, and Done columns. Cards retain a custom order and support drag-and-drop plus menu-based movement for touch and keyboard access.
 - Added task creation and editing with title, optional notes, required due date, optional due time, priority, and an optional schedule-subject link. Filters cover subject and priority; dragging pauses while filters are active.
 - Added confirmed deletion, unsaved-change protection, overdue states, reversible completion, mobile swipeable columns, dark-mode styling, loading/error/empty states, and a live dashboard summary of the next three actionable tasks.
+- Refined the Tasks UI to match the Schedules workspace: solid theme-token surfaces replace the previous glass treatment, board controls use the shared styled dropdown pattern, mobile columns and empty states are denser, and the editor now has grouped sections with a fixed action footer. Delete and unsaved-change actions use focused confirmation dialogs.
 - Added `20260927000000_create_tasks.sql` with the private `tasks` table, indexes, validation, owner-only RLS, same-owner subject checks, `ON DELETE SET NULL` subject behavior, and atomic create/move functions.
 - Added focused Vitest coverage for task validation, local deadline semantics, Kanban ordering, completion transitions, and dashboard ranking.
 

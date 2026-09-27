@@ -35,6 +35,8 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The a
 
 The Tasks page is a responsive Kanban board with To do, In progress, and Done columns. Students can create and edit tasks with a required title and due date, optional due time and notes, low/medium/high priority, and an optional link to one of their schedule subjects. Cards support persistent drag-and-drop ordering plus an accessible Move to menu. Subject and priority filters pause dragging so hidden cards do not make saved positions ambiguous.
 
+The board follows the same solid surface and spacing system as Schedules in light and dark themes. Filters and task fields use styled, keyboard-accessible dropdowns; the mobile board uses compact snap-aligned columns; and destructive or unsaved-change actions require a confirmation dialog.
+
 Task creation and movement use authenticated database functions so ordering changes are atomic. Row-level security keeps tasks private to their owner, and linked subjects must belong to the same student. Deleting a schedule subject keeps its tasks and changes their subject to General. Completed tasks remain in Done until reopened or deleted.
 
 The dashboard shows the next three actionable tasks, prioritizing overdue work and then the nearest deadlines. Date-only tasks remain due through the end of their local calendar day; a supplied due time makes the deadline precise.
