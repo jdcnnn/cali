@@ -117,7 +117,7 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
       <header className="task-editor-header"><div><p className="workspace-overline">TASK DETAILS</p><h2 id="task-editor-title">{editor.taskId ? 'Edit task' : 'Add a task'}</h2><p>{editor.taskId ? 'Update the details and deadline for this task.' : 'Capture the work, then move it across your board.'}</p></div><button type="button" className="task-close" aria-label="Close task editor" onClick={onRequestClose} disabled={busy}><CloseIcon /></button></header>
       <div className="task-editor-body">
         <section className="task-form-section" aria-labelledby="task-basics-title">
-          <div className="task-form-section-heading"><div><h3 id="task-basics-title">Task information</h3><p>What needs to be done?</p></div><span>1</span></div>
+          <div className="task-form-section-heading"><div><h3 id="task-basics-title">Task information</h3><p>What needs to be done?</p></div><span>1 of 3</span></div>
           <div className="task-editor-fields">
             <label className="task-field task-field--wide"><span>Task title</span><input autoFocus required maxLength={160} value={draft.title} onChange={event => onChange({ ...draft, title: event.target.value })} placeholder="e.g. Finish laboratory report" /></label>
             <div className="task-field"><span>Subject <small>Optional</small></span><OnboardingDropdown id="task-subject" label="Subject" placeholder="General" value={draft.subjectId} options={[{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))]} onChange={subjectId => onChange({ ...draft, subjectId })} searchable={subjects.length > 6} /></div>
@@ -125,14 +125,14 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
           </div>
         </section>
         <section className="task-form-section" aria-labelledby="task-deadline-title">
-          <div className="task-form-section-heading"><div><h3 id="task-deadline-title">Deadline</h3><p>Choose when this task is due.</p></div><span>2</span></div>
+          <div className="task-form-section-heading"><div><h3 id="task-deadline-title">Deadline</h3><p>Choose when this task is due.</p></div><span>2 of 3</span></div>
           <div className="task-editor-fields">
             <label className="task-field"><span>Due date</span><input type="date" required value={draft.dueDate} onChange={event => onChange({ ...draft, dueDate: event.target.value })} /></label>
             <label className="task-field"><span>Due time <small>Optional</small></span><input type="time" value={draft.dueTime} onChange={event => onChange({ ...draft, dueTime: event.target.value })} /></label>
           </div>
         </section>
         <section className="task-form-section" aria-labelledby="task-notes-title">
-          <div className="task-form-section-heading"><div><h3 id="task-notes-title">Notes</h3><p>Add context that will help you finish.</p></div><span>3</span></div>
+          <div className="task-form-section-heading"><div><h3 id="task-notes-title">Notes</h3><p>Add context that will help you finish.</p></div><span>3 of 3</span></div>
           <label className="task-field"><span>Notes <small>Optional</small></span><textarea maxLength={4000} rows={4} value={draft.notes} onChange={event => onChange({ ...draft, notes: event.target.value })} placeholder="Add instructions, links, or a short checklist..." /><small className="task-character-count">{draft.notes.length.toLocaleString()} / 4,000</small></label>
         </section>
         {error && <p className="task-form-error" role="alert">{error}</p>}
