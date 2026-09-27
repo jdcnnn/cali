@@ -89,6 +89,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Core schedule management and intake are complete: manual creation, editing, cascading subject deletion from scheduled or unscheduled views, local web/PWA form scanning, cancellable recognition, editable review, validation, and atomic replacement are working.
 - The scanner fixes and modal enhancements are complete. No scanner-specific follow-up is currently planned.
 - All migrations through `20260927000000_create_tasks.sql` are applied to the linked Cali Supabase project. Remote migration history matches the repository.
+- Vercel project `jadeee/cali` is configured for Vite with `dist` output, but it is not currently connected to `https://github.com/jdcnnn/cali.git`. Commit `c109d63` reached `origin/main` without creating a deployment. Run `npx vercel git connect https://github.com/jdcnnn/cali.git` once to enable automatic production deployments from `main`; use `npx vercel ls cali` to verify the resulting deployment.
 - Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
 - Study and Community routes still explain planned tools. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
@@ -112,6 +113,6 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ## Run and verify
 
-Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations, including `20260927000000_create_tasks.sql`, before testing or deploying Tasks. The local `.env` must define `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; it is ignored by Git. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
+Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations, including `20260927000000_create_tasks.sql`, before testing or deploying Tasks. The local `.env` must define `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; it is ignored by Git. Keep `SUPABASE_DB_PASSWORD` local and never configure it as a browser-facing Vite variable. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
 
 The generated `dist/` build can be recreated with `npm run build`.

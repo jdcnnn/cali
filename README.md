@@ -68,7 +68,19 @@ Auth, onboarding, manual weekly schedule management, local schedule scanning, an
 
 ## Vercel deployment
 
-The repository is configured as a Vite project with `dist` as its build output. `vercel.json` preserves the service-worker and manifest headers and rewrites application routes such as `/tasks` to `index.html`. Run `npm run build`, `npm test`, and `npm run lint` before deployment, apply all Supabase migrations to the target project, and configure the deployed origin in Supabase Auth redirect URLs.
+The repository is configured as a Vite project with `dist` as its build output. `vercel.json` preserves the service-worker and manifest headers and rewrites application routes such as `/tasks` to `index.html`. The linked Vercel project is `jadeee/cali`.
+
+The Vercel project was originally linked and deployed through the CLI, but it was not connected to the GitHub repository. A CLI project link does not create automatic deployments from Git pushes. Connect the existing project to the repository once from the project root:
+
+~~~powershell
+npx vercel git connect https://github.com/jdcnnn/cali.git
+~~~
+
+After the connection is established, pushes to `main` should create production deployments and pushes to other branches should create previews. Check recent deployments with `npx vercel ls cali`. `npx vercel --prod` remains available for an intentional manual production deployment.
+
+Before deployment, run `npm test`, `npm run lint`, and `npm run build`. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel for the required environments. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, or other server credentials as Vite environment variables.
+
+All repository migrations through `20260927000000_create_tasks.sql` are already applied to the currently linked Cali Supabase project. A different Supabase project still needs the complete migration sequence.
 
 ## Progressive web app
 
