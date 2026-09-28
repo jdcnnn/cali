@@ -84,6 +84,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added `20260927000000_create_tasks.sql` with the private `tasks` table, indexes, validation, owner-only RLS, same-owner subject checks, `ON DELETE SET NULL` subject behavior, and atomic create/move functions.
 - Added focused Vitest coverage for task validation, local deadline semantics, Kanban ordering, completion transitions, and dashboard ranking.
 - Added Today and Upcoming as the primary student-facing views while retaining Board as a secondary workflow. Today separates overdue, planned/due-today, and suggested work; Upcoming groups approaching deadlines.
+- Added a focused Calendar view for open task deadlines. It provides month navigation, a selected-day agenda, task-detail access, and date-prefilled task creation; mobile condenses the month cells to readable task counts above the agenda.
 - Kept capture lightweight with title, subject, and due date visible first. Optional planning details add a planned date, ordered checklist, importance, due time, and notes only when needed.
 - Added `20260928000000_student_task_planner.sql` with private checklist steps, planner fields, ownership policies, and trusted checklist replacement/toggle functions. The dashboard now uses the same planner ranking and surfaces the next unfinished step.
 - Replaced the ambiguous completion circle with a labeled Mark done action and confirmation for every completion. Selecting task content in Today, Upcoming, or Board now opens a responsive structured overview with status, subject, deadlines, checklist, notes, and explicit Edit/Mark done or Reopen actions.
@@ -108,7 +109,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 | --- | --- |
 | Routes, onboarding, and dashboard | `src/App.tsx`, `src/components/DashboardSchedules.tsx`, `src/components/dashboard-schedules.css` |
 | Schedule page and scanner | `src/components/SchedulesPage.tsx`, `src/components/schedules.css`, `src/components/ScheduleScanner.tsx`, `src/components/schedule-scan.css`, `src/lib/scheduleOcr.ts`, `src/lib/rtuScheduleParser.ts` |
-| Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/DashboardTasks.tsx`, `src/components/tasks.css`, `src/lib/tasks.ts` |
+| Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/TaskCalendar.tsx`, `src/components/DashboardTasks.tsx`, `src/components/tasks.css`, `src/lib/tasks.ts` |
 | Landing, team, policies, footer, and splash | `src/components/LandingPage.tsx`, `TeamPage.tsx`, `PolicyPage.tsx`, `SiteFooter.tsx`, `SplashScreen.tsx` |
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
 | Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |

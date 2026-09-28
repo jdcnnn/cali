@@ -5,6 +5,7 @@ import type { DragEndEvent } from '@dnd-kit/react'
 import { isSortable, useSortable } from '@dnd-kit/react/sortable'
 import { useSearchParams } from 'react-router'
 import { OnboardingDropdown } from './OnboardingDropdown'
+import { TaskCalendar } from './TaskCalendar'
 import { supabase } from '../lib/supabase'
 import {
   draftFromTask,
@@ -27,7 +28,7 @@ import './tasks.css'
 import './skeleton.css'
 
 type EditorState = { taskId: string | null; draft: TaskDraft; initial: TaskDraft }
-type TaskView = 'today' | 'upcoming' | 'board'
+type TaskView = 'today' | 'upcoming' | 'calendar' | 'board'
 
 const priorityLabels: Record<TaskPriority, string> = { low: 'Low', medium: 'Medium', high: 'High' }
 
@@ -316,6 +317,8 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const [completing, setCompleting] = useState<Task | null>(null)
   const [deleteError, setDeleteError] = useState('')
   const [now] = useState(() => new Date())
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1))
+  const [calendarDate, setCalendarDate] = useState(() => localDateKey(now))
 
   const load = useCallback(async () => {
     if (!supabase) throw new Error('Supabase is not configured.')
@@ -384,8 +387,8 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
   const subjectFilterOptions = useMemo(() => [{ value: 'all', label: 'All subjects' }, { value: 'general', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))], [subjects])
 
-  function openNewTask() {
-    const draft = emptyTaskDraft()
+  function openNewTask(dueDate = '') {
+    const draft = { ...emptyTaskDraft(), dueDate }
     setFormError(''); setDiscardOpen(false); setEditor({ taskId: null, draft, initial: draft })
   }
 
@@ -501,10 +504,10 @@ export function TasksPage({ studentId }: { studentId: string }) {
   if (loading) return <div className="tasks-page"><header className="tasks-heading"><div><div className="skeleton skeleton-line skeleton-line--short" /><div className="skeleton skeleton-line skeleton-line--title" /></div></header><div className="tasks-planner-loading"><div className="skeleton skeleton-block" /><div className="skeleton skeleton-block" /></div></div>
 
   return <div className="tasks-page">
-    <header className="tasks-heading"><div><p className="workspace-overline">ACADEMIC WORK</p><h1>Tasks</h1><p>See what needs attention, choose what to work on today, and take the next clear step.</p></div><button type="button" className="button-primary tasks-add" onClick={openNewTask}><span aria-hidden="true">+</span> Add task</button></header>
+    <header className="tasks-heading"><div><p className="workspace-overline">ACADEMIC WORK</p><h1>Tasks</h1><p>See what needs attention, choose what to work on today, and take the next clear step.</p></div><button type="button" className="button-primary tasks-add" onClick={() => openNewTask()}><span aria-hidden="true">+</span> Add task</button></header>
     {pageError ? <section className="tasks-error-state" role="alert"><h2>Tasks could not be loaded</h2><p>{pageError}</p><button type="button" className="button-primary" onClick={() => { setLoading(true); void load().catch(cause => { setPageError(cause instanceof Error ? cause.message : 'Could not load your tasks.'); setLoading(false) }) }}>Try again</button></section> : <>
       <div className="task-view-bar">
-        <nav className="task-view-tabs" aria-label="Task views">{(['today', 'upcoming', 'board'] as TaskView[]).map(item => <button key={item} type="button" className={view === item ? 'active' : ''} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{item === 'today' ? 'Today' : item === 'upcoming' ? 'Upcoming' : 'Board'}</button>)}</nav>
+        <nav className="task-view-tabs" aria-label="Task views">{(['today', 'upcoming', 'calendar', 'board'] as TaskView[]).map(item => <button key={item} type="button" className={view === item ? 'active' : ''} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{item === 'today' ? 'Today' : item === 'upcoming' ? 'Upcoming' : item === 'calendar' ? 'Calendar' : 'Board'}</button>)}</nav>
         <div className="task-view-filters"><label className="task-search"><SearchIcon /><input type="search" aria-label="Search tasks" placeholder="Search tasks" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></label><OnboardingDropdown id="task-filter-subject" label="Filter by subject" placeholder="All subjects" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /><OnboardingDropdown id="task-filter-priority" label="Filter by importance" placeholder="All importance" value={priorityFilter} options={[{ value: 'all', label: 'All importance' }, { value: 'high', label: 'High importance' }, { value: 'medium', label: 'Medium importance' }, { value: 'low', label: 'Low importance' }]} onChange={priority => setPriorityFilter(priority as 'all' | TaskPriority)} />{filtersActive && <button type="button" onClick={() => { setSearchQuery(''); setSubjectFilter('all'); setPriorityFilter('all') }}>Clear</button>}</div>
       </div>
       {boardError && <div className="task-board-error" role="alert"><span>{boardError}</span><button type="button" onClick={() => setBoardError('')} aria-label="Dismiss error"><CloseIcon /></button></div>}
@@ -514,6 +517,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
         {todayGroups.suggestions.length > 0 && <PlannerSection title="Suggested next" description="Your nearest open work, ready to add to today." tasks={todayGroups.suggestions} emptyText="No suggestions right now." suggestion {...rowProps} />}
       </div>}
       {view === 'upcoming' && <div className="tasks-planner tasks-upcoming">{futureGroups.map(group => <PlannerSection key={group.id} title={group.label} description={group.id === 'tomorrow' ? 'Work due on the next calendar day.' : group.id === 'week' ? 'Deadlines approaching this week.' : 'Work with more time remaining.'} tasks={group.tasks} emptyText={`No tasks due ${group.label.toLowerCase()}.`} {...rowProps} />)}</div>}
+      {view === 'calendar' && <TaskCalendar tasks={filteredTasks} subjects={subjectMap} month={calendarMonth} selectedDate={calendarDate} now={now} onMonthChange={setCalendarMonth} onSelectDate={setCalendarDate} onViewTask={task => setViewing(task)} onAddTask={openNewTask} />}
       {view === 'board' && <>
         {filtersActive && <p className="task-board-filter-note">Dragging is paused while filters are active. Use each task menu to change progress.</p>}
         <nav className="task-mobile-tabs" aria-label="Kanban columns">{taskStatuses.map(status => <button key={status.id} type="button" onClick={() => document.getElementById(`task-column-${status.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })}>{status.label}<span>{columns[status.id].length}</span></button>)}</nav>
