@@ -52,7 +52,6 @@ export function TaskCalendar({ tasks, subjects, month, selectedDate, now, onMont
   function changeMonth(offset: number) {
     const next = new Date(month.getFullYear(), month.getMonth() + offset, 1)
     onMonthChange(next)
-    onSelectDate(localDateKey(next))
   }
 
   function selectDay(date: Date) {
