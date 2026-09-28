@@ -54,12 +54,13 @@ function TaskProgress({ task, steps }: { task: Task; steps: TaskStep[] }) {
   </div>
 }
 
-function TaskCard({ task, index, subject, steps, dragDisabled, onEdit, onDelete, onMove }: {
+function TaskCard({ task, index, subject, steps, dragDisabled, onView, onEdit, onDelete, onMove }: {
   task: Task
   index: number
   subject?: TaskSubject
   steps: TaskStep[]
   dragDisabled: boolean
+  onView: () => void
   onEdit: () => void
   onDelete: () => void
   onMove: (status: TaskStatus) => void
@@ -85,21 +86,24 @@ function TaskCard({ task, index, subject, steps, dragDisabled, onEdit, onDelete,
         </div>
       </details>
     </div>
-    <h3>{task.title}</h3>
-    <TaskProgress task={task} steps={steps} />
-    <div className="task-card-meta">
-      <span className="task-subject">{subject ? subject.subject_code : 'General'}</span>
-      <span className={overdue ? 'task-due task-due--overdue' : 'task-due'}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task)}</span>
+    <div className="task-card-content" role="button" tabIndex={0} onClick={onView} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onView() } }} aria-label={`View ${task.title}`}>
+      <h3>{task.title}</h3>
+      <TaskProgress task={task} steps={steps} />
+      <div className="task-card-meta">
+        <span className="task-subject">{subject ? subject.subject_code : 'General'}</span>
+        <span className={overdue ? 'task-due task-due--overdue' : 'task-due'}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task)}</span>
+      </div>
     </div>
   </article>
 }
 
-function TaskColumn({ status, tasks, subjects, steps, dragDisabled, onEdit, onDelete, onMove }: {
+function TaskColumn({ status, tasks, subjects, steps, dragDisabled, onView, onEdit, onDelete, onMove }: {
   status: TaskStatus
   tasks: Task[]
   subjects: Map<string, TaskSubject>
   steps: TaskStep[]
   dragDisabled: boolean
+  onView: (task: Task) => void
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
   onMove: (task: Task, status: TaskStatus) => void
@@ -109,19 +113,20 @@ function TaskColumn({ status, tasks, subjects, steps, dragDisabled, onEdit, onDe
   return <section ref={ref} id={`task-column-${status}`} className={`task-column${isDropTarget ? ' task-column--target' : ''}`} aria-labelledby={`task-column-${status}-title`}>
     <header><div><h2 id={`task-column-${status}-title`}>{details.label}</h2><p>{details.description}</p></div><span>{tasks.length}</span></header>
     <div className="task-column-list">
-      {tasks.map((task, index) => <TaskCard key={task.id} task={task} index={index} subject={task.schedule_subject_id ? subjects.get(task.schedule_subject_id) : undefined} steps={steps} dragDisabled={dragDisabled} onEdit={() => onEdit(task)} onDelete={() => onDelete(task)} onMove={next => onMove(task, next)} />)}
+      {tasks.map((task, index) => <TaskCard key={task.id} task={task} index={index} subject={task.schedule_subject_id ? subjects.get(task.schedule_subject_id) : undefined} steps={steps} dragDisabled={dragDisabled} onView={() => onView(task)} onEdit={() => onEdit(task)} onDelete={() => onDelete(task)} onMove={next => onMove(task, next)} />)}
       {!tasks.length && <div className="task-column-empty"><span aria-hidden="true">{status === 'done' ? '✓' : '+'}</span><p>{status === 'todo' ? 'New tasks will start here.' : status === 'in_progress' ? 'Move work here when you begin.' : 'Completed tasks will appear here.'}</p></div>}
     </div>
   </section>
 }
 
-function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, onEdit, onDelete, onComplete, onPlanToday, onToggleStep }: {
+function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, onView, onEdit, onDelete, onComplete, onPlanToday, onToggleStep }: {
   task: Task
   subject?: TaskSubject
   steps: TaskStep[]
   now: Date
   suggestion?: boolean
   busy: boolean
+  onView: () => void
   onEdit: () => void
   onDelete: () => void
   onComplete: () => void
@@ -132,18 +137,20 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
   const progress = taskStepProgress(task.id, steps)
   const next = nextTaskStep(task.id, steps)
   return <article className="planner-task-row">
-    <button type="button" className="planner-task-complete" aria-label={`Mark ${task.title} complete`} onClick={onComplete} disabled={busy}><span /></button>
     <div className="planner-task-main">
-      <div className="planner-task-heading"><h3>{task.title}</h3><span className={`task-priority task-priority--${task.priority}`}>{priorityLabels[task.priority]}</span></div>
-      <div className="planner-task-meta">
-        <span>{subject ? subject.subject_code : 'General'}</span>
-        <span className={overdue ? 'task-due--overdue' : ''}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</span>
-        {task.estimate_minutes && <span>{formatEstimate(task.estimate_minutes)}</span>}
-      </div>
+      <button type="button" className="planner-task-open" onClick={onView}>
+        <span className="planner-task-heading"><strong>{task.title}</strong><span className={`task-priority task-priority--${task.priority}`}>{priorityLabels[task.priority]}</span></span>
+        <span className="planner-task-meta">
+          <span>{subject ? subject.subject_code : 'General'}</span>
+          <span className={overdue ? 'task-due--overdue' : ''}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</span>
+          {task.estimate_minutes && <span>{formatEstimate(task.estimate_minutes)}</span>}
+        </span>
+      </button>
       {next ? <button type="button" className="planner-next-action" onClick={() => onToggleStep(next)} disabled={busy}><span aria-hidden="true" /> <strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></button> : progress.total ? <p className="planner-checklist-done">✓ Checklist complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}>+ Break this task into steps</button>}
     </div>
     <div className="planner-task-actions">
       {suggestion && <button type="button" className="task-plan-button" onClick={onPlanToday} disabled={busy}>Plan today</button>}
+      <button type="button" className="task-complete-button" onClick={onComplete} disabled={busy}><span aria-hidden="true">✓</span> Mark done</button>
       <details className="task-card-menu"><summary aria-label={`Actions for ${task.title}`}><MoreIcon /></summary><div className="task-card-menu-panel"><button type="button" onClick={onEdit}>Edit task</button><button type="button" className="task-menu-delete" onClick={onDelete}>Delete task</button></div></details>
     </div>
   </article>
@@ -159,6 +166,7 @@ function PlannerSection({ title, description, tasks, emptyText, ...rowProps }: {
   now: Date
   suggestion?: boolean
   busy: boolean
+  onView: (task: Task) => void
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
   onComplete: (task: Task) => void
@@ -167,7 +175,7 @@ function PlannerSection({ title, description, tasks, emptyText, ...rowProps }: {
 }) {
   return <section className="planner-section">
     <header><div><h2>{title}</h2><p>{description}</p></div><span>{tasks.length}</span></header>
-    {tasks.length ? <div className="planner-task-list">{tasks.map(task => <PlannerTaskRow key={task.id} task={task} subject={task.schedule_subject_id ? rowProps.subjects.get(task.schedule_subject_id) : undefined} steps={rowProps.steps} now={rowProps.now} suggestion={rowProps.suggestion} busy={rowProps.busy} onEdit={() => rowProps.onEdit(task)} onDelete={() => rowProps.onDelete(task)} onComplete={() => rowProps.onComplete(task)} onPlanToday={() => rowProps.onPlanToday(task)} onToggleStep={step => rowProps.onToggleStep(task, step)} />)}</div> : <p className="planner-section-empty">{emptyText}</p>}
+    {tasks.length ? <div className="planner-task-list">{tasks.map(task => <PlannerTaskRow key={task.id} task={task} subject={task.schedule_subject_id ? rowProps.subjects.get(task.schedule_subject_id) : undefined} steps={rowProps.steps} now={rowProps.now} suggestion={rowProps.suggestion} busy={rowProps.busy} onView={() => rowProps.onView(task)} onEdit={() => rowProps.onEdit(task)} onDelete={() => rowProps.onDelete(task)} onComplete={() => rowProps.onComplete(task)} onPlanToday={() => rowProps.onPlanToday(task)} onToggleStep={step => rowProps.onToggleStep(task, step)} />)}</div> : <p className="planner-section-empty">{emptyText}</p>}
   </section>
 }
 
@@ -226,6 +234,52 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
   </dialog>
 }
 
+function TaskDetailDialog({ task, subject, steps, now, busy, onClose, onEdit, onComplete, onReopen }: {
+  task: Task
+  subject?: TaskSubject
+  steps: TaskStep[]
+  now: Date
+  busy: boolean
+  onClose: () => void
+  onEdit: () => void
+  onComplete: () => void
+  onReopen: () => void
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (dialog && !dialog.open) dialog.showModal()
+    return () => { if (dialog?.open) dialog.close() }
+  }, [])
+  const taskSteps = stepsForTask(task.id, steps)
+  const progress = taskStepProgress(task.id, steps)
+  const status = taskStatuses.find(item => item.id === task.status)?.label ?? task.status
+
+  return <dialog ref={dialogRef} className="task-detail-dialog" aria-labelledby="task-detail-title" onCancel={event => { event.preventDefault(); onClose() }}>
+    <article className="task-detail">
+      <header className="task-detail-header">
+        <div><p className="workspace-overline">TASK OVERVIEW</p><h2 id="task-detail-title">{task.title}</h2><p>Review the task, checklist, and planning details.</p></div>
+        <button type="button" className="task-close" aria-label="Close task overview" onClick={onClose}><CloseIcon /></button>
+      </header>
+      <div className="task-detail-body">
+        <div className="task-detail-status"><span className={`task-status task-status--${task.status}`}>{status}</span><span className={`task-priority task-priority--${task.priority}`}>{priorityLabels[task.priority]} importance</span></div>
+        <dl className="task-detail-grid">
+          <div><dt>Subject</dt><dd>{subject ? `${subject.subject_code} — ${subject.title}` : 'General'}</dd></div>
+          <div><dt>Due</dt><dd className={isTaskOverdue(task, now) ? 'task-due--overdue' : ''}>{isTaskOverdue(task, now) ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</dd></div>
+          <div><dt>Planned for</dt><dd>{task.planned_date ? formatTaskDue({ due_date: task.planned_date, due_time: null }, now) : 'Not planned'}</dd></div>
+          <div><dt>Estimated work</dt><dd>{task.estimate_minutes ? formatEstimate(task.estimate_minutes) : 'Not estimated'}</dd></div>
+        </dl>
+        <section className="task-detail-section">
+          <div className="task-detail-section-head"><div><h3>Checklist</h3><p>{taskSteps.length ? `${progress.completed} of ${progress.total} steps complete` : 'No checklist added'}</p></div>{taskSteps.length > 0 && <strong>{progress.completed}/{progress.total}</strong>}</div>
+          {taskSteps.length ? <ol className="task-detail-checklist">{taskSteps.map(step => <li key={step.id} className={step.is_completed ? 'is-complete' : ''}><span aria-hidden="true">{step.is_completed ? '✓' : ''}</span><p>{step.title}</p></li>)}</ol> : <p className="task-detail-empty">Add steps when a task feels too large to start.</p>}
+        </section>
+        <section className="task-detail-section"><div className="task-detail-section-head"><div><h3>Notes</h3></div></div><p className={task.notes ? 'task-detail-notes' : 'task-detail-empty'}>{task.notes || 'No notes added.'}</p></section>
+      </div>
+      <footer className="task-detail-footer"><button type="button" className="task-secondary" onClick={onClose}>Close</button><button type="button" className="task-secondary task-detail-edit" onClick={onEdit}>Edit task</button>{task.status === 'done' ? <button type="button" className="button-primary" onClick={onReopen} disabled={busy}>Reopen task</button> : <button type="button" className="button-primary" onClick={onComplete} disabled={busy}>Mark done</button>}</footer>
+    </article>
+  </dialog>
+}
+
 function TaskConfirmationDialog({ eyebrow, title, description, confirmLabel, busyLabel, busy, danger = true, error = '', onCancel, onConfirm }: { eyebrow: string; title: string; description: string; confirmLabel: string; busyLabel: string; busy: boolean; danger?: boolean; error?: string; onCancel: () => void; onConfirm: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -233,7 +287,7 @@ function TaskConfirmationDialog({ eyebrow, title, description, confirmLabel, bus
     if (dialog && !dialog.open) dialog.showModal()
     return () => { if (dialog?.open) dialog.close() }
   }, [])
-  return <dialog ref={dialogRef} className="task-confirm-dialog" aria-labelledby="task-confirm-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><div className="task-confirm-icon" aria-hidden="true">!</div><p className="workspace-overline">{eyebrow}</p><h2 id="task-confirm-title">{title}</h2><p>{description}</p>{error && <p className="task-form-error" role="alert">{error}</p>}<footer><button type="button" className="task-secondary" autoFocus onClick={onCancel} disabled={busy}>Cancel</button><button type="button" className={danger ? 'task-danger' : 'button-primary'} onClick={onConfirm} disabled={busy}>{busy ? busyLabel : confirmLabel}</button></footer></div></dialog>
+  return <dialog ref={dialogRef} className="task-confirm-dialog" aria-labelledby="task-confirm-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><div className={`task-confirm-icon${danger ? '' : ' task-confirm-icon--positive'}`} aria-hidden="true">{danger ? '!' : '✓'}</div><p className="workspace-overline">{eyebrow}</p><h2 id="task-confirm-title">{title}</h2><p>{description}</p>{error && <p className="task-form-error" role="alert">{error}</p>}<footer><button type="button" className="task-secondary" autoFocus onClick={onCancel} disabled={busy}>Cancel</button><button type="button" className={danger ? 'task-danger' : 'button-primary'} onClick={onConfirm} disabled={busy}>{busy ? busyLabel : confirmLabel}</button></footer></div></dialog>
 }
 
 export function TasksPage({ studentId }: { studentId: string }) {
@@ -251,6 +305,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const [formError, setFormError] = useState('')
   const [busy, setBusy] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
+  const [viewing, setViewing] = useState<Task | null>(null)
   const [deleting, setDeleting] = useState<Task | null>(null)
   const [completing, setCompleting] = useState<Task | null>(null)
   const [deleteError, setDeleteError] = useState('')
@@ -380,9 +435,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
   }
 
   function requestComplete(task: Task) {
-    const progress = taskStepProgress(task.id, steps)
-    if (progress.total > progress.completed) setCompleting(task)
-    else void moveTask(task, 'done', 0)
+    setCompleting(task)
   }
 
   async function planToday(task: Task) {
@@ -414,7 +467,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
     if (targetStatus) void moveTask(task, targetStatus, targetStatus === 'done' ? 0 : allColumns[targetStatus].length)
   }
 
-  const rowProps = { subjects: subjectMap, steps, now, busy, onEdit: openEditor, onDelete: (task: Task) => { setDeleteError(''); setDeleting(task) }, onComplete: requestComplete, onPlanToday: (task: Task) => { void planToday(task) }, onToggleStep: (task: Task, step: TaskStep) => { void toggleStep(task, step) } }
+  const rowProps = { subjects: subjectMap, steps, now, busy, onView: (task: Task) => setViewing(task), onEdit: openEditor, onDelete: (task: Task) => { setDeleteError(''); setDeleting(task) }, onComplete: requestComplete, onPlanToday: (task: Task) => { void planToday(task) }, onToggleStep: (task: Task, step: TaskStep) => { void toggleStep(task, step) } }
 
   if (loading) return <div className="tasks-page"><header className="tasks-heading"><div><div className="skeleton skeleton-line skeleton-line--short" /><div className="skeleton skeleton-line skeleton-line--title" /></div></header><div className="tasks-planner-loading"><div className="skeleton skeleton-block" /><div className="skeleton skeleton-block" /></div></div>
 
@@ -436,12 +489,13 @@ export function TasksPage({ studentId }: { studentId: string }) {
       {view === 'board' && <>
         {filtersActive && <p className="task-board-filter-note">Dragging is paused while filters are active. Use each task menu to change progress.</p>}
         <nav className="task-mobile-tabs" aria-label="Kanban columns">{taskStatuses.map(status => <button key={status.id} type="button" onClick={() => document.getElementById(`task-column-${status.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })}>{status.label}<span>{columns[status.id].length}</span></button>)}</nav>
-        <DragDropProvider onDragEnd={handleDragEnd}><div className="tasks-board">{taskStatuses.map(status => <TaskColumn key={status.id} status={status.id} tasks={columns[status.id]} subjects={subjectMap} steps={steps} dragDisabled={filtersActive} onEdit={openEditor} onDelete={task => { setDeleteError(''); setDeleting(task) }} onMove={(task, next) => void moveTask(task, next, next === 'done' ? 0 : allColumns[next].length)} />)}</div></DragDropProvider>
+        <DragDropProvider onDragEnd={handleDragEnd}><div className="tasks-board">{taskStatuses.map(status => <TaskColumn key={status.id} status={status.id} tasks={columns[status.id]} subjects={subjectMap} steps={steps} dragDisabled={filtersActive} onView={task => setViewing(task)} onEdit={openEditor} onDelete={task => { setDeleteError(''); setDeleting(task) }} onMove={(task, next) => void moveTask(task, next, next === 'done' ? 0 : allColumns[next].length)} />)}</div></DragDropProvider>
       </>}
     </>}
+    {viewing && <TaskDetailDialog task={viewing} subject={viewing.schedule_subject_id ? subjectMap.get(viewing.schedule_subject_id) : undefined} steps={steps} now={now} busy={busy} onClose={() => setViewing(null)} onEdit={() => { const task = viewing; setViewing(null); openEditor(task) }} onComplete={() => { const task = viewing; setViewing(null); requestComplete(task) }} onReopen={() => { const task = viewing; setViewing(null); void moveTask(task, 'in_progress', allColumns.in_progress.length) }} />}
     {editor && <TaskEditor editor={editor} subjects={subjects} busy={busy} error={formError} onChange={draft => setEditor(previous => previous ? { ...previous, draft } : previous)} onSave={saveTask} onRequestClose={requestEditorClose} />}
     {discardOpen && <TaskConfirmationDialog eyebrow="UNSAVED CHANGES" title="Discard your changes?" description="The task details you entered will not be saved." confirmLabel="Discard changes" busyLabel="Discarding..." busy={false} onCancel={() => setDiscardOpen(false)} onConfirm={() => { setDiscardOpen(false); setEditor(null) }} />}
     {deleting && <TaskConfirmationDialog eyebrow="DELETE TASK" title={`Delete “${deleting.title}”?`} description="This permanently removes the task and its checklist. You cannot undo this action." confirmLabel="Delete task" busyLabel="Deleting..." busy={busy} error={deleteError} onCancel={() => { if (!busy) setDeleting(null) }} onConfirm={() => { void confirmDelete() }} />}
-    {completing && <TaskConfirmationDialog eyebrow="UNFINISHED STEPS" title="Complete this task anyway?" description={`There are ${taskStepProgress(completing.id, steps).total - taskStepProgress(completing.id, steps).completed} unfinished checklist steps.`} confirmLabel="Complete task" busyLabel="Completing..." busy={busy} danger={false} onCancel={() => setCompleting(null)} onConfirm={() => { const task = completing; setCompleting(null); void moveTask(task, 'done', 0) }} />}
+    {completing && <TaskConfirmationDialog eyebrow="MARK TASK DONE" title={`Complete “${completing.title}”?`} description={taskStepProgress(completing.id, steps).total > taskStepProgress(completing.id, steps).completed ? `This task still has ${taskStepProgress(completing.id, steps).total - taskStepProgress(completing.id, steps).completed} unfinished checklist steps. It will move to Done and can be reopened from the Board.` : 'This task will move to Done. You can reopen it later from the Board.'} confirmLabel="Mark done" busyLabel="Completing..." busy={busy} danger={false} onCancel={() => setCompleting(null)} onConfirm={() => { const task = completing; setCompleting(null); void moveTask(task, 'done', 0) }} />}
   </div>
 }
