@@ -66,7 +66,7 @@ export function TaskCalendar({ tasks, subjects, month, selectedDate, now, onMont
 
   return <section className="task-calendar" aria-labelledby="task-calendar-title">
     <header className="task-calendar-header">
-      <div><p className="workspace-overline">DEADLINE CALENDAR</p><h2 id="task-calendar-title">{monthLabel}</h2><p>See when your open tasks are due.</p></div>
+      <div><p className="workspace-overline">TASK DEADLINES</p><h2 id="task-calendar-title">{monthLabel}</h2><p>Select a date to review the open tasks due that day.</p></div>
       <div className="task-calendar-controls"><button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month"><ArrowIcon direction="left" /></button><button type="button" className="task-calendar-today" onClick={returnToToday}>Today</button><button type="button" onClick={() => changeMonth(1)} aria-label="Next month"><ArrowIcon direction="right" /></button></div>
     </header>
     <div className="task-calendar-layout">
@@ -83,11 +83,11 @@ export function TaskCalendar({ tasks, subjects, month, selectedDate, now, onMont
         })}</div>
       </div>
       <aside className="task-calendar-agenda" aria-labelledby="task-calendar-agenda-title">
-        <header><div><p className="workspace-overline">SELECTED DATE</p><h3 id="task-calendar-agenda-title">{selectedLabel}</h3></div><button type="button" onClick={() => onAddTask(selectedDate)}><span aria-hidden="true">+</span> Add task</button></header>
+        <header><div><p className="workspace-overline">DUE THIS DAY</p><h3 id="task-calendar-agenda-title">{selectedLabel}</h3></div><button type="button" onClick={() => onAddTask(selectedDate)}><span aria-hidden="true">+</span> Add task</button></header>
         {selectedTasks.length ? <div className="task-calendar-agenda-list">{selectedTasks.map(task => {
           const subject = task.schedule_subject_id ? subjects.get(task.schedule_subject_id) : undefined
           return <button key={task.id} type="button" onClick={() => onViewTask(task)}><span className={`task-calendar-priority task-calendar-priority--${task.priority}`} aria-hidden="true" /><span><strong>{task.title}</strong><small>{subject?.subject_code ?? 'General'}{task.due_time ? ` · ${new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, Number(task.due_time.slice(0, 2)), Number(task.due_time.slice(3, 5))))}` : ''}</small></span></button>
-        })}</div> : <div className="task-calendar-empty"><span aria-hidden="true">✓</span><strong>No tasks due</strong><p>This date is clear. Add a task only if you need one.</p></div>}
+        })}</div> : <div className="task-calendar-empty"><span aria-hidden="true">✓</span><strong>No deadlines</strong><p>No open tasks are due on this date.</p></div>}
       </aside>
     </div>
   </section>

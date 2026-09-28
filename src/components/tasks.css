@@ -110,7 +110,7 @@
 .task-close { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-canvas); color: var(--color-cali-ink); cursor: pointer; }
 .task-close:hover { background: var(--color-cali-pale); color: var(--color-cali-action); }
 .task-close svg { width: 18px; height: 18px; }
-.task-editor-body { display: grid; gap: 0; min-height: 0; padding: 20px 28px 22px; overflow-y: auto; overscroll-behavior: contain; }
+.task-editor-body { display: grid; gap: 18px; min-height: 0; padding: 20px 28px 22px; overflow-y: auto; overscroll-behavior: contain; }
 .task-form-section { min-width: 0; padding: 0; }
 .task-form-section + .task-form-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--color-cali-border); }
 .task-form-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -323,10 +323,6 @@
 .task-next-step { margin: 8px 0 0; color: var(--color-cali-slate); font-size: 9px; }
 .task-next-step--empty { color: var(--color-cali-action); font-weight: 750; }
 
-.task-more-details { margin-top: 18px; border-top: 1px solid var(--color-cali-border); }
-.task-more-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0 0; color: var(--color-cali-ink); font-size: 12px; font-weight: 850; cursor: pointer; }
-.task-more-details > summary span { color: var(--color-cali-slate); font-size: 9px; font-weight: 650; }
-.task-more-details-body { display: grid; gap: 18px; padding-top: 16px; }
 .task-checklist-editor { padding: 15px; border-radius: 12px; background: var(--color-cali-canvas); }
 .task-checklist-editor > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .task-checklist-editor h3 { margin: 0; font-family: 'Fredoka', sans-serif; font-size: 18px; font-weight: 500; }
@@ -411,8 +407,6 @@
   .planner-task-actions { grid-column: 1; justify-content: flex-end; padding: 10px 0 0; border-top: 1px solid var(--color-cali-border); }
   .planner-task-meta span + span::before { margin-right: 7px; }
   .planner-next-action { width: 100%; }
-  .task-more-details > summary { display: grid; }
-  .task-more-details > summary span { line-height: 1.4; }
   .task-checklist-editor { padding: 13px; }
   .task-detail-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 16px; }
   .task-detail { max-height: calc(100dvh - 22px); }

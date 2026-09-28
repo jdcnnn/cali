@@ -46,9 +46,9 @@ export type PlannerGroups = { overdue: Task[]; today: Task[]; suggestions: Task[
 export type UpcomingGroup = { id: 'tomorrow' | 'week' | 'later'; label: string; tasks: Task[] }
 
 export const taskStatuses: { id: TaskStatus; label: string; description: string }[] = [
-  { id: 'todo', label: 'To do', description: 'Ready to work on' },
-  { id: 'in_progress', label: 'In progress', description: 'Currently underway' },
-  { id: 'done', label: 'Done', description: 'Finished work' },
+  { id: 'todo', label: 'To do', description: 'Tasks not started' },
+  { id: 'in_progress', label: 'In progress', description: 'Tasks being worked on' },
+  { id: 'done', label: 'Done', description: 'Completed tasks' },
 ]
 
 export const priorityRank: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 }
@@ -85,8 +85,8 @@ export function validateTaskDraft(draft: TaskDraft) {
   if (draft.dueTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.dueTime)) return 'Choose a valid due time or leave it blank.'
   if (draft.plannedDate && !/^\d{4}-\d{2}-\d{2}$/.test(draft.plannedDate)) return 'Choose a valid planned date or leave it blank.'
   if (draft.plannedDate && draft.plannedDate > draft.dueDate) return 'Plan the task on or before its due date.'
-  if (draft.steps.length > 50) return 'Keep the checklist to 50 steps or fewer.'
-  if (draft.steps.some(step => !step.title.trim() || step.title.trim().length > 240)) return 'Each checklist step needs a title of up to 240 characters.'
+  if (draft.steps.length > 50) return 'Keep this task to 50 steps or fewer.'
+  if (draft.steps.some(step => !step.title.trim() || step.title.trim().length > 240)) return 'Each step needs a description of up to 240 characters.'
   return null
 }
 

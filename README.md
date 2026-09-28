@@ -33,7 +33,7 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The a
 
 ## Task module
 
-The Tasks page is a responsive student planner with Today, Upcoming, Calendar, and Board views. Quick capture requires only a title and due date, with an optional subject; students can expand planning details only when useful to add a planned work date, importance, notes, or an ordered checklist. Today separates overdue work, today’s plan, and suggested next work, while the original To do, In progress, and Done board remains available with persistent drag-and-drop ordering and accessible Move to actions.
+The Tasks page is a responsive student planner with Today, Upcoming, Calendar, and Board views. Its unified task form keeps title, subject, due date, optional due time, importance, steps, and notes together without a separate planning section. Today separates overdue work, today’s plan, and suggested next work, while the original To do, In progress, and Done board remains available with persistent drag-and-drop ordering and accessible Move to actions.
 
 The planner follows the same solid surface, spacing, typography, and responsive system as Schedules in light and dark themes. Desktop uses compact grouped task rows; mobile stacks Today and Upcoming into one readable column, while Board keeps its snap-aligned horizontal columns. Calendar provides a focused month view of open deadlines and a selected-day agenda; adding from the agenda prefills that date. Selecting task content opens a structured read-only overview, while editing, deletion, checklist progress, and completion remain separate deliberate actions. Marking a task done always uses a labeled action and confirmation dialog.
 
