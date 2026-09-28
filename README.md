@@ -33,15 +33,15 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The a
 
 ## Task module
 
-The Tasks page is a responsive Kanban board with To do, In progress, and Done columns. Students can create and edit tasks with a required title and due date, optional due time and notes, low/medium/high priority, and an optional link to one of their schedule subjects. Cards support persistent drag-and-drop ordering plus an accessible Move to menu. Subject and priority filters pause dragging so hidden cards do not make saved positions ambiguous.
+The Tasks page is a responsive student planner with Today, Upcoming, and Board views. Quick capture requires only a title and due date, with an optional subject; students can expand planning details only when useful to add a planned work date, estimate, importance, notes, or an ordered checklist. Today separates overdue work, today’s plan, and suggested next work, while the original To do, In progress, and Done board remains available with persistent drag-and-drop ordering and accessible Move to actions.
 
-The board follows the same solid surface and spacing system as Schedules in light and dark themes. Filters and task fields use styled, keyboard-accessible dropdowns; the mobile board uses compact snap-aligned columns; and destructive or unsaved-change actions require a confirmation dialog.
+The planner follows the same solid surface, spacing, typography, and responsive system as Schedules in light and dark themes. Desktop uses compact grouped task rows; mobile stacks Today and Upcoming into one readable column, while Board keeps its snap-aligned horizontal columns. Filters and task fields use styled, keyboard-accessible dropdowns, and destructive or unsaved-change actions require confirmation.
 
-Task creation and movement use authenticated database functions so ordering changes are atomic. Row-level security keeps tasks private to their owner, and linked subjects must belong to the same student. Deleting a schedule subject keeps its tasks and changes their subject to General. Completed tasks remain in Done until reopened or deleted.
+Task creation, movement, and checklist changes use authenticated database functions. Row-level security keeps tasks and checklist steps private to their owner, and linked subjects must belong to the same student. Deleting a schedule subject keeps its tasks and changes their subject to General. Completed tasks remain in Done until reopened or deleted.
 
-The dashboard shows the next three actionable tasks, prioritizing overdue work and then the nearest deadlines. Date-only tasks remain due through the end of their local calendar day; a supplied due time makes the deadline precise.
+The dashboard uses the same planner ranking and shows the next unfinished checklist step when one exists. It prioritizes overdue work, today’s work, and then the nearest deadlines. Date-only tasks remain due through the end of their local calendar day; a supplied due time makes the deadline precise.
 
-Apply `20260927000000_create_tasks.sql` before opening the deployed Tasks page. The migration adds the `tasks` table, policies, indexes, and the `cali_create_own_task` and `cali_move_own_task` functions.
+Apply both task migrations before opening the deployed Tasks page. `20260927000000_create_tasks.sql` adds the base table and create/move functions; `20260928000000_student_task_planner.sql` adds planned dates, estimates, private ordered checklist steps, and trusted checklist operations.
 
 ## Auth and onboarding
 
@@ -66,23 +66,17 @@ The reusable CALI logo assets are `src/assets/cali-wordmark.svg` and `src/assets
 - supabase/migrations/: database migrations
 - cali.md: current project decisions and plan
 
-Auth, onboarding, manual weekly schedule management, local schedule scanning, and Kanban task management are implemented. Closed-tab class reminders and the remaining application modules described in cali.md remain planned work.
+Auth, onboarding, manual weekly schedule management, local schedule scanning, and student task planning are implemented. Closed-tab class reminders and the remaining application modules described in cali.md remain planned work.
 
 ## Vercel deployment
 
 The repository is configured as a Vite project with `dist` as its build output. `vercel.json` preserves the service-worker and manifest headers and rewrites application routes such as `/tasks` to `index.html`. The linked Vercel project is `jadeee/cali`.
 
-The Vercel project was originally linked and deployed through the CLI, but it was not connected to the GitHub repository. A CLI project link does not create automatic deployments from Git pushes. Connect the existing project to the repository once from the project root:
-
-~~~powershell
-npx vercel git connect https://github.com/jdcnnn/cali.git
-~~~
-
-After the connection is established, pushes to `main` should create production deployments and pushes to other branches should create previews. Check recent deployments with `npx vercel ls cali`. `npx vercel --prod` remains available for an intentional manual production deployment.
+The Vercel project is connected to `https://github.com/jdcnnn/cali.git`. Pushes to `main` create production deployments and pushes to other branches create previews. Check recent deployments with `npx vercel ls cali`; `npx vercel --prod` remains available for an intentional manual production deployment.
 
 Before deployment, run `npm test`, `npm run lint`, and `npm run build`. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel for the required environments. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, or other server credentials as Vite environment variables.
 
-All repository migrations through `20260927000000_create_tasks.sql` are already applied to the currently linked Cali Supabase project. A different Supabase project still needs the complete migration sequence.
+All repository migrations through `20260928000000_student_task_planner.sql` are already applied to the currently linked Cali Supabase project, and the linked schema passes `supabase db lint`. A different Supabase project still needs the complete migration sequence.
 
 ## Progressive web app
 

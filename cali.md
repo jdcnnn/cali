@@ -108,13 +108,13 @@ The database enforces lowercase 3–30-character unique usernames, nonblank prog
 
 ## 5. Task direction
 
-**Implemented Kanban workflow (2026-09-27):** Tasks use fixed To do, In progress, and Done columns. Students can drag cards across and within columns, while each card also has keyboard- and touch-friendly Move to actions. Custom order persists across sessions and devices. Mobile keeps the board model through horizontally swipeable, snap-aligned columns.
+**Implemented student planner (2026-09-28):** Tasks open to a focused Today view that separates overdue work, work due or planned today, and suggested next work when today is empty. Upcoming groups future deadlines, while the original To do, In progress, and Done board remains available with persistent drag-and-drop ordering and keyboard- and touch-friendly Move to actions. Mobile uses compact vertical planner rows and keeps the board horizontally swipeable and snap-aligned.
 
-Each task has a required title and due date, optional due time and notes, low/medium/high priority, and an optional link to one of the student's schedule subjects. Date-only work remains due through the end of the local calendar day. Subject and priority filters are available; dragging is paused while filters hide cards so saved positions remain unambiguous.
+Quick capture requires only a title and due date, with an optional subject. A collapsed planning section adds optional due time, planned work date, effort estimate, importance, notes, and an ordered checklist without burdening routine capture. The first unfinished checklist item is the visible next action; completing a first step starts the task, while final task completion remains explicit. Date-only work remains due through the end of the local calendar day. Subject and importance filters are available; dragging is paused while filters hide cards so saved positions remain unambiguous.
 
-Task creation and movement use trusted database functions. `tasks` rows are private to their owner through row-level security, and a linked subject must belong to that owner. Deleting a subject sets the link to null without deleting the task. Moving into Done records `completed_at`; reopening clears it. The dashboard shows the next three actionable incomplete tasks.
+Task creation, movement, and checklist changes use trusted database functions. `tasks` and `task_steps` rows are private to their owner through row-level security, and a linked subject must belong to that owner. Deleting a subject sets the link to null without deleting the task; deleting a task cascades to its steps. Moving into Done records `completed_at`; reopening clears it. The dashboard shows the next three actionable incomplete tasks and their next unfinished step when available.
 
-Migration `20260927000000_create_tasks.sql` adds the table, indexes, grants, policies, ownership checks, and atomic create/move functions. Subtasks, attachments, recurrence, reminders, search, custom columns, and task types remain outside the initial module.
+Migration `20260927000000_create_tasks.sql` adds the base table and atomic create/move functions. Migration `20260928000000_student_task_planner.sql` adds planned dates, estimates, private ordered checklist steps, and trusted checklist operations. Attachments, recurrence, task reminders, search, custom columns, task types, grading, and automatic schedule-slot planning remain outside this focused module.
 
 ## 6. Study direction
 
@@ -237,7 +237,7 @@ The design should prioritize readable academic information and quick access to w
 | 3. Dashboard foundation | **Complete** | Personalized dashboard, current and upcoming class summaries, next actionable tasks, schedule-aware empty states, quick actions, and module panels. |
 | 4. Schedule management and intake | **Complete** | Manual subjects and meetings, weekly and unscheduled views, confirmed deletion from both views, local web/PWA RTU form scanning, cancellable recognition, responsive editable validation, direct links to missing fields, and confirmed atomic schedule replacement. |
 | 5. Class reminders | **Planned** | Push subscriptions, Web Push delivery, reminder timing, idempotency, service worker behavior, and pause controls. |
-| 6. Tasks | **Complete** | Responsive three-column Kanban board, persistent drag and menu movement, deadlines, priorities, notes, optional subject links, filters, secure ownership policies, and dashboard integration. |
+| 6. Tasks | **Complete** | Responsive Today and Upcoming planning, guided checklist steps, estimates, planned work dates, the retained Kanban board, secure ownership policies, and dashboard integration. |
 | 7. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
 | 8. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
 | 9. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |

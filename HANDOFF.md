@@ -1,6 +1,6 @@
 # Cali handoff
 
-Updated: 2026-09-27
+Updated: 2026-09-28
 
 ## What this repository is
 
@@ -75,7 +75,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Replaced technical runtime and stale-chunk messages with concise recovery guidance. A stale deployed module offers a Reload Cali action; detailed errors remain in the developer console.
 - Changed review guidance to “Details to verify,” removed decorative warning/missing-detail icons in favor of subtle yellow and red emphasis, added a prominent reminder that OCR may be inaccurate, and improved destructive/error contrast in dark mode. The final save confirmation no longer uses a warning icon.
 
-### Kanban task management (2026-09-27)
+### Student task planner (2026-09-28)
 
 - Replaced the Tasks placeholder with responsive To do, In progress, and Done columns. Cards retain a custom order and support drag-and-drop plus menu-based movement for touch and keyboard access.
 - Added task creation and editing with title, optional notes, required due date, optional due time, priority, and an optional schedule-subject link. Filters cover subject and priority; dragging pauses while filters are active.
@@ -83,18 +83,21 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Refined the Tasks UI to match the Schedules workspace: solid theme-token surfaces replace the previous glass treatment, board controls use the shared styled dropdown pattern, mobile columns and empty states are denser, and the editor now has grouped sections with a fixed action footer. Delete and unsaved-change actions use focused confirmation dialogs.
 - Added `20260927000000_create_tasks.sql` with the private `tasks` table, indexes, validation, owner-only RLS, same-owner subject checks, `ON DELETE SET NULL` subject behavior, and atomic create/move functions.
 - Added focused Vitest coverage for task validation, local deadline semantics, Kanban ordering, completion transitions, and dashboard ranking.
+- Added Today and Upcoming as the primary student-facing views while retaining Board as a secondary workflow. Today separates overdue, planned/due-today, and suggested work; Upcoming groups approaching deadlines.
+- Kept capture lightweight with title, subject, and due date visible first. Optional planning details add a planned date, estimate, ordered checklist, importance, due time, and notes only when needed.
+- Added `20260928000000_student_task_planner.sql` with private checklist steps, planner fields, ownership policies, and trusted checklist replacement/toggle functions. The dashboard now uses the same planner ranking and surfaces the next unfinished step.
 
 ## Current behavior and known follow-ups
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
 - Core schedule management and intake are complete: manual creation, editing, cascading subject deletion from scheduled or unscheduled views, local web/PWA form scanning, cancellable recognition, editable review, validation, and atomic replacement are working.
 - The scanner fixes and modal enhancements are complete. No scanner-specific follow-up is currently planned.
-- All migrations through `20260927000000_create_tasks.sql` are applied to the linked Cali Supabase project. Remote migration history matches the repository.
-- Vercel project `jadeee/cali` is configured for Vite with `dist` output, but it is not currently connected to `https://github.com/jdcnnn/cali.git`. Commit `c109d63` reached `origin/main` without creating a deployment. Run `npx vercel git connect https://github.com/jdcnnn/cali.git` once to enable automatic production deployments from `main`; use `npx vercel ls cali` to verify the resulting deployment.
+- All migrations through `20260928000000_student_task_planner.sql` are applied to the linked Cali Supabase project. Remote migration history matches the repository, and the linked public schema passes database lint.
+- Vercel project `jadeee/cali` is connected to `https://github.com/jdcnnn/cali.git` and configured for Vite with `dist` output. The latest checked `origin/main` commit automatically produced a Ready production deployment with the `cali-git-main` alias. Use `npx vercel ls cali` to verify future automatic deployments.
 - Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
 - Study and Community routes still explain planned tools. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
-- Scanner behavior has been verified by the user in both the regular web app and installed PWA. The Tasks implementation passes `npm test`, `npm.cmd run build`, and `npm.cmd run lint`; live browser interaction and a full device matrix still require manual verification because browser automation was unavailable in this environment.
+- Scanner behavior has been verified by the user in both the regular web app and installed PWA. The student planner passes `npm test`, `npm.cmd run build`, and `npm.cmd run lint`; its desktop/mobile CSS and dark-mode states are implemented, but live planner interaction and a full device matrix still require manual verification because browser automation was unavailable in this environment.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.
 
 ## Key files
@@ -114,6 +117,6 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ## Run and verify
 
-Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations, including `20260927000000_create_tasks.sql`, before testing or deploying Tasks. The local `.env` must define `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; it is ignored by Git. Keep `SUPABASE_DB_PASSWORD` local and never configure it as a browser-facing Vite variable. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
+Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations, including `20260928000000_student_task_planner.sql`, before testing or deploying Tasks. The local `.env` must define `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; it is ignored by Git. Keep `SUPABASE_DB_PASSWORD` local and never configure it as a browser-facing Vite variable. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
 
 The generated `dist/` build can be recreated with `npm run build`.

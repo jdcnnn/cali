@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { emptyTaskDraft, isTaskOverdue, moveTaskInBoard, orderedColumns, sortForDashboard, validateTaskDraft } from './tasks'
-import type { Task } from './tasks'
+import { emptyTaskDraft, isTaskOverdue, moveTaskInBoard, nextTaskStep, orderedColumns, plannerGroups, sortForDashboard, taskStepProgress, upcomingGroups, validateTaskDraft } from './tasks'
+import type { Task, TaskStep } from './tasks'
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -11,6 +11,8 @@ function task(overrides: Partial<Task> = {}): Task {
     notes: null,
     due_date: '2026-09-27',
     due_time: null,
+    planned_date: null,
+    estimate_minutes: null,
     priority: 'medium',
     status: 'todo',
     position: 0,
@@ -30,6 +32,13 @@ describe('task validation', () => {
   it('accepts an optional valid due time', () => {
     expect(validateTaskDraft({ ...emptyTaskDraft(), title: 'Read chapter 4', dueDate: '2026-09-30', dueTime: '18:30' })).toBeNull()
     expect(validateTaskDraft({ ...emptyTaskDraft(), title: 'Read chapter 4', dueDate: '2026-09-30', dueTime: '27:10' })).toBe('Choose a valid due time or leave it blank.')
+  })
+
+  it('keeps optional planning details sensible', () => {
+    const base = { ...emptyTaskDraft(), title: 'Write report', dueDate: '2026-09-30' }
+    expect(validateTaskDraft({ ...base, plannedDate: '2026-10-01' })).toBe('Plan the task on or before its due date.')
+    expect(validateTaskDraft({ ...base, estimateMinutes: '4' })).toBe('Enter an estimate from 5 minutes to 168 hours.')
+    expect(validateTaskDraft({ ...base, estimateMinutes: '90', plannedDate: '2026-09-29' })).toBeNull()
   })
 })
 
@@ -88,5 +97,42 @@ describe('board and dashboard ordering', () => {
       task({ id: 'done', status: 'done', completed_at: '2026-09-26T10:00:00.000Z' }),
     ], now)
     expect(sorted.map(item => item.id)).toEqual(['overdue', 'today-high', 'today-low', 'tomorrow'])
+  })
+})
+
+describe('student planner', () => {
+  const now = new Date(2026, 8, 27, 12, 0)
+
+  it('separates overdue and today work and suggests a next task only when today is empty', () => {
+    const groups = plannerGroups([
+      task({ id: 'overdue', due_date: '2026-09-26' }),
+      task({ id: 'due-today', due_date: '2026-09-27' }),
+      task({ id: 'planned-today', due_date: '2026-10-02', planned_date: '2026-09-27' }),
+      task({ id: 'later', due_date: '2026-10-03' }),
+    ], now)
+    expect(groups.overdue.map(item => item.id)).toEqual(['overdue'])
+    expect(groups.today.map(item => item.id)).toEqual(['due-today', 'planned-today'])
+    expect(groups.suggestions).toEqual([])
+
+    const emptyToday = plannerGroups([task({ id: 'next', due_date: '2026-09-28' })], now)
+    expect(emptyToday.suggestions.map(item => item.id)).toEqual(['next'])
+  })
+
+  it('groups future work into tomorrow, this week, and later', () => {
+    const groups = upcomingGroups([
+      task({ id: 'tomorrow', due_date: '2026-09-28' }),
+      task({ id: 'week', due_date: '2026-10-02' }),
+      task({ id: 'later', due_date: '2026-10-10' }),
+    ], now)
+    expect(groups.map(group => group.tasks.map(item => item.id))).toEqual([['tomorrow'], ['week'], ['later']])
+  })
+
+  it('selects the first unfinished checklist step and reports progress', () => {
+    const steps: TaskStep[] = [
+      { id: 'one', task_id: 'task-1', title: 'Outline', position: 0, is_completed: true, created_at: '', updated_at: '' },
+      { id: 'two', task_id: 'task-1', title: 'Draft', position: 1, is_completed: false, created_at: '', updated_at: '' },
+    ]
+    expect(nextTaskStep('task-1', steps)?.title).toBe('Draft')
+    expect(taskStepProgress('task-1', steps)).toEqual({ completed: 1, total: 2 })
   })
 })
