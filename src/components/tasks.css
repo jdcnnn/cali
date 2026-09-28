@@ -297,8 +297,7 @@
 .planner-task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 8px; color: var(--color-cali-slate); font-size: 10px; font-weight: 750; }
 .planner-task-meta > span { padding: 4px 7px; border-radius: 6px; background: var(--color-cali-surface); }
 .planner-task-meta > span:first-child { background: var(--color-cali-pale); color: var(--color-cali-action); }
-.planner-next-action { display: flex; align-items: center; gap: 7px; max-width: 100%; margin-top: 11px; padding: 8px 10px; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-surface); color: var(--color-cali-slate); font: 650 11px 'DM Sans', sans-serif; text-align: left; cursor: pointer; }
-.planner-next-action:hover { border-color: var(--color-cali-accent); background: var(--color-cali-pale); color: var(--color-cali-ink); }
+.planner-next-action { display: flex; align-items: center; gap: 7px; max-width: 100%; margin-top: 11px; padding: 8px 10px; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-surface); color: var(--color-cali-slate); font: 650 11px 'DM Sans', sans-serif; text-align: left; }
 .planner-next-action > span { flex: none; width: 14px; height: 14px; }
 .planner-next-action strong { color: var(--color-cali-ink); }
 .planner-next-action small { flex: none; margin-left: auto; color: var(--color-cali-slate); font-weight: 800; }
@@ -360,10 +359,13 @@
 .task-detail-section-head p { margin: 3px 0 0; color: var(--color-cali-slate); font-size: 10px; }
 .task-detail-section-head > strong { color: var(--color-cali-action); font-size: 11px; }
 .task-detail-checklist { display: grid; gap: 7px; margin: 13px 0 0; padding: 0; list-style: none; }
-.task-detail-checklist li { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; gap: 8px; padding: 9px 10px; border-radius: 9px; background: var(--color-cali-canvas); }
+.task-detail-checklist li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: start; gap: 8px; padding: 9px 10px; border-radius: 9px; background: var(--color-cali-canvas); }
 .task-detail-checklist li > span { display: grid; place-items: center; width: 17px; height: 17px; margin-top: 1px; border: 1px solid var(--color-cali-border); border-radius: 50%; color: #3c7a52; font-size: 10px; font-weight: 900; }
 .task-detail-checklist li p { margin: 0; overflow-wrap: anywhere; font-size: 11px; line-height: 1.45; }
 .task-detail-checklist li.is-complete p { color: var(--color-cali-slate); text-decoration: line-through; }
+.task-detail-checklist li button { align-self: center; min-height: 28px; padding: 0 8px; border: 1px solid var(--color-cali-border); border-radius: 7px; background: var(--color-cali-surface); color: var(--color-cali-accent); font: 800 9px 'DM Sans', sans-serif; white-space: nowrap; cursor: pointer; }
+.task-detail-checklist li button:hover { border-color: var(--color-cali-accent); background: var(--color-cali-pale); }
+.task-detail-checklist li button:disabled { cursor: wait; opacity: .6; }
 .task-detail-empty, .task-detail-notes { margin: 11px 0 0; color: var(--color-cali-slate); font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
 .task-detail-notes { color: var(--color-cali-ink); }
 .task-detail-footer { display: flex; justify-content: flex-end; gap: 9px; flex: none; padding: 15px 28px 21px; border-top: 1px solid var(--color-cali-border); background: var(--color-cali-surface); }

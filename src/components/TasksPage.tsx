@@ -123,7 +123,7 @@ function TaskColumn({ status, tasks, subjects, steps, dragDisabled, onView, onEd
   </section>
 }
 
-function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, onView, onEdit, onDelete, onComplete, onPlanToday, onToggleStep }: {
+function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, onView, onEdit, onDelete, onComplete, onPlanToday }: {
   task: Task
   subject?: TaskSubject
   steps: TaskStep[]
@@ -135,7 +135,6 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
   onDelete: () => void
   onComplete: () => void
   onPlanToday: () => void
-  onToggleStep: (step: TaskStep) => void
 }) {
   const overdue = isTaskOverdue(task, now)
   const progress = taskStepProgress(task.id, steps)
@@ -154,7 +153,7 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
           <span className={overdue ? 'task-due--overdue' : ''}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</span>
         </span>
       </button>
-      {next ? <button type="button" className="planner-next-action" onClick={() => onToggleStep(next)} disabled={busy}><span aria-hidden="true" /> <strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></button> : progress.total ? <p className="planner-checklist-done">✓ All steps complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}><span aria-hidden="true">+</span> Add steps</button>}
+      {next ? <div className="planner-next-action"><span aria-hidden="true" /> <strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></div> : progress.total ? <p className="planner-checklist-done">✓ All steps complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}><span aria-hidden="true">+</span> Add steps</button>}
     </div>
     <div className="planner-task-actions">
       {suggestion && <button type="button" className="task-plan-button" onClick={onPlanToday} disabled={busy}>Add to today</button>}
@@ -179,11 +178,10 @@ function PlannerSection({ title, description, tasks, emptyText, ...rowProps }: {
   onDelete: (task: Task) => void
   onComplete: (task: Task) => void
   onPlanToday: (task: Task) => void
-  onToggleStep: (task: Task, step: TaskStep) => void
 }) {
   return <section className="planner-section">
     <header><div><h2>{title}</h2><p>{description}</p></div><span>{tasks.length}</span></header>
-    {tasks.length ? <div className="planner-task-list">{tasks.map(task => <PlannerTaskRow key={task.id} task={task} subject={task.schedule_subject_id ? rowProps.subjects.get(task.schedule_subject_id) : undefined} steps={rowProps.steps} now={rowProps.now} suggestion={rowProps.suggestion} busy={rowProps.busy} onView={() => rowProps.onView(task)} onEdit={() => rowProps.onEdit(task)} onDelete={() => rowProps.onDelete(task)} onComplete={() => rowProps.onComplete(task)} onPlanToday={() => rowProps.onPlanToday(task)} onToggleStep={step => rowProps.onToggleStep(task, step)} />)}</div> : <p className="planner-section-empty">{emptyText}</p>}
+    {tasks.length ? <div className="planner-task-list">{tasks.map(task => <PlannerTaskRow key={task.id} task={task} subject={task.schedule_subject_id ? rowProps.subjects.get(task.schedule_subject_id) : undefined} steps={rowProps.steps} now={rowProps.now} suggestion={rowProps.suggestion} busy={rowProps.busy} onView={() => rowProps.onView(task)} onEdit={() => rowProps.onEdit(task)} onDelete={() => rowProps.onDelete(task)} onComplete={() => rowProps.onComplete(task)} onPlanToday={() => rowProps.onPlanToday(task)} />)}</div> : <p className="planner-section-empty">{emptyText}</p>}
   </section>
 }
 
@@ -233,7 +231,7 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
   </dialog>
 }
 
-function TaskDetailDialog({ task, subject, steps, now, busy, onClose, onEdit, onComplete, onReopen }: {
+function TaskDetailDialog({ task, subject, steps, now, busy, onClose, onEdit, onComplete, onReopen, onToggleStep }: {
   task: Task
   subject?: TaskSubject
   steps: TaskStep[]
@@ -243,6 +241,7 @@ function TaskDetailDialog({ task, subject, steps, now, busy, onClose, onEdit, on
   onEdit: () => void
   onComplete: () => void
   onReopen: () => void
+  onToggleStep: (step: TaskStep) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -268,7 +267,7 @@ function TaskDetailDialog({ task, subject, steps, now, busy, onClose, onEdit, on
         </dl>
         <section className="task-detail-section">
           <div className="task-detail-section-head"><div><h3>Steps</h3><p>{taskSteps.length ? `${progress.completed} of ${progress.total} complete` : 'No steps added'}</p></div>{taskSteps.length > 0 && <strong>{progress.completed}/{progress.total}</strong>}</div>
-          {taskSteps.length ? <ol className="task-detail-checklist">{taskSteps.map(step => <li key={step.id} className={step.is_completed ? 'is-complete' : ''}><span aria-hidden="true">{step.is_completed ? '✓' : ''}</span><p>{step.title}</p></li>)}</ol> : <p className="task-detail-empty">This task does not have any steps.</p>}
+          {taskSteps.length ? <ol className="task-detail-checklist">{taskSteps.map(step => <li key={step.id} className={step.is_completed ? 'is-complete' : ''}><span aria-hidden="true">{step.is_completed ? '✓' : ''}</span><p>{step.title}</p><button type="button" onClick={() => onToggleStep(step)} disabled={busy}>{step.is_completed ? 'Undo' : 'Mark done'}</button></li>)}</ol> : <p className="task-detail-empty">This task does not have any steps.</p>}
         </section>
         <section className="task-detail-section"><div className="task-detail-section-head"><div><h3>Notes</h3></div></div><p className={task.notes ? 'task-detail-notes' : 'task-detail-empty'}>{task.notes || 'No notes added.'}</p></section>
       </div>
@@ -473,10 +472,18 @@ export function TasksPage({ studentId }: { studentId: string }) {
   async function toggleStep(task: Task, step: TaskStep) {
     if (!supabase || busy) return
     const beforeTasks = tasks; const beforeSteps = steps; const completed = !step.is_completed
+    setBusy(true)
     setSteps(previous => previous.map(item => item.id === step.id ? { ...item, is_completed: completed } : item))
-    if (completed && task.status === 'todo') setTasks(previous => moveTaskInBoard(previous, task.id, 'in_progress', orderedColumns(previous).in_progress.length))
-    const { error } = await supabase.rpc('cali_set_own_task_step_complete', { p_step_id: step.id, p_completed: completed })
-    if (error) { setTasks(beforeTasks); setSteps(beforeSteps); setBoardError('Could not update that step. Please try again.') }
+    if (completed && task.status === 'todo') {
+      setTasks(previous => moveTaskInBoard(previous, task.id, 'in_progress', orderedColumns(previous).in_progress.length))
+      setViewing(previous => previous?.id === task.id ? { ...previous, status: 'in_progress' } : previous)
+    }
+    try {
+      const { error } = await supabase.rpc('cali_set_own_task_step_complete', { p_step_id: step.id, p_completed: completed })
+      if (error) throw error
+    } catch {
+      setTasks(beforeTasks); setSteps(beforeSteps); setViewing(previous => previous?.id === task.id ? task : previous); setBoardError('Could not update that step. Please try again.')
+    } finally { setBusy(false) }
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -490,7 +497,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
     if (targetStatus) void moveTask(task, targetStatus, targetStatus === 'done' ? 0 : allColumns[targetStatus].length)
   }
 
-  const rowProps = { subjects: subjectMap, steps, now, busy, onView: (task: Task) => setViewing(task), onEdit: openEditor, onDelete: (task: Task) => { setDeleteError(''); setDeleting(task) }, onComplete: requestComplete, onPlanToday: (task: Task) => { void planToday(task) }, onToggleStep: (task: Task, step: TaskStep) => { void toggleStep(task, step) } }
+  const rowProps = { subjects: subjectMap, steps, now, busy, onView: (task: Task) => setViewing(task), onEdit: openEditor, onDelete: (task: Task) => { setDeleteError(''); setDeleting(task) }, onComplete: requestComplete, onPlanToday: (task: Task) => { void planToday(task) } }
 
   if (loading) return <div className="tasks-page"><header className="tasks-heading"><div><div className="skeleton skeleton-line skeleton-line--short" /><div className="skeleton skeleton-line skeleton-line--title" /></div></header><div className="tasks-planner-loading"><div className="skeleton skeleton-block" /><div className="skeleton skeleton-block" /></div></div>
 
@@ -515,7 +522,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
         <DragDropProvider onDragEnd={handleDragEnd}><div className="tasks-board">{taskStatuses.map(status => <TaskColumn key={status.id} status={status.id} tasks={columns[status.id]} subjects={subjectMap} steps={steps} dragDisabled={filtersActive} onView={task => setViewing(task)} onEdit={openEditor} onDelete={task => { setDeleteError(''); setDeleting(task) }} onMove={(task, next) => void moveTask(task, next, next === 'done' ? 0 : allColumns[next].length)} />)}</div></DragDropProvider>
       </>}
     </>}
-    {viewing && <TaskDetailDialog task={viewing} subject={viewing.schedule_subject_id ? subjectMap.get(viewing.schedule_subject_id) : undefined} steps={steps} now={now} busy={busy} onClose={() => setViewing(null)} onEdit={() => { const task = viewing; setViewing(null); openEditor(task) }} onComplete={() => { const task = viewing; setViewing(null); requestComplete(task) }} onReopen={() => { const task = viewing; setViewing(null); void moveTask(task, 'in_progress', allColumns.in_progress.length) }} />}
+    {viewing && <TaskDetailDialog task={viewing} subject={viewing.schedule_subject_id ? subjectMap.get(viewing.schedule_subject_id) : undefined} steps={steps} now={now} busy={busy} onClose={() => setViewing(null)} onEdit={() => { const task = viewing; setViewing(null); openEditor(task) }} onComplete={() => { const task = viewing; setViewing(null); requestComplete(task) }} onReopen={() => { const task = viewing; setViewing(null); void moveTask(task, 'in_progress', allColumns.in_progress.length) }} onToggleStep={step => { void toggleStep(viewing, step) }} />}
     {editor && <TaskEditor editor={editor} subjects={subjects} busy={busy} error={formError} onChange={draft => setEditor(previous => previous ? { ...previous, draft } : previous)} onSave={saveTask} onRequestClose={requestEditorClose} />}
     {discardOpen && <TaskConfirmationDialog eyebrow="UNSAVED CHANGES" title="Discard your changes?" description="The task details you entered will not be saved." confirmLabel="Discard changes" busyLabel="Discarding..." busy={false} onCancel={() => setDiscardOpen(false)} onConfirm={() => { setDiscardOpen(false); setEditor(null) }} />}
     {deleting && <TaskConfirmationDialog eyebrow="DELETE TASK" title={`Delete “${deleting.title}”?`} description="This permanently removes the task, its steps, and its notes. This cannot be undone." confirmLabel="Delete task" busyLabel="Deleting..." busy={busy} error={deleteError} onCancel={() => { if (!busy) setDeleting(null) }} onConfirm={() => { void confirmDelete() }} />}
