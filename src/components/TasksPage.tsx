@@ -9,7 +9,6 @@ import { supabase } from '../lib/supabase'
 import {
   draftFromTask,
   emptyTaskDraft,
-  formatEstimate,
   formatTaskDue,
   isTaskOverdue,
   localDateKey,
@@ -139,14 +138,13 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
   return <article className="planner-task-row">
     <div className="planner-task-main">
       <button type="button" className="planner-task-open" onClick={onView}>
-        <span className="planner-task-heading"><strong>{task.title}</strong><span className={`task-priority task-priority--${task.priority}`}>{priorityLabels[task.priority]}</span></span>
+        <span className="planner-task-heading"><strong>{task.title}</strong><span className={`task-priority task-priority--${task.priority}`}>{priorityLabels[task.priority]}</span><span className="planner-view-arrow" aria-hidden="true">›</span></span>
         <span className="planner-task-meta">
           <span>{subject ? subject.subject_code : 'General'}</span>
           <span className={overdue ? 'task-due--overdue' : ''}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</span>
-          {task.estimate_minutes && <span>{formatEstimate(task.estimate_minutes)}</span>}
         </span>
       </button>
-      {next ? <button type="button" className="planner-next-action" onClick={() => onToggleStep(next)} disabled={busy}><span aria-hidden="true" /> <strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></button> : progress.total ? <p className="planner-checklist-done">✓ Checklist complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}>+ Break this task into steps</button>}
+      {next ? <button type="button" className="planner-next-action" onClick={() => onToggleStep(next)} disabled={busy}><span aria-hidden="true" /> <strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></button> : progress.total ? <p className="planner-checklist-done">✓ Checklist complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}><span aria-hidden="true">+</span> Add checklist steps</button>}
     </div>
     <div className="planner-task-actions">
       {suggestion && <button type="button" className="task-plan-button" onClick={onPlanToday} disabled={busy}>Plan today</button>}
@@ -217,8 +215,7 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
             <div className="task-editor-fields">
               <label className="task-field"><span>Due time <small>Optional</small></span><input type="time" value={draft.dueTime} onChange={event => onChange({ ...draft, dueTime: event.target.value })} /></label>
               <div className="task-field"><span>Importance</span><OnboardingDropdown id="task-priority" label="Importance" placeholder="Select importance" value={draft.priority} options={Object.entries(priorityLabels).map(([value, label]) => ({ value, label }))} onChange={priority => onChange({ ...draft, priority: priority as TaskPriority })} /></div>
-              <label className="task-field"><span>Plan for <small>Optional</small></span><input type="date" max={draft.dueDate || undefined} value={draft.plannedDate} onChange={event => onChange({ ...draft, plannedDate: event.target.value })} /></label>
-              <label className="task-field"><span>Estimate in minutes <small>Optional</small></span><input type="number" min="5" max="10080" step="5" value={draft.estimateMinutes} onChange={event => onChange({ ...draft, estimateMinutes: event.target.value })} placeholder="e.g. 90" /></label>
+              <label className="task-field task-field--wide"><span>Plan for <small>Optional</small></span><input type="date" max={draft.dueDate || undefined} value={draft.plannedDate} onChange={event => onChange({ ...draft, plannedDate: event.target.value })} /></label>
             </div>
             <section className="task-checklist-editor" aria-labelledby="task-checklist-title">
               <div><div><h3 id="task-checklist-title">Checklist</h3><p>The first unfinished item becomes your next step.</p></div><button type="button" onClick={addStep} disabled={draft.steps.length >= 50}>+ Add step</button></div>
@@ -267,7 +264,6 @@ function TaskDetailDialog({ task, subject, steps, now, busy, onClose, onEdit, on
           <div><dt>Subject</dt><dd>{subject ? `${subject.subject_code} — ${subject.title}` : 'General'}</dd></div>
           <div><dt>Due</dt><dd className={isTaskOverdue(task, now) ? 'task-due--overdue' : ''}>{isTaskOverdue(task, now) ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</dd></div>
           <div><dt>Planned for</dt><dd>{task.planned_date ? formatTaskDue({ due_date: task.planned_date, due_time: null }, now) : 'Not planned'}</dd></div>
-          <div><dt>Estimated work</dt><dd>{task.estimate_minutes ? formatEstimate(task.estimate_minutes) : 'Not estimated'}</dd></div>
         </dl>
         <section className="task-detail-section">
           <div className="task-detail-section-head"><div><h3>Checklist</h3><p>{taskSteps.length ? `${progress.completed} of ${progress.total} steps complete` : 'No checklist added'}</p></div>{taskSteps.length > 0 && <strong>{progress.completed}/{progress.total}</strong>}</div>
@@ -314,7 +310,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const load = useCallback(async () => {
     if (!supabase) throw new Error('Supabase is not configured.')
     const [taskResult, subjectResult, stepResult] = await Promise.all([
-      supabase.from('tasks').select('id,user_id,schedule_subject_id,title,notes,due_date,due_time,planned_date,estimate_minutes,priority,status,position,completed_at,created_at,updated_at').eq('user_id', studentId).order('position'),
+      supabase.from('tasks').select('id,user_id,schedule_subject_id,title,notes,due_date,due_time,planned_date,priority,status,position,completed_at,created_at,updated_at').eq('user_id', studentId).order('position'),
       supabase.from('schedule_subjects').select('id,subject_code,title').eq('user_id', studentId).order('subject_code'),
       supabase.from('task_steps').select('id,task_id,title,position,is_completed,created_at,updated_at').order('position'),
     ])
@@ -352,8 +348,6 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const futureGroups = useMemo(() => upcomingGroups(filteredTasks, now), [filteredTasks, now])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
   const subjectFilterOptions = useMemo(() => [{ value: 'all', label: 'All subjects' }, { value: 'general', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))], [subjects])
-  const todayEstimate = todayGroups.today.reduce((total, task) => total + (task.estimate_minutes ?? 0), 0)
-  const todayUnestimated = todayGroups.today.filter(task => !task.estimate_minutes).length
 
   function openNewTask() {
     const draft = emptyTaskDraft()
@@ -378,7 +372,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
     if (validation) { setFormError(validation); return }
     setBusy(true); setFormError('')
     const draft = editor.draft
-    const details = { title: draft.title.replace(/\s+/g, ' ').trim(), notes: draft.notes.trim() || null, schedule_subject_id: draft.subjectId || null, due_date: draft.dueDate, due_time: draft.dueTime || null, planned_date: draft.plannedDate || null, estimate_minutes: draft.estimateMinutes ? Number(draft.estimateMinutes) : null, priority: draft.priority }
+    const details = { title: draft.title.replace(/\s+/g, ' ').trim(), notes: draft.notes.trim() || null, schedule_subject_id: draft.subjectId || null, due_date: draft.dueDate, due_time: draft.dueTime || null, planned_date: draft.plannedDate || null, priority: draft.priority }
     let savedTask: Task | null = null
     const wasNew = !editor.taskId
     try {
@@ -389,7 +383,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
       } else {
         const { data: created, error: createError } = await supabase.rpc('cali_create_own_task', { p_title: details.title, p_notes: details.notes, p_schedule_subject_id: details.schedule_subject_id, p_due_date: details.due_date, p_due_time: details.due_time, p_priority: details.priority })
         if (createError) throw createError
-        const { data, error } = await supabase.from('tasks').update({ planned_date: details.planned_date, estimate_minutes: details.estimate_minutes }).eq('id', (created as Task).id).eq('user_id', studentId).select().single()
+        const { data, error } = await supabase.from('tasks').update({ planned_date: details.planned_date }).eq('id', (created as Task).id).eq('user_id', studentId).select().single()
         if (error) throw error
         savedTask = data as Task
       }
@@ -480,7 +474,6 @@ export function TasksPage({ studentId }: { studentId: string }) {
       </div>
       {boardError && <div className="task-board-error" role="alert"><span>{boardError}</span><button type="button" onClick={() => setBoardError('')} aria-label="Dismiss error"><CloseIcon /></button></div>}
       {view === 'today' && <div className="tasks-planner">
-        <div className="planner-summary"><div><span>Today’s plan</span><strong>{todayGroups.today.length} {todayGroups.today.length === 1 ? 'task' : 'tasks'}</strong></div><div><span>Estimated work</span><strong>{todayEstimate ? formatEstimate(todayEstimate) : 'Not estimated'}</strong>{todayUnestimated > 0 && <small>{todayUnestimated} without an estimate</small>}</div></div>
         {todayGroups.overdue.length > 0 && <PlannerSection title="Needs attention" description="Past their deadline and still open." tasks={todayGroups.overdue} emptyText="Nothing overdue." {...rowProps} />}
         <PlannerSection title="Today’s plan" description="Due today or deliberately planned for today." tasks={todayGroups.today} emptyText="Nothing is planned for today yet." {...rowProps} />
         {todayGroups.suggestions.length > 0 && <PlannerSection title="Suggested next" description="Your nearest open work, ready to add to today." tasks={todayGroups.suggestions} emptyText="No suggestions right now." suggestion {...rowProps} />}

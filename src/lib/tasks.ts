@@ -10,7 +10,6 @@ export type Task = {
   due_date: string
   due_time: string | null
   planned_date: string | null
-  estimate_minutes: number | null
   priority: TaskPriority
   status: TaskStatus
   position: number
@@ -39,7 +38,6 @@ export type TaskDraft = {
   dueDate: string
   dueTime: string
   plannedDate: string
-  estimateMinutes: string
   priority: TaskPriority
   steps: TaskDraftStep[]
 }
@@ -63,7 +61,7 @@ export function localDateKey(date = new Date()) {
 }
 
 export function emptyTaskDraft(): TaskDraft {
-  return { title: '', notes: '', subjectId: '', dueDate: '', dueTime: '', plannedDate: '', estimateMinutes: '', priority: 'medium', steps: [] }
+  return { title: '', notes: '', subjectId: '', dueDate: '', dueTime: '', plannedDate: '', priority: 'medium', steps: [] }
 }
 
 export function draftFromTask(task: Task, steps: TaskStep[] = []): TaskDraft {
@@ -74,7 +72,6 @@ export function draftFromTask(task: Task, steps: TaskStep[] = []): TaskDraft {
     dueDate: task.due_date,
     dueTime: task.due_time?.slice(0, 5) ?? '',
     plannedDate: task.planned_date ?? '',
-    estimateMinutes: task.estimate_minutes?.toString() ?? '',
     priority: task.priority,
     steps: steps.sort((a, b) => a.position - b.position).map(step => ({ id: step.id, title: step.title, isCompleted: step.is_completed })),
   }
@@ -88,7 +85,6 @@ export function validateTaskDraft(draft: TaskDraft) {
   if (draft.dueTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.dueTime)) return 'Choose a valid due time or leave it blank.'
   if (draft.plannedDate && !/^\d{4}-\d{2}-\d{2}$/.test(draft.plannedDate)) return 'Choose a valid planned date or leave it blank.'
   if (draft.plannedDate && draft.plannedDate > draft.dueDate) return 'Plan the task on or before its due date.'
-  if (draft.estimateMinutes && (!/^\d+$/.test(draft.estimateMinutes) || Number(draft.estimateMinutes) < 5 || Number(draft.estimateMinutes) > 10080)) return 'Enter an estimate from 5 minutes to 168 hours.'
   if (draft.steps.length > 50) return 'Keep the checklist to 50 steps or fewer.'
   if (draft.steps.some(step => !step.title.trim() || step.title.trim().length > 240)) return 'Each checklist step needs a title of up to 240 characters.'
   return null
@@ -113,14 +109,6 @@ export function formatTaskDue(task: Pick<Task, 'due_date' | 'due_time'>, now = n
   if (!task.due_time) return dateLabel
   const time = new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(localDeadline(task))
   return `${dateLabel}, ${time}`
-}
-
-export function formatEstimate(minutes: number | null) {
-  if (!minutes) return ''
-  if (minutes < 60) return `${minutes} min`
-  const hours = Math.floor(minutes / 60)
-  const remainder = minutes % 60
-  return remainder ? `${hours} hr ${remainder} min` : `${hours} hr`
 }
 
 function smartTaskSort(left: Task, right: Task) {

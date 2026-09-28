@@ -33,7 +33,7 @@ Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The a
 
 ## Task module
 
-The Tasks page is a responsive student planner with Today, Upcoming, and Board views. Quick capture requires only a title and due date, with an optional subject; students can expand planning details only when useful to add a planned work date, estimate, importance, notes, or an ordered checklist. Today separates overdue work, today’s plan, and suggested next work, while the original To do, In progress, and Done board remains available with persistent drag-and-drop ordering and accessible Move to actions.
+The Tasks page is a responsive student planner with Today, Upcoming, and Board views. Quick capture requires only a title and due date, with an optional subject; students can expand planning details only when useful to add a planned work date, importance, notes, or an ordered checklist. Today separates overdue work, today’s plan, and suggested next work, while the original To do, In progress, and Done board remains available with persistent drag-and-drop ordering and accessible Move to actions.
 
 The planner follows the same solid surface, spacing, typography, and responsive system as Schedules in light and dark themes. Desktop uses compact grouped task rows; mobile stacks Today and Upcoming into one readable column, while Board keeps its snap-aligned horizontal columns. Selecting task content opens a structured read-only overview, while editing, deletion, checklist progress, and completion remain separate deliberate actions. Marking a task done always uses a labeled action and confirmation dialog.
 
@@ -41,7 +41,7 @@ Task creation, movement, and checklist changes use authenticated database functi
 
 The dashboard uses the same planner ranking and shows the next unfinished checklist step when one exists. It prioritizes overdue work, today’s work, and then the nearest deadlines. Date-only tasks remain due through the end of their local calendar day; a supplied due time makes the deadline precise.
 
-Apply both task migrations before opening the deployed Tasks page. `20260927000000_create_tasks.sql` adds the base table and create/move functions; `20260928000000_student_task_planner.sql` adds planned dates, estimates, private ordered checklist steps, and trusted checklist operations.
+Apply both task migrations before opening the deployed Tasks page. `20260927000000_create_tasks.sql` adds the base table and create/move functions; `20260928000000_student_task_planner.sql` adds the student-planner fields and private checklist operations. The application no longer reads or writes effort estimates; the deployed legacy column remains unused to avoid destructive data removal.
 
 ## Auth and onboarding
 

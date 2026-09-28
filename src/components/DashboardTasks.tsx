@@ -13,7 +13,7 @@ export function DashboardTasks({ studentId, now }: { studentId: string; now: Dat
   const load = useCallback(async () => {
     if (!supabase) throw new Error('Supabase is not configured.')
     const [taskResult, stepResult] = await Promise.all([
-      supabase.from('tasks').select('id,user_id,schedule_subject_id,title,notes,due_date,due_time,planned_date,estimate_minutes,priority,status,position,completed_at,created_at,updated_at').eq('user_id', studentId).neq('status', 'done'),
+      supabase.from('tasks').select('id,user_id,schedule_subject_id,title,notes,due_date,due_time,planned_date,priority,status,position,completed_at,created_at,updated_at').eq('user_id', studentId).neq('status', 'done'),
       supabase.from('task_steps').select('id,task_id,title,position,is_completed,created_at,updated_at').order('position'),
     ])
     if (taskResult.error) throw taskResult.error

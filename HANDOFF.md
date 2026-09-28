@@ -84,9 +84,10 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added `20260927000000_create_tasks.sql` with the private `tasks` table, indexes, validation, owner-only RLS, same-owner subject checks, `ON DELETE SET NULL` subject behavior, and atomic create/move functions.
 - Added focused Vitest coverage for task validation, local deadline semantics, Kanban ordering, completion transitions, and dashboard ranking.
 - Added Today and Upcoming as the primary student-facing views while retaining Board as a secondary workflow. Today separates overdue, planned/due-today, and suggested work; Upcoming groups approaching deadlines.
-- Kept capture lightweight with title, subject, and due date visible first. Optional planning details add a planned date, estimate, ordered checklist, importance, due time, and notes only when needed.
+- Kept capture lightweight with title, subject, and due date visible first. Optional planning details add a planned date, ordered checklist, importance, due time, and notes only when needed.
 - Added `20260928000000_student_task_planner.sql` with private checklist steps, planner fields, ownership policies, and trusted checklist replacement/toggle functions. The dashboard now uses the same planner ranking and surfaces the next unfinished step.
-- Replaced the ambiguous completion circle with a labeled Mark done action and confirmation for every completion. Selecting task content in Today, Upcoming, or Board now opens a responsive structured overview with status, subject, deadlines, estimate, checklist, notes, and explicit Edit/Mark done or Reopen actions.
+- Replaced the ambiguous completion circle with a labeled Mark done action and confirmation for every completion. Selecting task content in Today, Upcoming, or Board now opens a responsive structured overview with status, subject, deadlines, checklist, notes, and explicit Edit/Mark done or Reopen actions.
+- Removed effort estimates and their summary metric from the interface, client model, and planner calculations; students now see only planning information that drives an immediate action. The deployed `estimate_minutes` column remains unused for non-destructive compatibility.
 
 ## Current behavior and known follow-ups
 

@@ -12,7 +12,6 @@ function task(overrides: Partial<Task> = {}): Task {
     due_date: '2026-09-27',
     due_time: null,
     planned_date: null,
-    estimate_minutes: null,
     priority: 'medium',
     status: 'todo',
     position: 0,
@@ -34,11 +33,10 @@ describe('task validation', () => {
     expect(validateTaskDraft({ ...emptyTaskDraft(), title: 'Read chapter 4', dueDate: '2026-09-30', dueTime: '27:10' })).toBe('Choose a valid due time or leave it blank.')
   })
 
-  it('keeps optional planning details sensible', () => {
+  it('keeps an optional planned date on or before the deadline', () => {
     const base = { ...emptyTaskDraft(), title: 'Write report', dueDate: '2026-09-30' }
     expect(validateTaskDraft({ ...base, plannedDate: '2026-10-01' })).toBe('Plan the task on or before its due date.')
-    expect(validateTaskDraft({ ...base, estimateMinutes: '4' })).toBe('Enter an estimate from 5 minutes to 168 hours.')
-    expect(validateTaskDraft({ ...base, estimateMinutes: '90', plannedDate: '2026-09-29' })).toBeNull()
+    expect(validateTaskDraft({ ...base, plannedDate: '2026-09-29' })).toBeNull()
   })
 })
 
