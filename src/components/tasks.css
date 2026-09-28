@@ -149,6 +149,8 @@
 :root[data-theme="dark"] .task-board-error, :root[data-theme="dark"] .task-form-error, .dark .task-board-error, .dark .task-form-error { border-color: #704345; background: #34292b; color: #ffaaa2; }
 :root[data-theme="dark"] .task-confirm-icon, .dark .task-confirm-icon { background: #3c292b; color: #ffaaa2; }
 :root[data-theme="dark"] .task-field input[type="date"], :root[data-theme="dark"] .task-field input[type="time"], .dark .task-field input[type="date"], .dark .task-field input[type="time"] { color-scheme: dark; }
+:root[data-theme="dark"] .tasks-page :is(.task-toolbar-heading button, .task-toolbar-tip > span, .task-column > header > span, .task-column-empty span, .task-priority--low, .task-subject, .task-view-filters > button, .planner-section > header > span, .planner-task-meta > span:first-child, .planner-add-steps, .task-plan-button, .task-complete-button, .task-next-step--empty, .task-checklist-editor > div:first-child > button, .task-status, .task-detail-section-head > strong),
+.dark .tasks-page :is(.task-toolbar-heading button, .task-toolbar-tip > span, .task-column > header > span, .task-column-empty span, .task-priority--low, .task-subject, .task-view-filters > button, .planner-section > header > span, .planner-task-meta > span:first-child, .planner-add-steps, .task-plan-button, .task-complete-button, .task-next-step--empty, .task-checklist-editor > div:first-child > button, .task-status, .task-detail-section-head > strong) { color: var(--color-cali-accent); }
 
 @media (max-width: 980px) {
   .tasks-heading { margin-top: 25px; }
@@ -324,7 +326,10 @@
 .task-detail-notes { color: var(--color-cali-ink); }
 .task-detail-footer { display: flex; justify-content: flex-end; gap: 9px; flex: none; padding: 15px 28px 21px; border-top: 1px solid var(--color-cali-border); background: var(--color-cali-surface); }
 .task-detail-footer button { min-width: 112px; }
-.task-confirm-icon--positive { background: var(--color-cali-pale); color: var(--color-cali-action); }
+.task-confirm-icon--positive { background: #e6f4eb; color: #34734b; }
+:root[data-theme="dark"] .task-confirm-icon.task-confirm-icon--positive, .dark .task-confirm-icon.task-confirm-icon--positive { background: #234333; color: #91d6ac; }
+:root[data-theme="dark"] .tasks-page .planner-checklist-done, :root[data-theme="dark"] .tasks-page .task-status--done, :root[data-theme="dark"] .tasks-page .task-detail-checklist li > span,
+.dark .tasks-page .planner-checklist-done, .dark .tasks-page .task-status--done, .dark .tasks-page .task-detail-checklist li > span { color: #91d6ac; }
 
 @media (max-width: 780px) {
   .task-view-bar { align-items: stretch; flex-direction: column; }

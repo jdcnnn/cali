@@ -124,6 +124,7 @@
 :root[data-theme="dark"] .schedule-confirm-icon { background: #4a421f; color: #ffe38a; }
 .schedule-remove-dialog { width: min(410px, 100%); margin: auto; padding: 24px; border: 1px solid var(--color-cali-border); border-radius: 17px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 22px 60px #061f2d4d; text-align: center; }
 .schedule-remove-icon { display: grid; width: 42px; height: 42px; margin: 0 auto 13px; place-items: center; border-radius: 50%; background: color-mix(in srgb, #c95449 13%, var(--color-cali-surface)); color: #b34139; font-size: 24px; font-weight: 800; }
+:root[data-theme="dark"] .schedule-remove-icon { background: #3c292b; color: #ffaaa2; }
 .schedule-remove-dialog h3 { margin: 0; font-size: 18px; }
 .schedule-remove-dialog p { margin: 8px auto 0; color: var(--color-cali-slate); font-size: 13px; line-height: 1.55; }
 .schedule-remove-dialog > div { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 20px; }
