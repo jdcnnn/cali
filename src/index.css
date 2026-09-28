@@ -19,7 +19,7 @@
 }
 
 :root { --theme-duration: 260ms; --theme-ease: cubic-bezier(.2,.75,.2,1); color-scheme: light; font-family: "DM Sans", sans-serif; color: var(--color-cali-ink); background: var(--color-cali-canvas); font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
-:root[data-theme="dark"] { color-scheme: dark; --color-cali-deep: #0B6F9C; --color-cali-primary: #71C7EC; --color-cali-accent: #71C7EC; --color-cali-ink: #EAF5F9; --color-cali-slate: #A9C2CF; --color-cali-pale: #173848; --color-cali-canvas: #0C202B; --color-cali-surface: #142F3D; --color-cali-border: #315363; }
+:root[data-theme="dark"] { color-scheme: dark; --color-cali-deep: #0B6F9C; --color-cali-primary: #71C7EC; --color-cali-action: #71C7EC; --color-cali-accent: #71C7EC; --color-cali-ink: #EAF5F9; --color-cali-slate: #A9C2CF; --color-cali-pale: #173848; --color-cali-canvas: #0C202B; --color-cali-surface: #142F3D; --color-cali-border: #315363; }
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; margin: 0; }
 html { scroll-behavior: smooth; }

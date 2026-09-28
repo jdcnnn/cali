@@ -39,6 +39,10 @@ function MoreIcon() {
   return <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg>
 }
 
+function SearchIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
+}
+
 function GripIcon() {
   return <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="8" cy="7" r="1.4" /><circle cx="16" cy="7" r="1.4" /><circle cx="8" cy="12" r="1.4" /><circle cx="16" cy="12" r="1.4" /><circle cx="8" cy="17" r="1.4" /><circle cx="16" cy="17" r="1.4" /></svg>
 }
@@ -135,10 +139,15 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
   const overdue = isTaskOverdue(task, now)
   const progress = taskStepProgress(task.id, steps)
   const next = nextTaskStep(task.id, steps)
+
+  function closeMenu(event: React.MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.closest('details')?.removeAttribute('open')
+  }
+
   return <article className="planner-task-row">
     <div className="planner-task-main">
       <button type="button" className="planner-task-open" onClick={onView}>
-        <span className="planner-task-heading"><strong>{task.title}</strong><span className={`task-priority task-priority--${task.priority}`}>{priorityLabels[task.priority]}</span><span className="planner-view-arrow" aria-hidden="true">›</span></span>
+        <span className="planner-task-heading"><strong>{task.title}</strong><span className={`task-priority task-priority--${task.priority}`}>{priorityLabels[task.priority]}</span></span>
         <span className="planner-task-meta">
           <span>{subject ? subject.subject_code : 'General'}</span>
           <span className={overdue ? 'task-due--overdue' : ''}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</span>
@@ -149,7 +158,7 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
     <div className="planner-task-actions">
       {suggestion && <button type="button" className="task-plan-button" onClick={onPlanToday} disabled={busy}>Plan today</button>}
       <button type="button" className="task-complete-button" onClick={onComplete} disabled={busy}><span aria-hidden="true">✓</span> Mark done</button>
-      <details className="task-card-menu"><summary aria-label={`Actions for ${task.title}`}><MoreIcon /></summary><div className="task-card-menu-panel"><button type="button" onClick={onEdit}>Edit task</button><button type="button" className="task-menu-delete" onClick={onDelete}>Delete task</button></div></details>
+      <details className="task-card-menu"><summary aria-label={`Actions for ${task.title}`}><MoreIcon /></summary><div className="task-card-menu-panel"><button type="button" onClick={event => { closeMenu(event); onEdit() }}>Edit task</button><button type="button" className="task-menu-delete" onClick={event => { closeMenu(event); onDelete() }}>Delete task</button></div></details>
     </div>
   </article>
 }
@@ -295,6 +304,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState('')
   const [boardError, setBoardError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState<'all' | TaskPriority>('all')
   const [editor, setEditor] = useState<EditorState | null>(null)
@@ -331,17 +341,42 @@ export function TasksPage({ studentId }: { studentId: string }) {
   }, [load])
 
   useEffect(() => {
+    function closeMenusOutside(event: PointerEvent) {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      document.querySelectorAll<HTMLDetailsElement>('.task-card-menu[open]').forEach(menu => {
+        if (!menu.contains(target)) menu.removeAttribute('open')
+      })
+    }
+
+    function closeMenusOnEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      document.querySelectorAll<HTMLDetailsElement>('.task-card-menu[open]').forEach(menu => menu.removeAttribute('open'))
+    }
+
+    document.addEventListener('pointerdown', closeMenusOutside, true)
+    document.addEventListener('keydown', closeMenusOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeMenusOutside, true)
+      document.removeEventListener('keydown', closeMenusOnEscape)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!loading && !pageError && searchParams.get('new') === '1' && !editor) {
       const timer = window.setTimeout(() => { openNewTask(); setSearchParams({}, { replace: true }) }, 0)
       return () => window.clearTimeout(timer)
     }
   }, [loading, pageError, searchParams, setSearchParams, editor])
 
-  const filtersActive = subjectFilter !== 'all' || priorityFilter !== 'all'
+  const filtersActive = searchQuery.trim() !== '' || subjectFilter !== 'all' || priorityFilter !== 'all'
   const filteredTasks = useMemo(() => tasks.filter(task => {
+    const query = searchQuery.trim().toLocaleLowerCase()
     const matchesSubject = subjectFilter === 'all' || (subjectFilter === 'general' ? task.schedule_subject_id === null : task.schedule_subject_id === subjectFilter)
-    return matchesSubject && (priorityFilter === 'all' || task.priority === priorityFilter)
-  }), [tasks, subjectFilter, priorityFilter])
+    const subject = task.schedule_subject_id ? subjects.find(item => item.id === task.schedule_subject_id) : undefined
+    const matchesSearch = !query || [task.title, task.notes, subject?.subject_code, subject?.title].filter(Boolean).some(value => value!.toLocaleLowerCase().includes(query))
+    return matchesSearch && matchesSubject && (priorityFilter === 'all' || task.priority === priorityFilter)
+  }), [tasks, subjects, searchQuery, subjectFilter, priorityFilter])
   const columns = useMemo(() => orderedColumns(filteredTasks), [filteredTasks])
   const allColumns = useMemo(() => orderedColumns(tasks), [tasks])
   const todayGroups = useMemo(() => plannerGroups(filteredTasks, now), [filteredTasks, now])
@@ -470,7 +505,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
     {pageError ? <section className="tasks-error-state" role="alert"><h2>Tasks could not be loaded</h2><p>{pageError}</p><button type="button" className="button-primary" onClick={() => { setLoading(true); void load().catch(cause => { setPageError(cause instanceof Error ? cause.message : 'Could not load your tasks.'); setLoading(false) }) }}>Try again</button></section> : <>
       <div className="task-view-bar">
         <nav className="task-view-tabs" aria-label="Task views">{(['today', 'upcoming', 'board'] as TaskView[]).map(item => <button key={item} type="button" className={view === item ? 'active' : ''} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{item === 'today' ? 'Today' : item === 'upcoming' ? 'Upcoming' : 'Board'}</button>)}</nav>
-        <div className="task-view-filters"><OnboardingDropdown id="task-filter-subject" label="Filter by subject" placeholder="All subjects" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /><OnboardingDropdown id="task-filter-priority" label="Filter by importance" placeholder="All importance" value={priorityFilter} options={[{ value: 'all', label: 'All importance' }, { value: 'high', label: 'High importance' }, { value: 'medium', label: 'Medium importance' }, { value: 'low', label: 'Low importance' }]} onChange={priority => setPriorityFilter(priority as 'all' | TaskPriority)} />{filtersActive && <button type="button" onClick={() => { setSubjectFilter('all'); setPriorityFilter('all') }}>Clear</button>}</div>
+        <div className="task-view-filters"><label className="task-search"><SearchIcon /><input type="search" aria-label="Search tasks" placeholder="Search tasks" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></label><OnboardingDropdown id="task-filter-subject" label="Filter by subject" placeholder="All subjects" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /><OnboardingDropdown id="task-filter-priority" label="Filter by importance" placeholder="All importance" value={priorityFilter} options={[{ value: 'all', label: 'All importance' }, { value: 'high', label: 'High importance' }, { value: 'medium', label: 'Medium importance' }, { value: 'low', label: 'Low importance' }]} onChange={priority => setPriorityFilter(priority as 'all' | TaskPriority)} />{filtersActive && <button type="button" onClick={() => { setSearchQuery(''); setSubjectFilter('all'); setPriorityFilter('all') }}>Clear</button>}</div>
       </div>
       {boardError && <div className="task-board-error" role="alert"><span>{boardError}</span><button type="button" onClick={() => setBoardError('')} aria-label="Dismiss error"><CloseIcon /></button></div>}
       {view === 'today' && <div className="tasks-planner">
