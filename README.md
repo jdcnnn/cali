@@ -57,6 +57,8 @@ The initial program options are a short subset of [RTU's published undergraduate
 
 The reusable CALI logo assets are `src/assets/cali-wordmark.svg` and `src/assets/cali-wordmark-white.svg`. Both have transparent backgrounds and are used through the shared wordmark component.
 
+The web and installed-app icon uses the exact graduation-cap structure from Cali's wordmark, with a white inner lining and a restrained light-blue top highlight. Edit `public/icons/cali-mark.svg`, then run `npm run icons` to regenerate the regular, maskable, Apple, and favicon assets. All variants share the same master geometry. The generator also writes a size/mask review sheet to `dist/icon-preview/`; run it after a build if you need the previews, since Vite clears `dist`. When changing artwork, bump the icon URL version in the HTML and manifest. Existing installed apps may refresh their icons on the browser or operating system's own schedule.
+
 ## Project layout
 
 - src/: React application
