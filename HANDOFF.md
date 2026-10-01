@@ -93,8 +93,8 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 - Added `/calendar` and placed Calendar directly after Tasks in the desktop sidebar and mobile navigation drawer.
 - Added a dedicated Cali-branded Calendar screen that reads repeating class meetings and open task deadlines without changing their existing database models.
-- Calendar uses the full workspace beside the sidebar, defaults to Month, and also provides Week and Day views. It is event-focused rather than a second timetable: Month uses compact entries, Week groups each date into separate Task deadlines and Class meetings sections, and Day expands those two lists.
-- On phone-sized screens, Month uses each clean full day cell as the selection target without event dots, while the selected-day agenda provides full-size preview actions. Week and Day use a seven-day selector with separate Deadlines and Classes sections so event types do not compete for space.
+- Calendar follows the same centered width, spacing, and rounded surface system as the other workspace modules. It defaults to Month and also provides Week and Day views. It is event-focused rather than a second timetable: Month uses a selected-day detail panel instead of repeating class names throughout the grid, Week groups each date into separate Task deadlines and Class meetings sections, and Day expands those two lists.
+- Month date cells use restrained blue and amber bars instead of repeated schedule text or event dots. Each full day cell selects a readable detail panel with full-size preview actions. Week and Day use a seven-day selector with separate Deadlines and Classes sections on smaller screens so event types do not compete for space.
 - Added loading, retryable error, and first-use empty states. Calendar entries open preview modals with focused class or task details and a link to the owning module. Numeric section counts were intentionally omitted. Selected-date creation remains for the next Calendar phase.
 
 ## Current behavior and known follow-ups

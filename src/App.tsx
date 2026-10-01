@@ -572,7 +572,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
         <div className="workspace-sidebar-actions"><ThemePicker /><SignOutControl /></div>
       </div>
     </aside>
-    <div className={`workspace-content${section === 'calendar' ? ' workspace-content--calendar' : ''}`} inert={menuOpen} aria-hidden={menuOpen}>
+    <div className="workspace-content" inert={menuOpen} aria-hidden={menuOpen}>
       <header className="workspace-mobile-header"><button ref={menuButtonRef} type="button" className="workspace-menu-button" aria-label="Open menu" aria-expanded={menuOpen} aria-controls="workspace-sidebar" onClick={() => setMenuOpen(true)}><span /><span /><span /></button><NavLink to="/dashboard" aria-label="Cali dashboard" onClick={scrollWorkspaceToTop}><Brand /></NavLink></header>
       {section === 'dashboard' ? <>
         <section className="workspace-welcome" aria-labelledby="workspace-title"><div className="workspace-welcome-main"><p className="workspace-overline">YOUR DASHBOARD</p><h1 id="workspace-title">{greetingForHour(now.getHours())}, <em>{student.username}.</em></h1><p>Your classes, tasks, and study space in one place.</p></div><div className="workspace-date"><span>TODAY</span><strong>{new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).format(now)}</strong><small>{now.getFullYear()}</small></div></section>
