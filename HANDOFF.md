@@ -93,8 +93,8 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 - Added `/calendar` and placed Calendar directly after Tasks in the desktop sidebar and mobile navigation drawer.
 - Added a dedicated Cali-branded Calendar screen that reads repeating class meetings and open task deadlines without changing their existing database models.
-- Calendar follows the same centered width, spacing, and rounded surface system as the other workspace modules. It defaults to Month and also provides Week and Day views. It is event-focused rather than a second timetable: Month uses a selected-day detail panel instead of repeating class names throughout the grid, Week groups each date into separate Task deadlines and Class meetings sections, and Day expands those two lists.
-- Month date cells use blue academic-cap and amber checklist badges instead of repeated schedule text, dots, or abstract bars. The same badges appear in the legend, and each full day cell selects a readable detail panel with full-size preview actions. Week and Day use a seven-day selector with separate Deadlines and Classes sections on smaller screens so event types do not compete for space.
+- Calendar follows the same centered width, spacing, and rounded surface system as the other workspace modules. It provides one focused Month view with a selected-day detail panel instead of duplicating the weekly and daily browsing already available in Schedules.
+- Month date cells use blue academic-cap and amber checklist icons instead of repeated schedule text, dots, or abstract bars. The same indicators appear in the legend, and each full day cell selects a readable detail panel with full-size preview actions.
 - Added loading, retryable error, and first-use empty states. Calendar entries open preview modals with focused class or task details and a link to the owning module. Numeric section counts were intentionally omitted. Selected-date creation remains for the next Calendar phase.
 
 ## Current behavior and known follow-ups

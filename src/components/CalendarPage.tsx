@@ -7,7 +7,6 @@ import './calendar.css'
 import './skeleton.css'
 
 type DayCode = 'M' | 'T' | 'W' | 'H' | 'F' | 'S' | 'U'
-type CalendarView = 'month' | 'week' | 'day'
 type Subject = { id: string; subject_code: string; title: string; block_section: string }
 type Meeting = { id: string; subject_id: string; day_code: DayCode; starts_at: string; ends_at: string; room: string | null }
 type CalendarPreview = { kind: 'task'; task: Task } | { kind: 'class'; meeting: Meeting; date: string }
@@ -42,17 +41,6 @@ function dateFromKey(key: string) {
 function clock(time: string) {
   const [hour, minute] = time.split(':').map(Number)
   return new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, hour, minute))
-}
-
-function formatCalendarRange(view: CalendarView, selected: Date, weekDates: Date[]) {
-  if (view === 'month') return new Intl.DateTimeFormat('en-PH', { month: 'long', year: 'numeric' }).format(selected)
-  if (view === 'day') return new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(selected)
-  const first = weekDates[0]
-  const last = weekDates[6]
-  const month = (date: Date) => new Intl.DateTimeFormat('en-PH', { month: 'short' }).format(date)
-  if (first.getFullYear() !== last.getFullYear()) return `${month(first)} ${first.getDate()}, ${first.getFullYear()} – ${month(last)} ${last.getDate()}, ${last.getFullYear()}`
-  if (first.getMonth() !== last.getMonth()) return `${month(first)} ${first.getDate()} – ${month(last)} ${last.getDate()}, ${last.getFullYear()}`
-  return `${month(first)} ${first.getDate()}–${last.getDate()}, ${last.getFullYear()}`
 }
 
 function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
@@ -109,7 +97,6 @@ function CalendarSkeleton() {
 }
 
 export function CalendarPage({ studentId, now }: { studentId: string; now: Date }) {
-  const [view, setView] = useState<CalendarView>('month')
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(now))
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
@@ -147,8 +134,6 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
   }, [load])
 
   const selected = useMemo(() => dateFromKey(selectedDate), [selectedDate])
-  const weekStart = useMemo(() => startOfWeek(selected), [selected])
-  const weekDates = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart])
   const monthDates = useMemo(() => monthGridDates(selected), [selected])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
   const tasksByDate = useMemo(() => {
@@ -162,14 +147,10 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
   const selectedDayCode = dayCodes[selected.getDay()]
   const selectedMeetings = meetingsByCode.get(selectedDayCode) ?? []
   const selectedTasks = tasksByDate.get(selectedDate) ?? []
-  const rangeLabel = formatCalendarRange(view, selected, weekDates)
+  const rangeLabel = new Intl.DateTimeFormat('en-PH', { month: 'long', year: 'numeric' }).format(selected)
 
   function movePeriod(direction: -1 | 1) {
-    if (view === 'month') {
-      setSelectedDate(localDateKey(new Date(selected.getFullYear(), selected.getMonth() + direction, 1)))
-      return
-    }
-    setSelectedDate(localDateKey(addDays(selected, direction * (view === 'week' ? 7 : 1))))
+    setSelectedDate(localDateKey(new Date(selected.getFullYear(), selected.getMonth() + direction, 1)))
   }
 
   if (loading) return <CalendarSkeleton />
@@ -177,16 +158,15 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
   return <div className="calendar-page">
     {error ? <><header className="calendar-heading calendar-heading--standalone"><div><p className="workspace-overline">ACADEMIC CALENDAR</p><h1>Calendar</h1></div></header><section className="calendar-error" role="alert"><h2>Calendar could not be loaded</h2><p>{error}</p><button type="button" className="button-primary" onClick={() => { setLoading(true); void load().catch(cause => { setError(cause instanceof Error ? cause.message : 'Could not load your calendar.'); setLoading(false) }) }}>Try again</button></section></> : <section className="calendar-shell">
       <header className="calendar-heading">
-        <div><p className="workspace-overline">ACADEMIC CALENDAR</p><h1>Calendar</h1><p>See class meetings and task deadlines clearly, without the timetable.</p></div>
-        <div className="calendar-view-switch" aria-label="Calendar view"><button type="button" className={view === 'month' ? 'active' : ''} aria-pressed={view === 'month'} onClick={() => setView('month')}>Month</button><button type="button" className={view === 'week' ? 'active' : ''} aria-pressed={view === 'week'} onClick={() => setView('week')}>Week</button><button type="button" className={view === 'day' ? 'active' : ''} aria-pressed={view === 'day'} onClick={() => setView('day')}>Day</button></div>
+        <div><p className="workspace-overline">ACADEMIC CALENDAR</p><h1>Calendar</h1><p>See your class meetings and task deadlines in one clear monthly view.</p></div>
       </header>
       <div className="calendar-toolbar" aria-label="Calendar controls">
-        <div className="calendar-navigation"><button type="button" className="calendar-today" onClick={() => setSelectedDate(todayKey)}>Today</button><span className="calendar-arrow-group"><button type="button" onClick={() => movePeriod(-1)} aria-label={view === 'month' ? 'Previous month' : view === 'week' ? 'Previous week' : 'Previous day'}><ChevronIcon direction="left" /></button><button type="button" onClick={() => movePeriod(1)} aria-label={view === 'month' ? 'Next month' : view === 'week' ? 'Next week' : 'Next day'}><ChevronIcon direction="right" /></button></span><h2 aria-live="polite">{rangeLabel}</h2></div>
+        <div className="calendar-navigation"><button type="button" className="calendar-today" onClick={() => setSelectedDate(todayKey)}>Today</button><span className="calendar-arrow-group"><button type="button" onClick={() => movePeriod(-1)} aria-label="Previous month"><ChevronIcon direction="left" /></button><button type="button" onClick={() => movePeriod(1)} aria-label="Next month"><ChevronIcon direction="right" /></button></span><h2 aria-live="polite">{rangeLabel}</h2></div>
       </div>
 
       {!meetings.length && !tasks.length && <section className="calendar-empty"><div><span><CalendarEmptyIcon /></span><h2>Nothing scheduled yet</h2><p>Add a class meeting or task deadline to begin filling your calendar.</p></div><div><NavLink to="/schedules">Add a class</NavLink><NavLink to="/tasks?new=1">Add a task</NavLink></div></section>}
 
-      {view === 'month' && <section className="calendar-month" aria-label="Monthly calendar">
+      <section className="calendar-month" aria-label="Monthly calendar">
         <div className="calendar-month-board"><div className="calendar-month-weekdays" aria-hidden="true">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => <span key={day}>{day}</span>)}</div>
         <div className="calendar-month-grid">{monthDates.map(date => { const key = localDateKey(date); const outside = date.getMonth() !== selected.getMonth(); const hasTasks = (tasksByDate.get(key)?.length ?? 0) > 0; const hasMeetings = (meetingsByCode.get(dayCodes[date.getDay()])?.length ?? 0) > 0; return <article key={key} className={`calendar-month-day${outside ? ' is-outside' : ''}${key === todayKey ? ' is-today' : ''}${key === selectedDate ? ' is-selected' : ''}`}><button type="button" className="calendar-month-select" aria-label={`Show ${new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).format(date)}`} aria-pressed={key === selectedDate} onClick={() => setSelectedDate(key)}><span className="calendar-month-number">{date.getDate()}</span><span className="calendar-month-indicators" aria-hidden="true">{hasMeetings && <span className="calendar-indicator calendar-indicator--class"><ClassIndicatorIcon /></span>}{hasTasks && <span className="calendar-indicator calendar-indicator--task"><DeadlineIndicatorIcon /></span>}</span></button></article> })}</div></div>
         <aside className="calendar-month-agenda" aria-label="Selected day details">
@@ -196,25 +176,7 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
             {selectedMeetings.length > 0 && <section><h4>Class meetings</h4>{selectedMeetings.map(meeting => <button key={meeting.id} type="button" className="is-class" onClick={() => setPreview({ kind: 'class', meeting, date: selectedDate })}><span><strong>{subjectMap.get(meeting.subject_id)?.subject_code ?? 'Class'}</strong><small>{clock(meeting.starts_at)}–{clock(meeting.ends_at)}{meeting.room ? ` · ${meeting.room}` : ''}</small></span></button>)}</section>}
           </div> : <div className="calendar-month-agenda-empty"><CalendarEmptyIcon /><strong>This day is clear</strong><p>No class meetings or task deadlines are scheduled.</p></div>}
         </aside>
-      </section>}
-
-      {view === 'week' && <section className="calendar-week" aria-label="Weekly calendar">{weekDates.map(date => { const key = localDateKey(date); const dayTasks = tasksByDate.get(key) ?? []; const dayMeetings = meetingsByCode.get(dayCodes[date.getDay()]) ?? []; return <article key={key} className={`calendar-week-day${key === todayKey ? ' is-today' : ''}${key === selectedDate ? ' is-selected' : ''}`}>
-        <button type="button" className="calendar-week-date" onClick={() => setSelectedDate(key)}><span>{new Intl.DateTimeFormat('en-PH', { weekday: 'short' }).format(date)}</span><strong>{date.getDate()}</strong></button>
-        {!dayTasks.length && !dayMeetings.length ? <div className="calendar-week-empty"><CalendarEmptyIcon /><span>Nothing planned</span></div> : <>{dayTasks.length > 0 && <section className="calendar-week-group calendar-week-group--tasks"><h3><i aria-hidden="true" />Task deadlines</h3>{dayTasks.map(task => <button key={task.id} type="button" className="calendar-week-event calendar-week-event--task" onClick={() => setPreview({ kind: 'task', task })}><strong>{task.title}</strong><small>{task.due_time ? clock(task.due_time) : priorityLabels[task.priority]}</small></button>)}</section>}{dayMeetings.length > 0 && <section className="calendar-week-group calendar-week-group--classes"><h3><i aria-hidden="true" />Class meetings</h3>{dayMeetings.map(meeting => <button key={meeting.id} type="button" className="calendar-week-event calendar-week-event--class" onClick={() => setPreview({ kind: 'class', meeting, date: key })}><strong>{subjectMap.get(meeting.subject_id)?.subject_code ?? 'Class'}</strong><small>{clock(meeting.starts_at)}–{clock(meeting.ends_at)}</small></button>)}</section>}</>}
-      </article> })}</section>}
-
-      {view === 'day' && <section className="calendar-day-view" aria-label="Daily calendar">
-        <header><p className="workspace-overline">{selectedDate === todayKey ? 'TODAY' : new Intl.DateTimeFormat('en-PH', { weekday: 'long' }).format(selected).toUpperCase()}</p><h2>{new Intl.DateTimeFormat('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }).format(selected)}</h2></header>
-        <div className="calendar-day-sections"><section className="calendar-day-section calendar-day-section--tasks"><header><i aria-hidden="true" /><div><h3>Task deadlines</h3><p>Work due on this date.</p></div></header>{selectedTasks.length ? <div>{selectedTasks.map(task => <button key={task.id} type="button" onClick={() => setPreview({ kind: 'task', task })}><span><strong>{task.title}</strong><small>{subjectMap.get(task.schedule_subject_id ?? '')?.subject_code ?? 'General'} · {priorityLabels[task.priority]}</small></span><time>{task.due_time ? clock(task.due_time) : 'Any time'}</time></button>)}</div> : <div className="calendar-day-empty"><CalendarEmptyIcon /><strong>No task deadlines</strong><span>Your workload is clear for this date.</span></div>}</section>
-        <section className="calendar-day-section calendar-day-section--classes"><header><i aria-hidden="true" /><div><h3>Class meetings</h3><p>Classes scheduled on this date.</p></div></header>{selectedMeetings.length ? <div>{selectedMeetings.map(meeting => { const subject = subjectMap.get(meeting.subject_id); return <button key={meeting.id} type="button" onClick={() => setPreview({ kind: 'class', meeting, date: selectedDate })}><span><strong>{subject?.subject_code ?? 'Class'}</strong><small>{subject?.title ?? 'Scheduled class'}{meeting.room ? ` · ${meeting.room}` : ''}</small></span><time>{clock(meeting.starts_at)}–{clock(meeting.ends_at)}</time></button> })}</div> : <div className="calendar-day-empty"><CalendarEmptyIcon /><strong>No class meetings</strong><span>Your class schedule is clear for this date.</span></div>}</section></div>
-      </section>}
-
-      {view !== 'month' && <section className="calendar-mobile" aria-label="Daily calendar">
-        <div className="calendar-mobile-days">{weekDates.map(date => { const key = localDateKey(date); return <button key={key} type="button" className={`${key === todayKey ? 'is-today' : ''}${key === selectedDate ? ' is-selected' : ''}`} onClick={() => setSelectedDate(key)}><span>{new Intl.DateTimeFormat('en-PH', { weekday: 'narrow' }).format(date)}</span><strong>{date.getDate()}</strong></button> })}</div>
-        <header className="calendar-mobile-date"><p className="workspace-overline">{selectedDate === todayKey ? 'TODAY' : 'SELECTED DAY'}</p><h2>{new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).format(selected)}</h2></header>
-        <section className="calendar-mobile-section"><header><h3>Deadlines</h3></header>{selectedTasks.length ? <div className="calendar-mobile-list">{selectedTasks.map(task => <button key={task.id} type="button" className="calendar-mobile-task" onClick={() => setPreview({ kind: 'task', task })}><i className={`calendar-priority calendar-priority--${task.priority}`} /><span><strong>{task.title}</strong><small>{subjectMap.get(task.schedule_subject_id ?? '')?.subject_code ?? 'General'}{task.due_time ? ` · ${clock(task.due_time)}` : ''} · {priorityLabels[task.priority]}</small></span></button>)}</div> : <div className="calendar-mobile-empty"><CalendarEmptyIcon /><strong>No deadlines</strong><span>No work is due on this date.</span></div>}</section>
-        <section className="calendar-mobile-section"><header><h3>Classes</h3></header>{selectedMeetings.length ? <div className="calendar-mobile-list">{selectedMeetings.map(meeting => { const subject = subjectMap.get(meeting.subject_id); return <button key={meeting.id} type="button" className="calendar-mobile-class" onClick={() => setPreview({ kind: 'class', meeting, date: selectedDate })}><time>{clock(meeting.starts_at)}</time><span><strong>{subject?.subject_code ?? 'Class'}</strong><small>{subject?.title ?? 'Scheduled class'}{meeting.room ? ` · ${meeting.room}` : ''}</small></span></button> })}</div> : <div className="calendar-mobile-empty"><CalendarEmptyIcon /><strong>No classes</strong><span>No class meetings are scheduled.</span></div>}</section>
-      </section>}
+      </section>
       {preview && <CalendarPreviewDialog preview={preview} subjects={subjectMap} onClose={() => setPreview(null)} />}
     </section>}
   </div>

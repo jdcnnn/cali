@@ -45,9 +45,9 @@ Apply both task migrations before opening the deployed Tasks page. `202609270000
 
 ## Calendar module
 
-Calendar is an independent workspace module at `/calendar`, placed directly after Tasks in the sidebar. It follows the same centered workspace width, spacing, and surface treatment as the other Cali modules. It combines repeating class meetings and open task deadlines while keeping the two event types visually distinct. Month is the default view, with Week and Day views available from the same compact control. Calendar intentionally does not reproduce the Schedules timetable.
+Calendar is an independent workspace module at `/calendar`, placed directly after Tasks in the sidebar. It follows the same centered workspace width, spacing, and surface treatment as the other Cali modules. It combines repeating class meetings and open task deadlines in a focused monthly view while keeping the two event types visually distinct.
 
-Month avoids repeating class names throughout the grid. Each date uses recognizable blue academic-cap and amber checklist badges to indicate class meetings and deadlines, while a readable selected-day panel holds the actual details and preview actions. Week groups each day into separate Task deadlines and Class meetings sections, and Day presents those same two focused lists at a larger scale. Week and Day use a seven-day selector above the agenda on smaller screens. Each preview includes the relevant date, time, subject, room or importance, and notes when available, plus a link to the owning Tasks or Schedules module. Selected-date creation remains a later Calendar phase.
+The month grid avoids repeating class names across every week. Each date uses recognizable blue academic-cap and amber checklist icons to indicate class meetings and deadlines, while a readable selected-day panel holds the actual details and preview actions. Each preview includes the relevant date, time, subject, room or importance, and notes when available, plus a link to the owning Tasks or Schedules module. Selected-date creation remains a later Calendar phase.
 
 ## Auth and onboarding
 
