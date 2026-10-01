@@ -1,6 +1,6 @@
 # Cali handoff
 
-Updated: 2026-09-28
+Updated: 2026-10-01
 
 ## What this repository is
 
@@ -77,18 +77,17 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ### Student task planner (2026-09-28)
 
-- Replaced the Tasks placeholder with responsive To do, In progress, and Done columns. Cards retain a custom order and support drag-and-drop plus menu-based movement for touch and keyboard access.
-- Added task creation and editing with title, optional notes, required due date, optional due time, priority, and an optional schedule-subject link. Filters cover subject and priority; dragging pauses while filters are active.
-- Added confirmed deletion, unsaved-change protection, overdue states, reversible completion, mobile swipeable columns, dark-mode styling, loading/error/empty states, and a live dashboard summary of the next three actionable tasks.
-- Refined the Tasks UI to match the Schedules workspace: solid theme-token surfaces replace the previous glass treatment, board controls use the shared styled dropdown pattern, mobile columns and empty states are denser, and the editor now has grouped sections with a fixed action footer. Delete and unsaved-change actions use focused confirmation dialogs.
+- Added task creation and editing with title, optional notes, required due date, optional due time, priority, and an optional schedule-subject link. Filters cover subject and priority.
+- Added confirmed deletion, unsaved-change protection, overdue states, deliberate completion, dark-mode styling, loading/error/empty states, and a live dashboard summary of the next three actionable tasks.
+- Refined the Tasks UI to match the Schedules workspace with solid theme-token surfaces, compact responsive planner rows, and an editor with grouped sections and a fixed action footer. Delete and unsaved-change actions use focused confirmation dialogs.
 - Added `20260927000000_create_tasks.sql` with the private `tasks` table, indexes, validation, owner-only RLS, same-owner subject checks, `ON DELETE SET NULL` subject behavior, and atomic create/move functions.
-- Added focused Vitest coverage for task validation, local deadline semantics, Kanban ordering, completion transitions, and dashboard ranking.
-- Added Today and Upcoming as the primary student-facing views while retaining Board as a secondary workflow. Today separates overdue, planned/due-today, and suggested work; Upcoming groups approaching deadlines.
-- Added a focused Calendar view for open task deadlines. It provides month navigation, a selected-day agenda, task-detail access, and date-prefilled task creation; mobile condenses the month cells to readable task counts above the agenda.
+- Added focused Vitest coverage for task validation, local deadline semantics, status ordering, completion transitions, and dashboard ranking.
+- Added Today, Upcoming, and Completed as focused list views. Today separates overdue, planned/due-today, and suggested work; Upcoming groups approaching deadlines; Completed preserves access to finished work and reopening without a board.
 - Simplified task capture into one unified details form: title, subject, due date, optional due time, importance, steps, and notes. The redundant planning disclosure and visible planned-date field were removed; “Add to today” still manages the internal planned date from the planner.
 - Added `20260928000000_student_task_planner.sql` with private checklist steps, planner fields, ownership policies, and trusted checklist replacement/toggle functions. The dashboard now uses the same planner ranking and surfaces the next unfinished step.
-- Replaced ambiguous completion controls with deliberate actions. Task previews show the next step without updating it; selecting task content in Today, Upcoming, or Board opens a responsive structured overview with explicit Mark done and Undo controls for steps plus separate Edit, full-task Mark done, and Reopen actions. Full-task completion still requires confirmation.
+- Replaced ambiguous completion controls with deliberate actions. Task previews show the next step without updating it; selecting task content in Today or Upcoming opens a responsive structured overview with explicit Mark done and Undo controls for steps plus separate Edit and full-task Mark done actions. Full-task completion still requires confirmation.
 - Removed effort estimates and their summary metric from the interface, client model, and planner calculations; students now see only planning information that drives an immediate action. The deployed `estimate_minutes` column remains unused for non-destructive compatibility.
+- Simplified Tasks on 2026-10-01 by removing the Kanban Board and embedded task Calendar. Today, Upcoming, Completed, task details, editing, steps, filters, completion, and reopening remain. Existing task status and ordering fields are retained for data compatibility, and calendar planning will move to a separate module.
 
 ## Current behavior and known follow-ups
 
@@ -109,7 +108,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 | --- | --- |
 | Routes, onboarding, and dashboard | `src/App.tsx`, `src/components/DashboardSchedules.tsx`, `src/components/dashboard-schedules.css` |
 | Schedule page and scanner | `src/components/SchedulesPage.tsx`, `src/components/schedules.css`, `src/components/ScheduleScanner.tsx`, `src/components/schedule-scan.css`, `src/lib/scheduleOcr.ts`, `src/lib/rtuScheduleParser.ts` |
-| Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/TaskCalendar.tsx`, `src/components/DashboardTasks.tsx`, `src/components/tasks.css`, `src/lib/tasks.ts` |
+| Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/DashboardTasks.tsx`, `src/components/tasks.css`, `src/lib/tasks.ts` |
 | Landing, team, policies, footer, and splash | `src/components/LandingPage.tsx`, `TeamPage.tsx`, `PolicyPage.tsx`, `SiteFooter.tsx`, `SplashScreen.tsx` |
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
 | Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |

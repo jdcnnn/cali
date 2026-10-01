@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { DragDropProvider, useDroppable } from '@dnd-kit/react'
-import type { DragEndEvent } from '@dnd-kit/react'
-import { isSortable, useSortable } from '@dnd-kit/react/sortable'
 import { useSearchParams } from 'react-router'
 import { OnboardingDropdown } from './OnboardingDropdown'
-import { TaskCalendar } from './TaskCalendar'
 import { supabase } from '../lib/supabase'
 import {
   draftFromTask,
@@ -28,7 +24,7 @@ import './tasks.css'
 import './skeleton.css'
 
 type EditorState = { taskId: string | null; draft: TaskDraft; initial: TaskDraft }
-type TaskView = 'today' | 'upcoming' | 'calendar' | 'board'
+type TaskView = 'today' | 'upcoming' | 'completed'
 
 const priorityLabels: Record<TaskPriority, string> = { low: 'Low', medium: 'Medium', high: 'High' }
 
@@ -44,86 +40,7 @@ function SearchIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
 }
 
-function GripIcon() {
-  return <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="8" cy="7" r="1.4" /><circle cx="16" cy="7" r="1.4" /><circle cx="8" cy="12" r="1.4" /><circle cx="16" cy="12" r="1.4" /><circle cx="8" cy="17" r="1.4" /><circle cx="16" cy="17" r="1.4" /></svg>
-}
-
-function TaskProgress({ task, steps }: { task: Task; steps: TaskStep[] }) {
-  const progress = taskStepProgress(task.id, steps)
-  const next = nextTaskStep(task.id, steps)
-  if (!progress.total) return <p className="task-next-step task-next-step--empty">No steps added</p>
-  return <div className="task-progress">
-    <div><span style={{ width: `${(progress.completed / progress.total) * 100}%` }} /></div>
-    <p>{next ? <><strong>Next:</strong> {next.title}</> : 'All steps complete'}<small>{progress.completed}/{progress.total}</small></p>
-  </div>
-}
-
-function TaskCard({ task, index, subject, steps, dragDisabled, onView, onEdit, onDelete, onMove }: {
-  task: Task
-  index: number
-  subject?: TaskSubject
-  steps: TaskStep[]
-  dragDisabled: boolean
-  onView: () => void
-  onEdit: () => void
-  onDelete: () => void
-  onMove: (status: TaskStatus) => void
-}) {
-  const { ref, handleRef, isDragging } = useSortable({ id: task.id, index, group: task.status, type: 'task', data: { taskId: task.id }, disabled: dragDisabled })
-  const overdue = isTaskOverdue(task)
-
-  function closeMenu(event: React.MouseEvent<HTMLButtonElement>) {
-    event.currentTarget.closest('details')?.removeAttribute('open')
-  }
-
-  return <article ref={ref} className={`task-card${isDragging ? ' task-card--dragging' : ''}`}>
-    <div className="task-card-top">
-      <button ref={handleRef} type="button" className="task-drag-handle" disabled={dragDisabled} aria-label={dragDisabled ? 'Clear filters to drag this task' : `Drag ${task.title}`}><GripIcon /></button>
-      <span className={`task-priority task-priority--${task.priority}`}>{priorityLabels[task.priority]}</span>
-      <details className="task-card-menu">
-        <summary aria-label={`Actions for ${task.title}`}><MoreIcon /></summary>
-        <div className="task-card-menu-panel">
-          <button type="button" onClick={event => { closeMenu(event); onEdit() }}>Edit task</button>
-          <p>Move to</p>
-          {taskStatuses.filter(status => status.id !== task.status).map(status => <button key={status.id} type="button" onClick={event => { closeMenu(event); onMove(status.id) }}>{status.label}</button>)}
-          <button type="button" className="task-menu-delete" onClick={event => { closeMenu(event); onDelete() }}>Delete task</button>
-        </div>
-      </details>
-    </div>
-    <div className="task-card-content" role="button" tabIndex={0} onClick={onView} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onView() } }} aria-label={`View ${task.title}`}>
-      <h3>{task.title}</h3>
-      <TaskProgress task={task} steps={steps} />
-      <div className="task-card-meta">
-        <span className="task-subject">{subject ? subject.subject_code : 'General'}</span>
-        <span className={overdue ? 'task-due task-due--overdue' : 'task-due'}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task)}</span>
-      </div>
-    </div>
-  </article>
-}
-
-function TaskColumn({ status, tasks, subjects, steps, dragDisabled, onView, onEdit, onDelete, onMove }: {
-  status: TaskStatus
-  tasks: Task[]
-  subjects: Map<string, TaskSubject>
-  steps: TaskStep[]
-  dragDisabled: boolean
-  onView: (task: Task) => void
-  onEdit: (task: Task) => void
-  onDelete: (task: Task) => void
-  onMove: (task: Task, status: TaskStatus) => void
-}) {
-  const details = taskStatuses.find(item => item.id === status)!
-  const { ref, isDropTarget } = useDroppable({ id: `task-column-${status}`, data: { status }, accept: 'task' })
-  return <section ref={ref} id={`task-column-${status}`} className={`task-column${isDropTarget ? ' task-column--target' : ''}`} aria-labelledby={`task-column-${status}-title`}>
-    <header><div><h2 id={`task-column-${status}-title`}>{details.label}</h2><p>{details.description}</p></div><span>{tasks.length}</span></header>
-    <div className="task-column-list">
-      {tasks.map((task, index) => <TaskCard key={task.id} task={task} index={index} subject={task.schedule_subject_id ? subjects.get(task.schedule_subject_id) : undefined} steps={steps} dragDisabled={dragDisabled} onView={() => onView(task)} onEdit={() => onEdit(task)} onDelete={() => onDelete(task)} onMove={next => onMove(task, next)} />)}
-      {!tasks.length && <div className="task-column-empty"><span aria-hidden="true">{status === 'done' ? '✓' : '+'}</span><p>{status === 'todo' ? 'New tasks appear here.' : status === 'in_progress' ? 'Move a task here when you start it.' : 'Completed tasks appear here.'}</p></div>}
-    </div>
-  </section>
-}
-
-function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, onView, onEdit, onDelete, onComplete, onPlanToday }: {
+function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, onView, onEdit, onDelete, onComplete, onReopen, onPlanToday }: {
   task: Task
   subject?: TaskSubject
   steps: TaskStep[]
@@ -134,8 +51,10 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
   onEdit: () => void
   onDelete: () => void
   onComplete: () => void
+  onReopen: () => void
   onPlanToday: () => void
 }) {
+  const completed = task.status === 'done'
   const overdue = isTaskOverdue(task, now)
   const progress = taskStepProgress(task.id, steps)
   const next = nextTaskStep(task.id, steps)
@@ -153,11 +72,11 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
           <span className={overdue ? 'task-due--overdue' : ''}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</span>
         </span>
       </button>
-      {next ? <div className="planner-next-action"><span aria-hidden="true" /> <strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></div> : progress.total ? <p className="planner-checklist-done">✓ All steps complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}><span aria-hidden="true">+</span> Add steps</button>}
+      {completed ? <p className="planner-checklist-done">✓ Completed{task.completed_at ? ` · ${new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(task.completed_at))}` : ''}</p> : next ? <div className="planner-next-action"><span aria-hidden="true" /> <strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></div> : progress.total ? <p className="planner-checklist-done">✓ All steps complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}><span aria-hidden="true">+</span> Add steps</button>}
     </div>
     <div className="planner-task-actions">
       {suggestion && <button type="button" className="task-plan-button" onClick={onPlanToday} disabled={busy}>Add to today</button>}
-      <button type="button" className="task-complete-button" onClick={onComplete} disabled={busy}><span aria-hidden="true">✓</span> Mark done</button>
+      {completed ? <button type="button" className="task-plan-button" onClick={onReopen} disabled={busy}>Reopen</button> : <button type="button" className="task-complete-button" onClick={onComplete} disabled={busy}><span aria-hidden="true">✓</span> Mark done</button>}
       <details className="task-card-menu"><summary aria-label={`Actions for ${task.title}`}><MoreIcon /></summary><div className="task-card-menu-panel"><button type="button" onClick={event => { closeMenu(event); onEdit() }}>Edit task</button><button type="button" className="task-menu-delete" onClick={event => { closeMenu(event); onDelete() }}>Delete task</button></div></details>
     </div>
   </article>
@@ -177,11 +96,12 @@ function PlannerSection({ title, description, tasks, emptyText, ...rowProps }: {
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
   onComplete: (task: Task) => void
+  onReopen: (task: Task) => void
   onPlanToday: (task: Task) => void
 }) {
   return <section className="planner-section">
     <header><div><h2>{title}</h2><p>{description}</p></div><span>{tasks.length}</span></header>
-    {tasks.length ? <div className="planner-task-list">{tasks.map(task => <PlannerTaskRow key={task.id} task={task} subject={task.schedule_subject_id ? rowProps.subjects.get(task.schedule_subject_id) : undefined} steps={rowProps.steps} now={rowProps.now} suggestion={rowProps.suggestion} busy={rowProps.busy} onView={() => rowProps.onView(task)} onEdit={() => rowProps.onEdit(task)} onDelete={() => rowProps.onDelete(task)} onComplete={() => rowProps.onComplete(task)} onPlanToday={() => rowProps.onPlanToday(task)} />)}</div> : <p className="planner-section-empty">{emptyText}</p>}
+    {tasks.length ? <div className="planner-task-list">{tasks.map(task => <PlannerTaskRow key={task.id} task={task} subject={task.schedule_subject_id ? rowProps.subjects.get(task.schedule_subject_id) : undefined} steps={rowProps.steps} now={rowProps.now} suggestion={rowProps.suggestion} busy={rowProps.busy} onView={() => rowProps.onView(task)} onEdit={() => rowProps.onEdit(task)} onDelete={() => rowProps.onDelete(task)} onComplete={() => rowProps.onComplete(task)} onReopen={() => rowProps.onReopen(task)} onPlanToday={() => rowProps.onPlanToday(task)} />)}</div> : <p className="planner-section-empty">{emptyText}</p>}
   </section>
 }
 
@@ -294,7 +214,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const [subjects, setSubjects] = useState<TaskSubject[]>([])
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState('')
-  const [boardError, setBoardError] = useState('')
+  const [taskUpdateError, setTaskUpdateError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [subjectFilter, setSubjectFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState<'all' | TaskPriority>('all')
@@ -307,8 +227,6 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const [completing, setCompleting] = useState<Task | null>(null)
   const [deleteError, setDeleteError] = useState('')
   const [now] = useState(() => new Date())
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1))
-  const [calendarDate, setCalendarDate] = useState(() => localDateKey(now))
 
   const load = useCallback(async () => {
     if (!supabase) throw new Error('Supabase is not configured.')
@@ -370,10 +288,10 @@ export function TasksPage({ studentId }: { studentId: string }) {
     const matchesSearch = !query || [task.title, task.notes, subject?.subject_code, subject?.title].filter(Boolean).some(value => value!.toLocaleLowerCase().includes(query))
     return matchesSearch && matchesSubject && (priorityFilter === 'all' || task.priority === priorityFilter)
   }), [tasks, subjects, searchQuery, subjectFilter, priorityFilter])
-  const columns = useMemo(() => orderedColumns(filteredTasks), [filteredTasks])
   const allColumns = useMemo(() => orderedColumns(tasks), [tasks])
   const todayGroups = useMemo(() => plannerGroups(filteredTasks, now), [filteredTasks, now])
   const futureGroups = useMemo(() => upcomingGroups(filteredTasks, now), [filteredTasks, now])
+  const completedTasks = useMemo(() => filteredTasks.filter(task => task.status === 'done').sort((left, right) => (right.completed_at ?? '').localeCompare(left.completed_at ?? '') || right.updated_at.localeCompare(left.updated_at)), [filteredTasks])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
   const subjectFilterOptions = useMemo(() => [{ value: 'all', label: 'All subjects' }, { value: 'general', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))], [subjects])
 
@@ -449,11 +367,11 @@ export function TasksPage({ studentId }: { studentId: string }) {
     const targetCount = task.status === targetStatus ? allColumns[targetStatus].length - 1 : allColumns[targetStatus].length
     const desiredIndex = targetStatus === 'done' && task.status !== 'done' ? 0 : requestedIndex
     const index = Math.max(0, Math.min(desiredIndex, targetCount))
-    setTasks(moveTaskInBoard(tasks, task.id, targetStatus, index)); setBoardError('')
+    setTasks(moveTaskInBoard(tasks, task.id, targetStatus, index)); setTaskUpdateError('')
     try {
       const { error } = await supabase.rpc('cali_move_own_task', { p_task_id: task.id, p_target_status: targetStatus, p_target_index: index })
       if (error) throw error
-    } catch (cause) { setTasks(before); setBoardError(cause instanceof Error ? cause.message : 'Could not update the task. Your tasks were restored.') }
+    } catch (cause) { setTasks(before); setTaskUpdateError(cause instanceof Error ? cause.message : 'Could not update the task. Your tasks were restored.') }
   }
 
   function requestComplete(task: Task) {
@@ -466,7 +384,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
     const before = tasks
     setTasks(previous => previous.map(item => item.id === task.id ? { ...item, planned_date: plannedDate } : item))
     const { error } = await supabase.from('tasks').update({ planned_date: plannedDate }).eq('id', task.id).eq('user_id', studentId)
-    if (error) { setTasks(before); setBoardError('Could not add the task to today. Please try again.') }
+    if (error) { setTasks(before); setTaskUpdateError('Could not add the task to today. Please try again.') }
   }
 
   async function toggleStep(task: Task, step: TaskStep) {
@@ -482,22 +400,11 @@ export function TasksPage({ studentId }: { studentId: string }) {
       const { error } = await supabase.rpc('cali_set_own_task_step_complete', { p_step_id: step.id, p_completed: completed })
       if (error) throw error
     } catch {
-      setTasks(beforeTasks); setSteps(beforeSteps); setViewing(previous => previous?.id === task.id ? task : previous); setBoardError('Could not update that step. Please try again.')
+      setTasks(beforeTasks); setSteps(beforeSteps); setViewing(previous => previous?.id === task.id ? task : previous); setTaskUpdateError('Could not update that step. Please try again.')
     } finally { setBusy(false) }
   }
 
-  function handleDragEnd(event: DragEndEvent) {
-    if (filtersActive || event.canceled) return
-    const source = event.operation.source; const target = event.operation.target
-    if (!source || !target || !isSortable(source)) return
-    const task = tasks.find(item => item.id === source.id)
-    if (!task) return
-    if (isSortable(target)) { void moveTask(task, target.group as TaskStatus, target.index); return }
-    const targetStatus = target.data?.status as TaskStatus | undefined
-    if (targetStatus) void moveTask(task, targetStatus, targetStatus === 'done' ? 0 : allColumns[targetStatus].length)
-  }
-
-  const rowProps = { subjects: subjectMap, steps, now, busy, onView: (task: Task) => setViewing(task), onEdit: openEditor, onDelete: (task: Task) => { setDeleteError(''); setDeleting(task) }, onComplete: requestComplete, onPlanToday: (task: Task) => { void planToday(task) } }
+  const rowProps = { subjects: subjectMap, steps, now, busy, onView: (task: Task) => setViewing(task), onEdit: openEditor, onDelete: (task: Task) => { setDeleteError(''); setDeleting(task) }, onComplete: requestComplete, onReopen: (task: Task) => { void moveTask(task, 'in_progress', allColumns.in_progress.length) }, onPlanToday: (task: Task) => { void planToday(task) } }
 
   if (loading) return <div className="tasks-page"><header className="tasks-heading"><div><div className="skeleton skeleton-line skeleton-line--short" /><div className="skeleton skeleton-line skeleton-line--title" /></div></header><div className="tasks-planner-loading"><div className="skeleton skeleton-block" /><div className="skeleton skeleton-block" /></div></div>
 
@@ -505,27 +412,22 @@ export function TasksPage({ studentId }: { studentId: string }) {
     <header className="tasks-heading"><div><p className="workspace-overline">ACADEMIC WORK</p><h1>Tasks</h1><p>Track coursework, deadlines, and the next step for each task.</p></div><button type="button" className="button-primary tasks-add" onClick={() => openNewTask()}><span aria-hidden="true">+</span> Add task</button></header>
     {pageError ? <section className="tasks-error-state" role="alert"><h2>Tasks could not be loaded</h2><p>{pageError}</p><button type="button" className="button-primary" onClick={() => { setLoading(true); void load().catch(cause => { setPageError(cause instanceof Error ? cause.message : 'Could not load your tasks.'); setLoading(false) }) }}>Try again</button></section> : <>
       <div className="task-view-bar">
-        <nav className="task-view-tabs" aria-label="Task views">{(['today', 'upcoming', 'calendar', 'board'] as TaskView[]).map(item => <button key={item} type="button" className={view === item ? 'active' : ''} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{item === 'today' ? 'Today' : item === 'upcoming' ? 'Upcoming' : item === 'calendar' ? 'Calendar' : 'Board'}</button>)}</nav>
+        <nav className="task-view-tabs" aria-label="Task views">{(['today', 'upcoming', 'completed'] as TaskView[]).map(item => <button key={item} type="button" className={view === item ? 'active' : ''} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{item === 'today' ? 'Today' : item === 'upcoming' ? 'Upcoming' : 'Completed'}</button>)}</nav>
         <div className="task-view-filters"><label className="task-search"><SearchIcon /><input type="search" aria-label="Search tasks" placeholder="Search tasks" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></label><OnboardingDropdown id="task-filter-subject" label="Filter by subject" placeholder="All subjects" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /><OnboardingDropdown id="task-filter-priority" label="Filter by importance" placeholder="Any importance" value={priorityFilter} options={[{ value: 'all', label: 'Any importance' }, { value: 'high', label: 'High importance' }, { value: 'medium', label: 'Medium importance' }, { value: 'low', label: 'Low importance' }]} onChange={priority => setPriorityFilter(priority as 'all' | TaskPriority)} />{filtersActive && <button type="button" onClick={() => { setSearchQuery(''); setSubjectFilter('all'); setPriorityFilter('all') }}>Clear filters</button>}</div>
       </div>
-      {boardError && <div className="task-board-error" role="alert"><span>{boardError}</span><button type="button" onClick={() => setBoardError('')} aria-label="Dismiss error"><CloseIcon /></button></div>}
+      {taskUpdateError && <div className="task-update-error" role="alert"><span>{taskUpdateError}</span><button type="button" onClick={() => setTaskUpdateError('')} aria-label="Dismiss error"><CloseIcon /></button></div>}
       {view === 'today' && <div className="tasks-planner">
         {todayGroups.overdue.length > 0 && <PlannerSection title="Needs attention" description="Open tasks past their due date." tasks={todayGroups.overdue} emptyText="No overdue tasks." {...rowProps} />}
         <PlannerSection title="Today’s tasks" description="Due today or added here for focus." tasks={todayGroups.today} emptyText="No tasks are due or added for today." {...rowProps} />
         {todayGroups.suggestions.length > 0 && <PlannerSection title="Next up" description="Nearest upcoming deadlines you can add to today." tasks={todayGroups.suggestions} emptyText="No upcoming tasks to suggest." suggestion {...rowProps} />}
       </div>}
       {view === 'upcoming' && <div className="tasks-planner tasks-upcoming">{futureGroups.map(group => <PlannerSection key={group.id} title={group.label} description={group.id === 'tomorrow' ? 'Tasks due tomorrow.' : group.id === 'week' ? 'Tasks due within the next seven days.' : 'Tasks due after the next seven days.'} tasks={group.tasks} emptyText={`No tasks due ${group.label.toLowerCase()}.`} {...rowProps} />)}</div>}
-      {view === 'calendar' && <TaskCalendar tasks={filteredTasks} subjects={subjectMap} month={calendarMonth} selectedDate={calendarDate} now={now} onMonthChange={setCalendarMonth} onSelectDate={setCalendarDate} onViewTask={task => setViewing(task)} onAddTask={openNewTask} />}
-      {view === 'board' && <>
-        {filtersActive && <p className="task-board-filter-note">Dragging is paused while filters are active. Use each task menu to change progress.</p>}
-        <nav className="task-mobile-tabs" aria-label="Kanban columns">{taskStatuses.map(status => <button key={status.id} type="button" onClick={() => document.getElementById(`task-column-${status.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })}>{status.label}<span>{columns[status.id].length}</span></button>)}</nav>
-        <DragDropProvider onDragEnd={handleDragEnd}><div className="tasks-board">{taskStatuses.map(status => <TaskColumn key={status.id} status={status.id} tasks={columns[status.id]} subjects={subjectMap} steps={steps} dragDisabled={filtersActive} onView={task => setViewing(task)} onEdit={openEditor} onDelete={task => { setDeleteError(''); setDeleting(task) }} onMove={(task, next) => void moveTask(task, next, next === 'done' ? 0 : allColumns[next].length)} />)}</div></DragDropProvider>
-      </>}
+      {view === 'completed' && <div className="tasks-planner"><PlannerSection title="Completed tasks" description="Finished work, newest first." tasks={completedTasks} emptyText="No completed tasks yet." {...rowProps} /></div>}
     </>}
     {viewing && <TaskDetailDialog task={viewing} subject={viewing.schedule_subject_id ? subjectMap.get(viewing.schedule_subject_id) : undefined} steps={steps} now={now} busy={busy} onClose={() => setViewing(null)} onEdit={() => { const task = viewing; setViewing(null); openEditor(task) }} onComplete={() => { const task = viewing; setViewing(null); requestComplete(task) }} onReopen={() => { const task = viewing; setViewing(null); void moveTask(task, 'in_progress', allColumns.in_progress.length) }} onToggleStep={step => { void toggleStep(viewing, step) }} />}
     {editor && <TaskEditor editor={editor} subjects={subjects} busy={busy} error={formError} onChange={draft => setEditor(previous => previous ? { ...previous, draft } : previous)} onSave={saveTask} onRequestClose={requestEditorClose} />}
     {discardOpen && <TaskConfirmationDialog eyebrow="UNSAVED CHANGES" title="Discard your changes?" description="The task details you entered will not be saved." confirmLabel="Discard changes" busyLabel="Discarding..." busy={false} onCancel={() => setDiscardOpen(false)} onConfirm={() => { setDiscardOpen(false); setEditor(null) }} />}
     {deleting && <TaskConfirmationDialog eyebrow="DELETE TASK" title={`Delete “${deleting.title}”?`} description="This permanently removes the task, its steps, and its notes. This cannot be undone." confirmLabel="Delete task" busyLabel="Deleting..." busy={busy} error={deleteError} onCancel={() => { if (!busy) setDeleting(null) }} onConfirm={() => { void confirmDelete() }} />}
-    {completing && <TaskConfirmationDialog eyebrow="MARK TASK DONE" title={`Complete “${completing.title}”?`} description={taskStepProgress(completing.id, steps).total > taskStepProgress(completing.id, steps).completed ? `This task still has ${taskStepProgress(completing.id, steps).total - taskStepProgress(completing.id, steps).completed} unfinished steps. It will move to Done, and the steps will remain if you reopen it.` : 'This task will move to Done. You can reopen it later from the Board.'} confirmLabel="Mark done" busyLabel="Completing..." busy={busy} danger={false} onCancel={() => setCompleting(null)} onConfirm={() => { const task = completing; setCompleting(null); void moveTask(task, 'done', 0) }} />}
+    {completing && <TaskConfirmationDialog eyebrow="MARK TASK DONE" title={`Complete “${completing.title}”?`} description={taskStepProgress(completing.id, steps).total > taskStepProgress(completing.id, steps).completed ? `This task still has ${taskStepProgress(completing.id, steps).total - taskStepProgress(completing.id, steps).completed} unfinished steps. It will leave your active lists, but its details and steps will remain saved.` : 'This task will leave your active lists, but its details and steps will remain saved.'} confirmLabel="Mark done" busyLabel="Completing..." busy={busy} danger={false} onCancel={() => setCompleting(null)} onConfirm={() => { const task = completing; setCompleting(null); void moveTask(task, 'done', 0) }} />}
   </div>
 }

@@ -40,7 +40,7 @@ The exact boundary and acceptance criteria for each capability will be defined o
 6. Students can later edit their username, program, and year level from Profile.
 7. After onboarding, the student reaches the CALI home dashboard. Returning onboarded students go directly to the application.
 
-**Navigation order:** Dashboard → Schedules → Tasks → Study → Community → Profile. Study contains Reviewers, Flashcards, and Quizzes.
+**Current navigation order:** Dashboard → Schedules → Tasks → Study → Community → Profile. A separate Calendar module will be added between Tasks and Study. Study contains Reviewers, Flashcards, and Quizzes.
 
 ### Decisions still needed for this journey
 
@@ -108,11 +108,11 @@ The database enforces lowercase 3–30-character unique usernames, nonblank prog
 
 ## 5. Task direction
 
-**Implemented student planner (2026-09-28):** Tasks open to a focused Today view that separates overdue work, work due or planned today, and suggested next work when today is empty. Upcoming groups future deadlines, Calendar presents open deadlines in a monthly grid with a selected-day agenda, and the original To do, In progress, and Done board remains available with persistent drag-and-drop ordering and keyboard- and touch-friendly Move to actions. Adding from Calendar prefills the selected deadline. Mobile uses compact vertical planner rows, a condensed calendar with task counts, and a horizontally swipeable, snap-aligned board.
+**Implemented student planner (updated 2026-10-01):** Tasks open to a focused Today view that separates overdue work, work due or planned today, and suggested next work when today is empty. Upcoming groups future deadlines, while Completed keeps finished work accessible for review and reopening. The Kanban Board and embedded task Calendar were removed so Tasks remains focused on list-based planning. Calendar planning will move to a separate application module. Mobile uses compact vertical planner rows.
 
-The unified task form keeps title, subject, due date, optional due time, importance, steps, and notes in one clear flow without a separate planning section. The first unfinished step appears as read-only context in task previews. Students update step progress from the task overview through explicit Mark done and Undo actions; completing a first step starts the task, while final task completion remains separate and confirmed. Date-only work remains due through the end of the local calendar day. Subject and importance filters are available; dragging is paused while filters hide cards so saved positions remain unambiguous.
+The unified task form keeps title, subject, due date, optional due time, importance, steps, and notes in one clear flow without a separate planning section. The first unfinished step appears as read-only context in task previews. Students update step progress from the task overview through explicit Mark done and Undo actions; completing a first step starts the task, while final task completion remains separate and confirmed. Date-only work remains due through the end of the local calendar day. Subject and importance filters are available.
 
-Selecting a task opens a structured overview without entering edit mode. Step updates use labeled Mark done and Undo controls inside that overview, while full-task completion uses a separate Mark done action and always asks for confirmation. Unfinished steps are called out before the task moves to Done. Completed work can be reopened from its overview or the Board.
+Selecting a task opens a structured overview without entering edit mode. Step updates use labeled Mark done and Undo controls inside that overview, while full-task completion uses a separate Mark done action and always asks for confirmation. Unfinished steps are called out before the task leaves the active lists. Completed work remains available in the Completed view and can be reopened.
 
 Task creation, movement, and checklist changes use trusted database functions. `tasks` and `task_steps` rows are private to their owner through row-level security, and a linked subject must belong to that owner. Deleting a subject sets the link to null without deleting the task; deleting a task cascades to its steps. Moving into Done records `completed_at`; reopening clears it. The dashboard shows the next three actionable incomplete tasks and their next unfinished step when available.
 
@@ -239,11 +239,12 @@ The design should prioritize readable academic information and quick access to w
 | 3. Dashboard foundation | **Complete** | Personalized dashboard, current and upcoming class summaries, next actionable tasks, schedule-aware empty states, quick actions, and module panels. |
 | 4. Schedule management and intake | **Complete** | Manual subjects and meetings, weekly and unscheduled views, confirmed deletion from both views, local web/PWA RTU form scanning, cancellable recognition, responsive editable validation, direct links to missing fields, and confirmed atomic schedule replacement. |
 | 5. Class reminders | **Planned** | Push subscriptions, Web Push delivery, reminder timing, idempotency, service worker behavior, and pause controls. |
-| 6. Tasks | **Complete** | Responsive Today, Upcoming, and Calendar planning, guided checklist steps, planned work dates, the retained Kanban board, secure ownership policies, and dashboard integration. |
-| 7. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
-| 8. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
-| 9. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |
-| 10. Release review | **Planned** | Key journey, authorization, data handling, accessibility, performance, and deployment verification. |
+| 6. Tasks | **Complete** | Focused responsive Today, Upcoming, and Completed planning, guided checklist steps, planned work dates, secure ownership policies, and dashboard integration. |
+| 7. Calendar | **Planned** | Independent Cali-branded calendar module for class meetings, task deadlines, and later reminder context. |
+| 8. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
+| 9. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
+| 10. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |
+| 11. Release review | **Planned** | Key journey, authorization, data handling, accessibility, performance, and deployment verification. |
 
 Each remaining phase should receive its own user flow, data contract, validation rules, failure states, and acceptance criteria before development begins. Completed phases remain subject to release-level accessibility, performance, and deployment verification.
 

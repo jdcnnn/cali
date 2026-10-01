@@ -55,7 +55,7 @@ describe('deadline behavior', () => {
 })
 
 describe('board and dashboard ordering', () => {
-  it('sorts each Kanban column by its persisted position', () => {
+  it('sorts each task status by its persisted position', () => {
     const columns = orderedColumns([
       task({ id: 'later', position: 2 }),
       task({ id: 'first', position: 0 }),

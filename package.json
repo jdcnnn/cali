@@ -12,8 +12,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dnd-kit/helpers": "^0.5.0",
-    "@dnd-kit/react": "^0.5.0",
     "@paddleocr/paddleocr-js": "^0.4.2",
     "@supabase/supabase-js": "^2.110.2",
     "@tiptap/extension-color": "^3.28.0",
