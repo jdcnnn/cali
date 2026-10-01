@@ -43,6 +43,12 @@ The dashboard uses the same planner ranking and shows the next unfinished checkl
 
 Apply both task migrations before opening the deployed Tasks page. `20260927000000_create_tasks.sql` adds the base table and create/move functions; `20260928000000_student_task_planner.sql` adds the student-planner fields and private checklist operations. The application no longer reads or writes effort estimates; the deployed legacy column remains unused to avoid destructive data removal.
 
+## Calendar module
+
+Calendar is an independent workspace module at `/calendar`, placed directly after Tasks in the sidebar. It combines repeating class meetings and open task deadlines without placing both event types in the same visual lane. Desktop provides Week and Day views: deadlines stay in a compact strip above the schedule, while classes appear as timed blocks in the grid. The current day and current time are highlighted with restrained Cali styling.
+
+On mobile, Calendar becomes a selected-day agenda with a seven-day date strip, a separate deadline list, and chronological class cards. Calendar events currently link back to their owning Tasks or Schedules module. Dedicated event details and creation interactions remain a later Calendar phase.
+
 ## Auth and onboarding
 
 The app uses Google OAuth with PKCE and restores a saved session on startup. It checks the account with Supabase Auth and the database's `cali_is_eligible_user` function before allowing onboarding or `/dashboard`. Onboarding saves a unique lowercase username, a listed or custom program, and year level 1–5 through `cali_complete_onboarding`. This trusted database function reads the Google name and avatar from `auth.identities`; browser clients cannot write those fields. Returning profiles are refreshed through `cali_refresh_google_profile`.
@@ -68,7 +74,7 @@ The web and installed-app icon uses the exact graduation-cap structure from Cali
 - supabase/migrations/: database migrations
 - cali.md: current project decisions and plan
 
-Auth, onboarding, manual weekly schedule management, local schedule scanning, and student task planning are implemented. Closed-tab class reminders and the remaining application modules described in cali.md remain planned work.
+Auth, onboarding, manual weekly schedule management, local schedule scanning, student task planning, and the independent Calendar foundation are implemented. Closed-tab class reminders and the remaining application modules described in cali.md remain planned work.
 
 ## Vercel deployment
 

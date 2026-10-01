@@ -89,6 +89,14 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Removed effort estimates and their summary metric from the interface, client model, and planner calculations; students now see only planning information that drives an immediate action. The deployed `estimate_minutes` column remains unused for non-destructive compatibility.
 - Simplified Tasks on 2026-10-01 by removing the Kanban Board and embedded task Calendar. Today, Upcoming, Completed, task details, editing, steps, filters, completion, and reopening remain. Existing task status and ordering fields are retained for data compatibility, and calendar planning will move to a separate module.
 
+### Independent Calendar foundation (2026-10-01)
+
+- Added `/calendar` and placed Calendar directly after Tasks in the desktop sidebar and mobile navigation drawer.
+- Added a dedicated Cali-branded Calendar screen that reads repeating class meetings and open task deadlines without changing their existing database models.
+- Desktop supports Week and Day views. Task deadlines occupy a compact deadline strip, while class meetings remain in a timed grid with overlap lanes, today highlighting, weekends, and a current-time marker.
+- Mobile uses a seven-day selector and selected-day agenda with separate Deadlines and Classes sections so event types do not compete for space.
+- Added loading, retryable error, and first-use empty states. Calendar entries currently link to Tasks or Schedules; dedicated event detail and creation interactions remain for the next Calendar phase.
+
 ## Current behavior and known follow-ups
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
@@ -99,6 +107,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
 - Study and Community routes still explain planned tools. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
+- The independent Calendar foundation is implemented. Event detail panels, selected-date creation, and direct record targeting remain follow-ups.
 - Scanner behavior has been verified by the user in both the regular web app and installed PWA. The student planner passes `npm test`, `npm.cmd run build`, and `npm.cmd run lint`; its desktop/mobile CSS and dark-mode states are implemented, but live planner interaction and a full device matrix still require manual verification because browser automation was unavailable in this environment.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.
 
@@ -109,6 +118,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 | Routes, onboarding, and dashboard | `src/App.tsx`, `src/components/DashboardSchedules.tsx`, `src/components/dashboard-schedules.css` |
 | Schedule page and scanner | `src/components/SchedulesPage.tsx`, `src/components/schedules.css`, `src/components/ScheduleScanner.tsx`, `src/components/schedule-scan.css`, `src/lib/scheduleOcr.ts`, `src/lib/rtuScheduleParser.ts` |
 | Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/DashboardTasks.tsx`, `src/components/tasks.css`, `src/lib/tasks.ts` |
+| Independent calendar | `src/components/CalendarPage.tsx`, `src/components/calendar.css` |
 | Landing, team, policies, footer, and splash | `src/components/LandingPage.tsx`, `TeamPage.tsx`, `PolicyPage.tsx`, `SiteFooter.tsx`, `SplashScreen.tsx` |
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
 | Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |

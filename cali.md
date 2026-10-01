@@ -40,7 +40,7 @@ The exact boundary and acceptance criteria for each capability will be defined o
 6. Students can later edit their username, program, and year level from Profile.
 7. After onboarding, the student reaches the CALI home dashboard. Returning onboarded students go directly to the application.
 
-**Current navigation order:** Dashboard → Schedules → Tasks → Study → Community → Profile. A separate Calendar module will be added between Tasks and Study. Study contains Reviewers, Flashcards, and Quizzes.
+**Current navigation order:** Dashboard → Schedules → Tasks → Calendar → Study → Community → Profile. Study contains Reviewers, Flashcards, and Quizzes.
 
 ### Decisions still needed for this journey
 
@@ -240,7 +240,7 @@ The design should prioritize readable academic information and quick access to w
 | 4. Schedule management and intake | **Complete** | Manual subjects and meetings, weekly and unscheduled views, confirmed deletion from both views, local web/PWA RTU form scanning, cancellable recognition, responsive editable validation, direct links to missing fields, and confirmed atomic schedule replacement. |
 | 5. Class reminders | **Planned** | Push subscriptions, Web Push delivery, reminder timing, idempotency, service worker behavior, and pause controls. |
 | 6. Tasks | **Complete** | Focused responsive Today, Upcoming, and Completed planning, guided checklist steps, planned work dates, secure ownership policies, and dashboard integration. |
-| 7. Calendar | **Planned** | Independent Cali-branded calendar module for class meetings, task deadlines, and later reminder context. |
+| 7. Calendar | **In progress** | Independent Cali-branded calendar foundation with separate deadline and timed-class lanes, desktop Week/Day views, a mobile daily agenda, and later reminder context. Event detail and creation interactions remain. |
 | 8. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
 | 9. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
 | 10. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |

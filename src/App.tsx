@@ -14,6 +14,7 @@ import { SchedulesPage } from './components/SchedulesPage'
 import { DashboardSchedules } from './components/DashboardSchedules'
 import { DashboardTasks } from './components/DashboardTasks'
 import { TasksPage } from './components/TasksPage'
+import { CalendarPage } from './components/CalendarPage'
 import { InstallCali } from './components/InstallCali'
 import { ConnectionNotice } from './components/ConnectionNotice'
 import { ThemePicker } from './theme/ThemePicker'
@@ -317,12 +318,13 @@ function OnboardingPage() {
   </main>
 }
 
-type WorkspaceSection = 'dashboard' | 'schedules' | 'tasks' | 'study' | 'community' | 'profile'
+type WorkspaceSection = 'dashboard' | 'schedules' | 'tasks' | 'calendar' | 'study' | 'community' | 'profile'
 
 const workspaceLinks: { section: WorkspaceSection; label: string; path: string }[] = [
   { section: 'dashboard', label: 'Dashboard', path: '/dashboard' },
   { section: 'schedules', label: 'Schedules', path: '/schedules' },
   { section: 'tasks', label: 'Tasks', path: '/tasks' },
+  { section: 'calendar', label: 'Calendar', path: '/calendar' },
   { section: 'study', label: 'Study', path: '/study' },
   { section: 'community', label: 'Community', path: '/community' },
   { section: 'profile', label: 'Profile', path: '/profile' },
@@ -369,6 +371,7 @@ function WorkspaceIcon({ section }: { section: WorkspaceSection }) {
     dashboard: <><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="8" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" /></>,
     schedules: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 10h18" /></>,
     tasks: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m8 10 1.5 1.5L12 9m2 1h3m-9 6 1.5 1.5L12 15m2 1h3" /></>,
+    calendar: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M7 2v4m10-4v4M3 9h18M8 13h2m4 0h2m-8 4h2m4 0h2" /></>,
     study: <><path d="M12 6c-2-1.5-5-2-9-1v14c4-1 7-.5 9 1.5 2-2 5-2.5 9-1.5V5c-4-1-7-.5-9 1Z" /><path d="M12 6v14" /></>,
     community: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2H3Z" /><path d="M17 5a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5" /></>,
     profile: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2H4Z" /></>,
@@ -586,7 +589,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
             </div></section>
           </div>
         </div>
-      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : <ModuleScreen section={section} />}
+      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : <ModuleScreen section={section} />}
     </div>
   </main>
 }
@@ -613,7 +616,7 @@ function HomeRedirect() {
 
 function AppRoutes() {
   const [splashPhase, setSplashPhase] = useState<'showing' | 'leaving' | 'done'>(() => {
-    const knownPaths = ['/', '/login', '/team', '/terms-and-conditions', '/privacy-policy', '/community-guidelines', '/auth/callback', '/access-denied', '/onboarding', '/dashboard', '/schedules', '/tasks', '/study', '/community', '/profile']
+    const knownPaths = ['/', '/login', '/team', '/terms-and-conditions', '/privacy-policy', '/community-guidelines', '/auth/callback', '/access-denied', '/onboarding', '/dashboard', '/schedules', '/tasks', '/calendar', '/study', '/community', '/profile']
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'done'
     if (!knownPaths.includes(window.location.pathname)) return 'done'
     if (['/terms-and-conditions', '/privacy-policy', '/community-guidelines'].includes(window.location.pathname)) return 'done'
@@ -643,6 +646,7 @@ function AppRoutes() {
     <Route path="/dashboard" element={<WorkspacePage section="dashboard" />} />
     <Route path="/schedules" element={<WorkspacePage section="schedules" />} />
     <Route path="/tasks" element={<WorkspacePage section="tasks" />} />
+    <Route path="/calendar" element={<WorkspacePage section="calendar" />} />
     <Route path="/study" element={<WorkspacePage section="study" />} />
     <Route path="/community" element={<WorkspacePage section="community" />} />
     <Route path="/profile" element={<WorkspacePage section="profile" />} />
