@@ -47,7 +47,7 @@ Apply both task migrations before opening the deployed Tasks page. `202609270000
 
 Calendar is an independent workspace module at `/calendar`, placed directly after Tasks in the sidebar. It combines repeating class meetings and open task deadlines without placing both event types in the same visual lane. Desktop provides Week and Day views: deadlines stay in a compact strip above the schedule, while classes appear as timed blocks in the grid. The current day and current time are highlighted with restrained Cali styling.
 
-On mobile, Calendar becomes a selected-day agenda with a seven-day date strip, a separate deadline list, and chronological class cards. Calendar events currently link back to their owning Tasks or Schedules module. Dedicated event details and creation interactions remain a later Calendar phase.
+On mobile, Calendar becomes a selected-day agenda with a seven-day date strip, a separate deadline list, and chronological class cards. Selecting any task deadline or class meeting opens a concise preview modal with its relevant date, time, subject, room or importance, and notes when available, plus a link to the owning Tasks or Schedules module. Selected-date creation remains a later Calendar phase.
 
 ## Auth and onboarding
 

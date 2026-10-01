@@ -93,9 +93,9 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 - Added `/calendar` and placed Calendar directly after Tasks in the desktop sidebar and mobile navigation drawer.
 - Added a dedicated Cali-branded Calendar screen that reads repeating class meetings and open task deadlines without changing their existing database models.
-- Desktop supports Week and Day views. Task deadlines occupy a compact deadline strip, while class meetings remain in a timed grid with overlap lanes, today highlighting, weekends, and a current-time marker.
+- Desktop supports Week and Day views. Task deadlines occupy a compact warm-toned deadline strip, while class meetings remain in a separate Cali-blue timed grid with overlap lanes, today highlighting, weekends, and a current-time marker. Time labels, gridlines, events, and the current-time marker share one coordinate system.
 - Mobile uses a seven-day selector and selected-day agenda with separate Deadlines and Classes sections so event types do not compete for space.
-- Added loading, retryable error, and first-use empty states. Calendar entries currently link to Tasks or Schedules; dedicated event detail and creation interactions remain for the next Calendar phase.
+- Added loading, retryable error, and first-use empty states. Calendar entries open preview modals with focused class or task details and a link to the owning module. Numeric section counts were intentionally omitted. Selected-date creation remains for the next Calendar phase.
 
 ## Current behavior and known follow-ups
 
@@ -107,7 +107,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
 - The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
 - Study and Community routes still explain planned tools. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
-- The independent Calendar foundation is implemented. Event detail panels, selected-date creation, and direct record targeting remain follow-ups.
+- The independent Calendar foundation and event previews are implemented. Selected-date creation and direct record targeting remain follow-ups.
 - Scanner behavior has been verified by the user in both the regular web app and installed PWA. The student planner passes `npm test`, `npm.cmd run build`, and `npm.cmd run lint`; its desktop/mobile CSS and dark-mode states are implemented, but live planner interaction and a full device matrix still require manual verification because browser automation was unavailable in this environment.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.
 
