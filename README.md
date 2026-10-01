@@ -45,9 +45,9 @@ Apply both task migrations before opening the deployed Tasks page. `202609270000
 
 ## Calendar module
 
-Calendar is an independent workspace module at `/calendar`, placed directly after Tasks in the sidebar. It combines repeating class meetings and open task deadlines while keeping the two event types visually distinct. Month is the default view, with Week and Day views available from the same compact control. Calendar intentionally does not reproduce the Schedules timetable.
+Calendar is an independent workspace module at `/calendar`, placed directly after Tasks in the sidebar. It uses the full workspace beside the sidebar for a Google Calendar-like reading area. It combines repeating class meetings and open task deadlines while keeping the two event types visually distinct. Month is the default view, with Week and Day views available from the same compact control. Calendar intentionally does not reproduce the Schedules timetable.
 
-Week groups each day into separate Task deadlines and Class meetings sections. Day presents those same two focused lists at a larger scale. On smaller screens, Month keeps a compact grid and selected-day agenda, while Week and Day use a seven-day selector above the agenda. Selecting any entry opens a concise preview modal with its relevant date, time, subject, room or importance, and notes when available, plus a link to the owning Tasks or Schedules module. Selected-date creation remains a later Calendar phase.
+Week groups each day into separate Task deadlines and Class meetings sections. Day presents those same two focused lists at a larger scale. On phone-sized screens, each clean Month cell is a comfortable day-selection target, and the selected day's full-size agenda entries open previews. Week and Day use a seven-day selector above the agenda. Each preview includes the relevant date, time, subject, room or importance, and notes when available, plus a link to the owning Tasks or Schedules module. Selected-date creation remains a later Calendar phase.
 
 ## Auth and onboarding
 
