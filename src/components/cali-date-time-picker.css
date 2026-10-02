@@ -1,0 +1,39 @@
+.cali-picker-field { display: grid; gap: 7px; min-width: 0; color: var(--color-cali-ink); font-size: 12px; font-weight: 800; }
+.cali-picker-field > span { display: flex; justify-content: space-between; gap: 8px; }
+.cali-picker-field > span small { color: var(--color-cali-slate); font-size: 10px; font-weight: 600; }
+.cali-picker-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-surface); color: var(--color-cali-ink); font-size: 13px; font-weight: 600; text-align: left; }
+.cali-picker-trigger:hover { border-color: var(--color-cali-accent); }
+.cali-picker-trigger:focus-visible, .cali-picker-dialog button:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-cali-accent) 22%, transparent); outline-offset: 2px; }
+.cali-picker-trigger.is-empty { color: var(--color-cali-slate); font-weight: 500; }
+.cali-picker-trigger:disabled { background: var(--color-cali-pale); opacity: .65; }
+.cali-picker-trigger svg { flex: none; width: 18px; height: 18px; color: var(--color-cali-accent); }
+.cali-picker-dialog { position: fixed; inset: 50% auto auto 50%; width: min(390px, calc(100vw - 32px)); max-width: none; margin: 0; padding: 0; overflow: hidden; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 18px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px rgba(10, 29, 49, .3); }
+.cali-picker-dialog::backdrop { background: rgba(7, 24, 34, .68); }
+.cali-picker-dialog > div > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--color-cali-border); }
+.cali-picker-dialog header h3 { margin: 0; font-family: Fredoka, sans-serif; font-size: 22px; font-weight: 500; text-align: center; }
+.cali-picker-dialog header .workspace-overline { margin-bottom: 5px; }
+.cali-picker-dialog header button { display: grid; place-items: center; flex: none; width: 34px; height: 34px; padding: 0; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-canvas); color: var(--color-cali-ink); }
+.cali-picker-dialog header button svg { width: 17px; height: 17px; }
+.cali-picker-dialog footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px 18px; border-top: 1px solid var(--color-cali-border); }
+.cali-picker-dialog footer button { min-height: 40px; padding: 8px 13px; }
+.cali-picker-secondary { border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-surface); color: var(--color-cali-ink); font-weight: 700; }
+.cali-time-dialog > div > header { align-items: flex-start; }
+.cali-time-parts { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 19px 20px; }
+.cali-time-parts::after { position: absolute; top: 67px; right: 20px; left: 20px; height: 44px; border: 1px solid var(--color-cali-border); border-radius: 9px; background: color-mix(in srgb, var(--color-cali-accent) 7%, transparent); content: ''; pointer-events: none; }
+.cali-time-column { display: grid; gap: 7px; text-align: center; }
+.cali-time-column > span { color: var(--color-cali-slate); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.cali-time-wheel { height: 132px; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; scrollbar-width: none; }
+.cali-time-wheel::before, .cali-time-wheel::after { display: block; height: 44px; content: ''; }
+.cali-time-wheel::-webkit-scrollbar { display: none; }
+.cali-time-wheel button { display: grid; place-items: center; width: 100%; height: 44px; padding: 0; border: 0; background: transparent; color: var(--color-cali-slate); font-size: 16px; font-weight: 600; scroll-snap-align: center; }
+.cali-time-wheel button[aria-selected="true"] { color: var(--color-cali-accent); font-weight: 800; }
+.cali-date-weekdays, .cali-date-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cali-date-weekdays { padding: 12px 16px 6px; }
+.cali-date-weekdays span { color: var(--color-cali-slate); font-size: 10px; font-weight: 800; text-align: center; }
+.cali-date-grid { gap: 4px; padding: 5px 16px 17px; }
+.cali-date-grid button { display: grid; place-items: center; min-width: 0; aspect-ratio: 1; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--color-cali-ink); font-size: 12px; font-weight: 700; }
+.cali-date-grid button:hover { background: var(--color-cali-pale); }
+.cali-date-grid button.is-outside { color: var(--color-cali-slate); opacity: .45; }
+.cali-date-grid button.is-today { box-shadow: inset 0 0 0 1px var(--color-cali-accent); color: var(--color-cali-accent); }
+.cali-date-grid button.is-selected { background: var(--color-cali-action); color: #fff; box-shadow: none; }
+@media (max-width: 420px) { .cali-picker-dialog { width: calc(100vw - 20px); } .cali-date-grid { gap: 2px; padding-inline: 12px; } }

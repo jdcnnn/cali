@@ -7,6 +7,7 @@ import type { CalendarColorKey } from '../lib/calendarColors'
 import { localDateKey } from '../lib/tasks'
 import type { Task, TaskPriority } from '../lib/tasks'
 import { CalendarColorPicker } from './CalendarColorPicker'
+import { CaliDatePicker, CaliTimePicker } from './CaliDateTimePicker'
 import './calendar.css'
 import './skeleton.css'
 
@@ -117,7 +118,7 @@ function EventEditorDialog({ studentId, initialDate, onClose, onSaved }: { stude
       <header><div><p className="workspace-overline">NEW EVENT</p><h2 id="calendar-event-title">Add event</h2><p>Create a dated event for your calendar.</p></div><button type="button" aria-label="Close event form" onClick={onClose} disabled={busy}><CloseIcon /></button></header>
       <div className="calendar-event-body">
         <label className="calendar-event-field calendar-event-field--wide"><span>Title</span><input value={draft.title} maxLength={160} autoFocus onChange={event => setDraft(previous => ({ ...previous, title: event.target.value }))} required /></label>
-        <div className="calendar-event-grid"><label className="calendar-event-field"><span>Date</span><input type="date" value={draft.date} onChange={event => setDraft(previous => ({ ...previous, date: event.target.value }))} required /></label><label className="calendar-event-field"><span>Location <small>Optional</small></span><input value={draft.location} maxLength={160} onChange={event => setDraft(previous => ({ ...previous, location: event.target.value }))} /></label><label className="calendar-event-field"><span>Start time <small>Optional</small></span><input type="time" value={draft.start} onChange={event => setDraft(previous => ({ ...previous, start: event.target.value }))} /></label><label className="calendar-event-field"><span>End time <small>Optional</small></span><input type="time" value={draft.end} disabled={!draft.start} onChange={event => setDraft(previous => ({ ...previous, end: event.target.value }))} /></label></div>
+        <div className="calendar-event-grid"><CaliDatePicker label="Date" value={draft.date} onChange={date => setDraft(previous => ({ ...previous, date }))} required /><label className="calendar-event-field"><span>Location <small>Optional</small></span><input value={draft.location} maxLength={160} onChange={event => setDraft(previous => ({ ...previous, location: event.target.value }))} /></label><CaliTimePicker label="Start time" value={draft.start} onChange={start => setDraft(previous => ({ ...previous, start, end: start ? previous.end : '' }))} optional /><CaliTimePicker label="End time" value={draft.end} onChange={end => setDraft(previous => ({ ...previous, end }))} optional disabled={!draft.start} /></div>
         <label className="calendar-event-field calendar-event-field--wide"><span>Notes <small>Optional</small></span><textarea value={draft.notes} maxLength={4000} rows={4} onChange={event => setDraft(previous => ({ ...previous, notes: event.target.value }))} /></label>
         <CalendarColorPicker value={draft.colorKey} onChange={colorKey => setDraft(previous => ({ ...previous, colorKey }))} label="Event color" />
         {error && <p className="calendar-event-error" role="alert">{error}</p>}

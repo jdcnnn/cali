@@ -20,6 +20,7 @@ import {
   validateTaskDraft,
 } from '../lib/tasks'
 import type { Task, TaskDraft, TaskPriority, TaskStatus, TaskStep, TaskSubject } from '../lib/tasks'
+import { CaliDatePicker, CaliTimePicker } from './CaliDateTimePicker'
 import './tasks.css'
 import './skeleton.css'
 
@@ -134,8 +135,8 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
           <div className="task-editor-fields">
             <label className="task-field task-field--wide"><span>Task name</span><input autoFocus required maxLength={160} value={draft.title} onChange={event => onChange({ ...draft, title: event.target.value })} placeholder="e.g. Submit the animation project" /></label>
             <div className="task-field"><span>Subject <small>Optional</small></span><OnboardingDropdown id="task-subject" label="Subject" placeholder="General" value={draft.subjectId} options={[{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))]} onChange={subjectId => onChange({ ...draft, subjectId })} searchable={subjects.length > 6} /></div>
-            <label className="task-field"><span>Due date</span><input type="date" required value={draft.dueDate} onChange={event => onChange({ ...draft, dueDate: event.target.value })} /></label>
-            <label className="task-field"><span>Due time <small>Optional</small></span><input type="time" value={draft.dueTime} onChange={event => onChange({ ...draft, dueTime: event.target.value })} /></label>
+            <CaliDatePicker label="Due date" value={draft.dueDate} onChange={dueDate => onChange({ ...draft, dueDate })} required />
+            <CaliTimePicker label="Due time" value={draft.dueTime} onChange={dueTime => onChange({ ...draft, dueTime })} optional />
             <div className="task-field"><span>Importance</span><OnboardingDropdown id="task-priority" label="Importance" placeholder="Select importance" value={draft.priority} options={Object.entries(priorityLabels).map(([value, label]) => ({ value, label }))} onChange={priority => onChange({ ...draft, priority: priority as TaskPriority })} /></div>
           </div>
         </section>

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent, RefObject } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
 import { calendarColorValue, defaultCalendarColor, isCalendarColorKey } from '../lib/calendarColors'
 import type { CalendarColorKey } from '../lib/calendarColors'
 import { CalendarColorPicker } from './CalendarColorPicker'
+import { CaliTimePicker } from './CaliDateTimePicker'
 import { ScheduleScanner } from './ScheduleScanner'
 import { StatusIcon } from './StatusIcon'
 import './schedules.css'
@@ -56,86 +57,6 @@ function cleanText(value: string) {
 
 function CloseIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg>
-}
-
-function TimeWheel({ label, options, value, onChange, wheelRef }: { label: string; options: string[]; value: string; onChange: (value: string) => void; wheelRef: RefObject<HTMLDivElement | null> }) {
-  return <div className="schedule-time-column">
-    <span>{label}</span>
-    <div ref={wheelRef} className="schedule-time-wheel" role="listbox" aria-label={label} onScroll={event => {
-      const index = Math.min(options.length - 1, Math.max(0, Math.round(event.currentTarget.scrollTop / 44)))
-      if (options[index] !== value) onChange(options[index])
-    }}>
-      {options.map((option, index) => <button key={option} type="button" role="option" aria-selected={value === option} onClick={() => {
-        onChange(option)
-        wheelRef.current?.scrollTo({ top: index * 44, behavior: 'smooth' })
-      }}>{option}</button>)}
-    </div>
-  </div>
-}
-
-function TimePicker({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const [hour, setHour] = useState('09')
-  const [minute, setMinute] = useState('00')
-  const [period, setPeriod] = useState<'AM' | 'PM'>('AM')
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  const hourRef = useRef<HTMLDivElement>(null)
-  const minuteRef = useRef<HTMLDivElement>(null)
-  const periodRef = useRef<HTMLDivElement>(null)
-  const hourOptions = useMemo(() => Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0')), [])
-  const minuteOptions = useMemo(() => Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0')), [])
-
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (open && dialog && !dialog.open) {
-      dialog.showModal()
-      hourRef.current?.scrollTo({ top: hourOptions.indexOf(hour) * 44 })
-      minuteRef.current?.scrollTo({ top: minuteOptions.indexOf(minute) * 44 })
-      periodRef.current?.scrollTo({ top: period === 'PM' ? 44 : 0 })
-    }
-    if (!open && dialog?.open) dialog.close()
-  }, [open, hour, minute, period, hourOptions, minuteOptions])
-
-  function showPicker() {
-    let nextHour = '09'
-    let nextMinute = '00'
-    let nextPeriod: 'AM' | 'PM' = 'AM'
-    if (value) {
-      const [hours, minutes] = value.split(':').map(Number)
-      nextHour = String(hours % 12 || 12).padStart(2, '0')
-      nextMinute = String(minutes).padStart(2, '0')
-      nextPeriod = hours < 12 ? 'AM' : 'PM'
-    }
-    setHour(nextHour)
-    setMinute(nextMinute)
-    setPeriod(nextPeriod)
-    setOpen(true)
-  }
-
-  function applyTime() {
-    const hours = Number(hour) % 12 + (period === 'PM' ? 12 : 0)
-    onChange(`${String(hours).padStart(2, '0')}:${minute}`)
-    setOpen(false)
-  }
-
-  return <div className="schedule-field schedule-time-field">
-    <span>{label}</span>
-    <button type="button" className={`schedule-time-trigger${value ? '' : ' schedule-time-trigger--empty'}`} onClick={showPicker} aria-label={`${label}: ${value ? clock(value) : 'select time'}`}>
-      <span>{value ? clock(value) : 'Select time'}</span>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-    </button>
-    <dialog ref={dialogRef} className="schedule-time-dialog" aria-label={`Choose ${label.toLowerCase()}`} onCancel={event => { event.preventDefault(); setOpen(false) }}>
-      <div className="schedule-time-dialog-content">
-        <div className="schedule-dialog-head"><div><p className="workspace-overline">MEETING TIME</p><h3>Choose {label.toLowerCase()}</h3></div><button type="button" className="schedule-close" aria-label="Close time picker" onClick={() => setOpen(false)}><CloseIcon /></button></div>
-        <div className="schedule-time-parts">
-          <TimeWheel label="Hour" options={hourOptions} value={hour} onChange={setHour} wheelRef={hourRef} />
-          <TimeWheel label="Minute" options={minuteOptions} value={minute} onChange={setMinute} wheelRef={minuteRef} />
-          <TimeWheel label="Period" options={['AM', 'PM']} value={period} onChange={value => setPeriod(value as 'AM' | 'PM')} wheelRef={periodRef} />
-        </div>
-        <div className="schedule-dialog-actions"><button type="button" className="schedule-secondary" onClick={() => setOpen(false)}>Cancel</button><button type="button" className="button-primary" onClick={applyTime}>Set time</button></div>
-      </div>
-    </dialog>
-  </div>
 }
 
 function validationError(draft: Draft) {
@@ -360,8 +281,8 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
           <section className="schedule-form-section" aria-labelledby="meeting-fields-title">
             <div className="schedule-form-section-head"><h3 id="meeting-fields-title">Meeting details</h3><span>{days.find(day => day.code === draft.day)?.name}</span></div>
             <div className="schedule-form-grid">
-              <TimePicker label="Start time" value={draft.start} onChange={value => setDraft(previous => ({ ...previous, start: value }))} />
-              <TimePicker label="End time" value={draft.end} onChange={value => setDraft(previous => ({ ...previous, end: value }))} />
+              <CaliTimePicker label="Start time" value={draft.start} onChange={value => setDraft(previous => ({ ...previous, start: value }))} />
+              <CaliTimePicker label="End time" value={draft.end} onChange={value => setDraft(previous => ({ ...previous, end: value }))} />
               {duration(draft.start, draft.end) && <p className="schedule-duration">Duration <strong>{duration(draft.start, draft.end)}</strong></p>}
               <label className="schedule-field schedule-field-wide">Room (optional)<input value={draft.room} maxLength={120} onChange={event => setDraft(previous => ({ ...previous, room: event.target.value }))} /></label>
               <label className="schedule-field schedule-field-wide">Block / section<input value={draft.block} maxLength={80} disabled={Boolean(draft.subjectId && !modal.meetingId)} onChange={event => setDraft(previous => ({ ...previous, block: event.target.value }))} required /></label>

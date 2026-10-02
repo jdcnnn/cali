@@ -78,7 +78,6 @@
 .task-field > span small { color: var(--color-cali-slate); font-size: 9px; font-weight: 650; }
 .task-field input, .task-field textarea, .task-field .field-input { width: 100%; min-height: 43px; padding: 10px 11px; border: 1px solid var(--color-cali-border); border-radius: 10px; outline: 0; background: var(--color-cali-surface); color: var(--color-cali-ink); font: 500 13px 'DM Sans', sans-serif; resize: vertical; }
 .task-field .onboarding-dropdown-placeholder { color: var(--color-cali-ink); }
-.task-field input[type="date"], .task-field input[type="time"] { color-scheme: light; }
 .task-field textarea { min-height: 96px; line-height: 1.5; }
 .task-field input:focus, .task-field textarea:focus, .task-field .field-input:focus-visible { border-color: var(--color-cali-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-cali-accent) 13%, transparent); }
 .task-field .onboarding-dropdown-panel { z-index: 55; }
@@ -102,7 +101,6 @@
 :root[data-theme="dark"] .task-priority--medium, .dark .task-priority--medium { background: #393425; color: #f1cf73; }
 :root[data-theme="dark"] .task-update-error, :root[data-theme="dark"] .task-form-error, .dark .task-update-error, .dark .task-form-error { border-color: #704345; background: #34292b; color: #ffaaa2; }
 :root[data-theme="dark"] .task-confirm-icon, .dark .task-confirm-icon { background: #3c292b; color: #ffaaa2; }
-:root[data-theme="dark"] .task-field input[type="date"], :root[data-theme="dark"] .task-field input[type="time"], .dark .task-field input[type="date"], .dark .task-field input[type="time"] { color-scheme: dark; }
 :root[data-theme="dark"] .tasks-page :is(.task-priority--low, .task-view-filters > button, .planner-section > header > span, .planner-task-meta > span:first-child, .planner-add-steps, .task-plan-button, .task-complete-button, .task-checklist-editor > div:first-child > button, .task-status, .task-detail-section-head > strong),
 .dark .tasks-page :is(.task-priority--low, .task-view-filters > button, .planner-section > header > span, .planner-task-meta > span:first-child, .planner-add-steps, .task-plan-button, .task-complete-button, .task-checklist-editor > div:first-child > button, .task-status, .task-detail-section-head > strong) { color: var(--color-cali-accent); }
 
