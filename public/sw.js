@@ -6,6 +6,32 @@ self.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim())
 })
 
+self.addEventListener('push', event => {
+  let message = {}
+  try { message = event.data?.json() ?? {} } catch { message = { body: event.data?.text() } }
+  const title = message.title || 'Cali reminder'
+  event.waitUntil(self.registration.showNotification(title, {
+    body: message.body || 'You have an upcoming schedule item.',
+    icon: '/icons/cali-192.png',
+    badge: '/icons/cali-192.png',
+    tag: message.tag || 'cali-reminder',
+    renotify: true,
+    data: { url: message.url || '/calendar' },
+  }))
+})
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  const target = new URL(event.notification.data?.url || '/calendar', self.location.origin).href
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
+    for (const client of clients) {
+      if ('navigate' in client) await client.navigate(target)
+      if ('focus' in client) return client.focus()
+    }
+    return self.clients.openWindow(target)
+  }))
+})
+
 const OCR_CACHE = 'cali-ocr-v1'
 const OCR_ASSET_PREFIX = '/ocr/v1/'
 

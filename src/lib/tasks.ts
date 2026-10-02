@@ -14,6 +14,7 @@ export type Task = {
   status: TaskStatus
   position: number
   completed_at: string | null
+  reminder_minutes: number | null
   created_at: string
   updated_at: string
 }
@@ -39,6 +40,7 @@ export type TaskDraft = {
   dueTime: string
   plannedDate: string
   priority: TaskPriority
+  reminderMinutes: number | null
   steps: TaskDraftStep[]
 }
 
@@ -61,7 +63,7 @@ export function localDateKey(date = new Date()) {
 }
 
 export function emptyTaskDraft(): TaskDraft {
-  return { title: '', notes: '', subjectId: '', dueDate: '', dueTime: '', plannedDate: '', priority: 'medium', steps: [] }
+  return { title: '', notes: '', subjectId: '', dueDate: '', dueTime: '', plannedDate: '', priority: 'medium', reminderMinutes: null, steps: [] }
 }
 
 export function draftFromTask(task: Task, steps: TaskStep[] = []): TaskDraft {
@@ -73,6 +75,7 @@ export function draftFromTask(task: Task, steps: TaskStep[] = []): TaskDraft {
     dueTime: task.due_time?.slice(0, 5) ?? '',
     plannedDate: task.planned_date ?? '',
     priority: task.priority,
+    reminderMinutes: task.reminder_minutes,
     steps: steps.sort((a, b) => a.position - b.position).map(step => ({ id: step.id, title: step.title, isCompleted: step.is_completed })),
   }
 }
@@ -83,6 +86,7 @@ export function validateTaskDraft(draft: TaskDraft) {
   if (draft.notes.length > 4000) return 'Keep notes to 4,000 characters or fewer.'
   if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.dueDate)) return 'Choose a due date.'
   if (draft.dueTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.dueTime)) return 'Choose a valid due time or leave it blank.'
+  if (draft.reminderMinutes !== null && (!draft.dueTime || !Number.isInteger(draft.reminderMinutes) || draft.reminderMinutes < 1 || draft.reminderMinutes > 10080)) return 'Choose a due time and a reminder up to seven days before it.'
   if (draft.plannedDate && !/^\d{4}-\d{2}-\d{2}$/.test(draft.plannedDate)) return 'Choose a valid planned date or leave it blank.'
   if (draft.plannedDate && draft.plannedDate > draft.dueDate) return 'Plan the task on or before its due date.'
   if (draft.steps.length > 50) return 'Keep this task to 50 steps or fewer.'

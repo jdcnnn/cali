@@ -21,6 +21,9 @@ import {
 } from '../lib/tasks'
 import type { Task, TaskDraft, TaskPriority, TaskStatus, TaskStep, TaskSubject } from '../lib/tasks'
 import { CaliDatePicker, CaliTimePicker } from './CaliDateTimePicker'
+import { ReminderField } from './ReminderField'
+import { reminderLabel } from '../lib/reminders'
+import { enablePushNotifications } from '../lib/pushNotifications'
 import './tasks.css'
 import './skeleton.css'
 
@@ -136,7 +139,8 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
             <label className="task-field task-field--wide"><span>Task name</span><input autoFocus required maxLength={160} value={draft.title} onChange={event => onChange({ ...draft, title: event.target.value })} placeholder="e.g. Submit the animation project" /></label>
             <div className="task-field"><span>Subject <small>Optional</small></span><OnboardingDropdown id="task-subject" label="Subject" placeholder="General" value={draft.subjectId} options={[{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))]} onChange={subjectId => onChange({ ...draft, subjectId })} searchable={subjects.length > 6} /></div>
             <CaliDatePicker label="Due date" value={draft.dueDate} onChange={dueDate => onChange({ ...draft, dueDate })} required />
-            <CaliTimePicker label="Due time" value={draft.dueTime} onChange={dueTime => onChange({ ...draft, dueTime })} optional />
+            <CaliTimePicker label="Due time" value={draft.dueTime} onChange={dueTime => onChange({ ...draft, dueTime, reminderMinutes: dueTime ? draft.reminderMinutes : null })} optional />
+            <ReminderField id="task-reminder" value={draft.reminderMinutes} onChange={reminderMinutes => onChange({ ...draft, reminderMinutes })} disabled={!draft.dueTime} />
             <div className="task-field"><span>Importance</span><OnboardingDropdown id="task-priority" label="Importance" placeholder="Select importance" value={draft.priority} options={Object.entries(priorityLabels).map(([value, label]) => ({ value, label }))} onChange={priority => onChange({ ...draft, priority: priority as TaskPriority })} /></div>
           </div>
         </section>
@@ -185,6 +189,7 @@ function TaskDetailDialog({ task, subject, steps, now, busy, onClose, onEdit, on
         <dl className="task-detail-grid">
           <div><dt>Subject</dt><dd>{subject ? `${subject.subject_code} — ${subject.title}` : 'General'}</dd></div>
           <div><dt>Due</dt><dd className={isTaskOverdue(task, now) ? 'task-due--overdue' : ''}>{isTaskOverdue(task, now) ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</dd></div>
+          <div><dt>Reminder</dt><dd>{reminderLabel(task.reminder_minutes)}</dd></div>
         </dl>
         <section className="task-detail-section">
           <div className="task-detail-section-head"><div><h3>Steps</h3><p>{taskSteps.length ? `${progress.completed} of ${progress.total} complete` : 'No steps added'}</p></div>{taskSteps.length > 0 && <strong>{progress.completed}/{progress.total}</strong>}</div>
@@ -232,7 +237,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const load = useCallback(async () => {
     if (!supabase) throw new Error('Supabase is not configured.')
     const [taskResult, subjectResult, stepResult] = await Promise.all([
-      supabase.from('tasks').select('id,user_id,schedule_subject_id,title,notes,due_date,due_time,planned_date,priority,status,position,completed_at,created_at,updated_at').eq('user_id', studentId).order('position'),
+      supabase.from('tasks').select('id,user_id,schedule_subject_id,title,notes,due_date,due_time,planned_date,priority,status,position,completed_at,reminder_minutes,created_at,updated_at').eq('user_id', studentId).order('position'),
       supabase.from('schedule_subjects').select('id,subject_code,title').eq('user_id', studentId).order('subject_code'),
       supabase.from('task_steps').select('id,task_id,title,position,is_completed,created_at,updated_at').order('position'),
     ])
@@ -283,6 +288,18 @@ export function TasksPage({ studentId }: { studentId: string }) {
     }
   }, [loading, pageError, searchParams, setSearchParams, editor])
 
+  useEffect(() => {
+    if (loading || pageError || viewing) return
+    const requestedTask = searchParams.get('task')
+    if (!requestedTask) return
+    const task = tasks.find(item => item.id === requestedTask)
+    const timer = window.setTimeout(() => {
+      if (task) setViewing(task)
+      setSearchParams({}, { replace: true })
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loading, pageError, searchParams, setSearchParams, tasks, viewing])
+
   const filtersActive = searchQuery.trim() !== '' || subjectFilter !== 'all' || priorityFilter !== 'all'
   const filteredTasks = useMemo(() => tasks.filter(task => {
     const query = searchQuery.trim().toLocaleLowerCase()
@@ -319,9 +336,10 @@ export function TasksPage({ studentId }: { studentId: string }) {
     if (!editor || busy || !supabase) return
     const validation = validateTaskDraft(editor.draft)
     if (validation) { setFormError(validation); return }
-    setBusy(true); setFormError('')
     const draft = editor.draft
-    const details = { title: draft.title.replace(/\s+/g, ' ').trim(), notes: draft.notes.trim() || null, schedule_subject_id: draft.subjectId || null, due_date: draft.dueDate, due_time: draft.dueTime || null, planned_date: draft.plannedDate || null, priority: draft.priority }
+    if (draft.reminderMinutes) void enablePushNotifications().catch(() => undefined)
+    setBusy(true); setFormError('')
+    const details = { title: draft.title.replace(/\s+/g, ' ').trim(), notes: draft.notes.trim() || null, schedule_subject_id: draft.subjectId || null, due_date: draft.dueDate, due_time: draft.dueTime || null, planned_date: draft.plannedDate || null, priority: draft.priority, reminder_minutes: draft.reminderMinutes }
     let savedTask: Task | null = null
     const wasNew = !editor.taskId
     try {
@@ -330,7 +348,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
         if (error) throw error
         savedTask = data as Task
       } else {
-        const { data: created, error: createError } = await supabase.rpc('cali_create_own_task', { p_title: details.title, p_notes: details.notes, p_schedule_subject_id: details.schedule_subject_id, p_due_date: details.due_date, p_due_time: details.due_time, p_priority: details.priority })
+        const { data: created, error: createError } = await supabase.rpc('cali_create_own_task', { p_title: details.title, p_notes: details.notes, p_schedule_subject_id: details.schedule_subject_id, p_due_date: details.due_date, p_due_time: details.due_time, p_priority: details.priority, p_reminder_minutes: details.reminder_minutes })
         if (createError) throw createError
         const { data, error } = await supabase.from('tasks').update({ planned_date: details.planned_date }).eq('id', (created as Task).id).eq('user_id', studentId).select().single()
         if (error) throw error

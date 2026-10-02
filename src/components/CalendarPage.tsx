@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
-import { NavLink } from 'react-router'
+import { NavLink, useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
 import { calendarColorValue, defaultCalendarColor } from '../lib/calendarColors'
 import type { CalendarColorKey } from '../lib/calendarColors'
@@ -8,14 +8,17 @@ import { localDateKey } from '../lib/tasks'
 import type { Task, TaskPriority } from '../lib/tasks'
 import { CalendarColorPicker } from './CalendarColorPicker'
 import { CaliDatePicker, CaliTimePicker } from './CaliDateTimePicker'
+import { ReminderField } from './ReminderField'
+import { reminderLabel } from '../lib/reminders'
+import { enablePushNotifications } from '../lib/pushNotifications'
 import './calendar.css'
 import './skeleton.css'
 
 type DayCode = 'M' | 'T' | 'W' | 'H' | 'F' | 'S' | 'U'
 type Subject = { id: string; subject_code: string; title: string; block_section: string; color_key: CalendarColorKey }
-type Meeting = { id: string; subject_id: string; day_code: DayCode; starts_at: string; ends_at: string; room: string | null }
-type CalendarEvent = { id: string; user_id: string; title: string; event_date: string; starts_at: string | null; ends_at: string | null; location: string | null; notes: string | null; color_key: CalendarColorKey; created_at: string; updated_at: string }
-type EventDraft = { title: string; date: string; start: string; end: string; location: string; notes: string; colorKey: CalendarColorKey }
+type Meeting = { id: string; subject_id: string; day_code: DayCode; starts_at: string; ends_at: string; room: string | null; reminder_minutes: number | null }
+type CalendarEvent = { id: string; user_id: string; title: string; event_date: string; starts_at: string | null; ends_at: string | null; location: string | null; notes: string | null; color_key: CalendarColorKey; reminder_minutes: number | null; created_at: string; updated_at: string }
+type EventDraft = { title: string; date: string; start: string; end: string; location: string; notes: string; colorKey: CalendarColorKey; reminderMinutes: number | null }
 type CalendarPreview = { kind: 'task'; task: Task } | { kind: 'class'; meeting: Meeting; date: string } | { kind: 'event'; event: CalendarEvent }
 
 const dayCodes: DayCode[] = ['U', 'M', 'T', 'W', 'H', 'F', 'S']
@@ -75,7 +78,7 @@ function EventIndicatorIcon() {
 }
 
 function emptyEventDraft(date: string): EventDraft {
-  return { title: '', date, start: '', end: '', location: '', notes: '', colorKey: 'violet' }
+  return { title: '', date, start: '', end: '', location: '', notes: '', colorKey: 'violet', reminderMinutes: null }
 }
 
 function EventEditorDialog({ studentId, initialDate, onClose, onSaved }: { studentId: string; initialDate: string; onClose: () => void; onSaved: () => Promise<void> }) {
@@ -100,10 +103,12 @@ function EventEditorDialog({ studentId, initialDate, onClose, onSaved }: { stude
     if (!draft.date) { setError('Choose an event date.'); return }
     if (draft.end && (!draft.start || draft.end <= draft.start)) { setError('Choose an end time after the start time.'); return }
     if (location.length > 160 || notes.length > 4000) { setError('Shorten the location or notes.'); return }
+    if (draft.reminderMinutes && !draft.start) { setError('Add a start time before choosing a reminder.'); return }
+    if (draft.reminderMinutes) void enablePushNotifications().catch(() => undefined)
     setBusy(true)
     setError('')
     try {
-      const { error: saveError } = await supabase.from('calendar_events').insert({ user_id: studentId, title, event_date: draft.date, starts_at: draft.start || null, ends_at: draft.end || null, location: location || null, notes: notes || null, color_key: draft.colorKey })
+      const { error: saveError } = await supabase.from('calendar_events').insert({ user_id: studentId, title, event_date: draft.date, starts_at: draft.start || null, ends_at: draft.end || null, location: location || null, notes: notes || null, color_key: draft.colorKey, reminder_minutes: draft.reminderMinutes })
       if (saveError) throw saveError
       await onSaved()
       onClose()
@@ -118,7 +123,7 @@ function EventEditorDialog({ studentId, initialDate, onClose, onSaved }: { stude
       <header><div><p className="workspace-overline">NEW EVENT</p><h2 id="calendar-event-title">Add event</h2><p>Create a dated event for your calendar.</p></div><button type="button" aria-label="Close event form" onClick={onClose} disabled={busy}><CloseIcon /></button></header>
       <div className="calendar-event-body">
         <label className="calendar-event-field calendar-event-field--wide"><span>Title</span><input value={draft.title} maxLength={160} autoFocus onChange={event => setDraft(previous => ({ ...previous, title: event.target.value }))} required /></label>
-        <div className="calendar-event-grid"><CaliDatePicker label="Date" value={draft.date} onChange={date => setDraft(previous => ({ ...previous, date }))} required /><label className="calendar-event-field"><span>Location <small>Optional</small></span><input value={draft.location} maxLength={160} onChange={event => setDraft(previous => ({ ...previous, location: event.target.value }))} /></label><CaliTimePicker label="Start time" value={draft.start} onChange={start => setDraft(previous => ({ ...previous, start, end: start ? previous.end : '' }))} optional /><CaliTimePicker label="End time" value={draft.end} onChange={end => setDraft(previous => ({ ...previous, end }))} optional disabled={!draft.start} /></div>
+        <div className="calendar-event-grid"><CaliDatePicker label="Date" value={draft.date} onChange={date => setDraft(previous => ({ ...previous, date }))} required /><label className="calendar-event-field"><span>Location <small>Optional</small></span><input value={draft.location} maxLength={160} onChange={event => setDraft(previous => ({ ...previous, location: event.target.value }))} /></label><CaliTimePicker label="Start time" value={draft.start} onChange={start => setDraft(previous => ({ ...previous, start, end: start ? previous.end : '', reminderMinutes: start ? previous.reminderMinutes : null }))} optional /><CaliTimePicker label="End time" value={draft.end} onChange={end => setDraft(previous => ({ ...previous, end }))} optional disabled={!draft.start} /><ReminderField id="event-reminder" value={draft.reminderMinutes} onChange={reminderMinutes => setDraft(previous => ({ ...previous, reminderMinutes }))} disabled={!draft.start} /></div>
         <label className="calendar-event-field calendar-event-field--wide"><span>Notes <small>Optional</small></span><textarea value={draft.notes} maxLength={4000} rows={4} onChange={event => setDraft(previous => ({ ...previous, notes: event.target.value }))} /></label>
         <CalendarColorPicker value={draft.colorKey} onChange={colorKey => setDraft(previous => ({ ...previous, colorKey }))} label="Event color" />
         {error && <p className="calendar-event-error" role="alert">{error}</p>}
@@ -150,6 +155,7 @@ function CalendarPreviewDialog({ preview, subjects, onClose }: { preview: Calend
           <div><dt>Date</dt><dd>{new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(date)}</dd></div>
           <div><dt>Time</dt><dd>{time}</dd></div>
           {preview.kind === 'event' ? <div><dt>Location</dt><dd>{preview.event.location || 'Not specified'}</dd></div> : <div><dt>Subject</dt><dd>{subject ? `${subject.subject_code} · ${subject.title}` : 'General'}</dd></div>}
+          <div><dt>Reminder</dt><dd>{reminderLabel(preview.kind === 'task' ? preview.task.reminder_minutes : preview.kind === 'class' ? preview.meeting.reminder_minutes : preview.event.reminder_minutes)}</dd></div>
           {preview.kind === 'task' ? <div><dt>Importance</dt><dd>{priorityLabels[preview.task.priority]}</dd></div> : preview.kind === 'class' ? <><div><dt>Room</dt><dd>{preview.meeting.room || 'Not specified'}</dd></div><div><dt>Block</dt><dd>{subject?.block_section || 'Not specified'}</dd></div></> : null}
         </dl>
         {preview.kind === 'task' && preview.task.notes && <section><h3>Notes</h3><p>{preview.task.notes}</p></section>}
@@ -165,7 +171,9 @@ function CalendarSkeleton() {
 }
 
 export function CalendarPage({ studentId, now }: { studentId: string; now: Date }) {
-  const [selectedDate, setSelectedDate] = useState(() => localDateKey(now))
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedDate = searchParams.get('date')
+  const [selectedDate, setSelectedDate] = useState(() => requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : localDateKey(now))
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -179,8 +187,8 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
     if (!supabase) throw new Error('Supabase is not configured.')
     const [subjectResult, taskResult, eventResult] = await Promise.all([
       supabase.from('schedule_subjects').select('id,subject_code,title,block_section,color_key').eq('user_id', studentId).order('subject_code'),
-      supabase.from('tasks').select('id,user_id,schedule_subject_id,title,notes,due_date,due_time,planned_date,priority,status,position,completed_at,created_at,updated_at').eq('user_id', studentId).neq('status', 'done').order('due_date'),
-      supabase.from('calendar_events').select('id,user_id,title,event_date,starts_at,ends_at,location,notes,color_key,created_at,updated_at').eq('user_id', studentId).order('event_date').order('starts_at'),
+      supabase.from('tasks').select('id,user_id,schedule_subject_id,title,notes,due_date,due_time,planned_date,priority,status,position,completed_at,reminder_minutes,created_at,updated_at').eq('user_id', studentId).neq('status', 'done').order('due_date'),
+      supabase.from('calendar_events').select('id,user_id,title,event_date,starts_at,ends_at,location,notes,color_key,reminder_minutes,created_at,updated_at').eq('user_id', studentId).order('event_date').order('starts_at'),
     ])
     if (subjectResult.error) throw subjectResult.error
     if (taskResult.error) throw taskResult.error
@@ -188,7 +196,7 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
     const nextSubjects = (subjectResult.data ?? []) as Subject[]
     let nextMeetings: Meeting[] = []
     if (nextSubjects.length) {
-      const meetingResult = await supabase.from('schedule_meetings').select('id,subject_id,day_code,starts_at,ends_at,room').in('subject_id', nextSubjects.map(subject => subject.id)).order('starts_at')
+      const meetingResult = await supabase.from('schedule_meetings').select('id,subject_id,day_code,starts_at,ends_at,room,reminder_minutes').in('subject_id', nextSubjects.map(subject => subject.id)).order('starts_at')
       if (meetingResult.error) throw meetingResult.error
       nextMeetings = (meetingResult.data ?? []) as Meeting[]
     }
@@ -205,6 +213,21 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
     const timer = window.setTimeout(() => { void load().catch(cause => { if (active) { setError(cause instanceof Error ? cause.message : 'Could not load your calendar.'); setLoading(false) } }) }, 0)
     return () => { active = false; window.clearTimeout(timer) }
   }, [load])
+
+  useEffect(() => {
+    if (loading || preview) return
+    const eventId = searchParams.get('event')
+    if (!eventId) return
+    const selectedEvent = events.find(event => event.id === eventId)
+    const timer = window.setTimeout(() => {
+      if (selectedEvent) {
+        setSelectedDate(selectedEvent.event_date)
+        setPreview({ kind: 'event', event: selectedEvent })
+      }
+      setSearchParams({}, { replace: true })
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [events, loading, preview, searchParams, setSearchParams])
 
   const selected = useMemo(() => dateFromKey(selectedDate), [selectedDate])
   const monthDates = useMemo(() => monthGridDates(selected), [selected])

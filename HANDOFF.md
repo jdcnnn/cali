@@ -1,10 +1,14 @@
 # Cali handoff
 
-Updated: 2026-10-01
+Updated: 2026-10-02
 
 ## What this repository is
 
 CALI (Class Ally) is an independent academic workspace for Rizal Technological University students. This is a React 19, TypeScript, Vite, and Tailwind CSS project with Supabase Auth and database migrations. `cali.md` records the broader product decisions and proposed modules; `README.md` covers local setup.
+
+## Next phase decision
+
+- Reminder timing is defined across classes, tasks, and events: 30 minutes, 1 hour, 3 hours, 5 hours, or Custom. Custom uses separate hours and minutes fields and must be non-zero. The confirmed $0 technology baseline is native browser Web Push, Supabase Postgres/RLS, a TypeScript Supabase Edge Function using pinned `web-push@3.6.7`, and an authenticated cron-job.org request once per minute. Vercel continues to host only the PWA. Delivery, subscriptions, migrations, and notification-click handling remain unimplemented.
 
 ## Completed work
 
@@ -99,14 +103,24 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added ten named color presets for schedule subjects and Events: Ocean, Sky, Teal, Mint, Fern, Sunflower, Tangerine, Coral, Rose, and Violet. Only the key is stored; theme-aware CSS values preserve contrast in light and dark mode. Migration: `20261001000000_calendar_events_and_colors.sql`.
 - Added loading, retryable error, and first-use empty states. Calendar entries open preview modals with focused class or task details and a link to the owning module. Numeric section counts were intentionally omitted. Selected-date creation remains for the next Calendar phase.
 
+### Web Push reminders (2026-10-02)
+
+- Added independent reminders to every class meeting, task, and event. New items default to No reminder; available lead times are 30 minutes, 1 hour, 3 hours, 5 hours, and a custom value from 1 minute through 7 days. Tasks and events require a specific time.
+- Added device-level Enable/Disable Notifications controls to Profile. Permission is requested only from a user action or when the user explicitly saves an item with a reminder. Signing out removes the current browser subscription; other subscribed devices remain active.
+- Added private push subscriptions, an indexed next-reminder queue, per-device delivery records, owner RLS, trusted subscription RPCs, and automatic queue triggers in `20261002010000_push_reminders.sql`. Item edits rebuild pending work, completed/deleted tasks cancel it, and recurring classes enqueue their next weekly occurrence.
+- Added the `send-reminders` Supabase Edge Function with pinned `web-push@3.6.7`, dedicated cron-secret authentication, atomic claiming, a 15-minute late-delivery window, up to three transient retries, permanent expired-subscription cleanup, and duplicate prevention per device.
+- Extended `public/sw.js` with push display and notification-click handling. Notifications open the relevant class, task, or event. Class copy includes subject code/title and optional room; tasks include their subject and due time; events include their start time and optional location.
+- Reminder calculations use Asia/Manila. cron-job.org remains the once-per-minute scheduler and must stay inactive until its final production smoke test is complete.
+- The migration and Edge Function are deployed to the linked Supabase project. Production frontend deployment is live at `https://cali-class-ally.vercel.app`; the deployed service worker responds successfully and contains both push handlers.
+
 ## Current behavior and known follow-ups
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
 - Core schedule management and intake are complete: manual creation, editing, cascading subject deletion from scheduled or unscheduled views, local web/PWA form scanning, cancellable recognition, editable review, validation, and atomic replacement are working.
 - The scanner fixes and modal enhancements are complete. No scanner-specific follow-up is currently planned.
-- All migrations through `20260928000000_student_task_planner.sql` are applied to the linked Cali Supabase project. Remote migration history matches the repository, and the linked public schema passes database lint.
+- All migrations through `20261002010000_push_reminders.sql` are applied to the linked Cali Supabase project. Remote migration history matches the repository, and the linked public schema passes database lint.
 - Vercel project `jadeee/cali` is connected to `https://github.com/jdcnnn/cali.git` and configured for Vite with `dist` output. The latest checked `origin/main` commit automatically produced a Ready production deployment with the `cali-git-main` alias. Use `npx vercel ls cali` to verify future automatic deployments.
-- Closed-tab Web Push reminders are tracked as a separate remaining phase. Reminder timing, delivery tolerance, and how students pause recurring reminders still need decisions.
+- Closed-tab Web Push reminders are implemented and deployed. The remaining release step is to activate the prepared cron-job.org job and verify one authenticated run plus a real-device notification.
 - The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
 - Study and Community routes still explain planned tools. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
 - The independent Calendar foundation and event previews are implemented. Selected-date creation and direct record targeting remain follow-ups.
@@ -125,12 +139,12 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
 | Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |
 | Theme state and picker | `src/theme/ThemeProvider.tsx`, `ThemeContext.ts`, `ThemePicker.tsx`, `index.html` |
-| PWA, installation, and connection states | `public/manifest.webmanifest`, `public/sw.js`, `src/components/InstallCali.tsx`, `src/components/ConnectionNotice.tsx`, `src/lib/pwaInstall.ts` |
+| PWA, installation, connection, and reminders | `public/manifest.webmanifest`, `public/sw.js`, `src/components/InstallCali.tsx`, `src/components/ConnectionNotice.tsx`, `src/components/ReminderField.tsx`, `src/lib/pwaInstall.ts`, `src/lib/pushNotifications.ts`, `src/lib/reminders.ts`, `supabase/functions/send-reminders/index.ts` |
 | Authentication and database | `src/auth/`, `src/lib/supabase.ts`, `supabase/migrations/` |
 | Product plan and setup | `cali.md`, `README.md` |
 
 ## Run and verify
 
-Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations, including `20260928000000_student_task_planner.sql`, before testing or deploying Tasks. The local `.env` must define `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; it is ignored by Git. Keep `SUPABASE_DB_PASSWORD` local and never configure it as a browser-facing Vite variable. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
+Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations, including `20261002010000_push_reminders.sql`, before testing reminders. The local/Vercel frontend environment must define `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_VAPID_PUBLIC_KEY`; it is ignored by Git. Edge Function secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`. Keep private keys, cron secrets, the service role, and `SUPABASE_DB_PASSWORD` out of browser-facing Vite variables. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
 
 The generated `dist/` build can be recreated with `npm run build`.

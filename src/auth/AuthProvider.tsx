@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { configurationError, supabase } from '../lib/supabase'
 import { AuthContext } from './AuthContext'
 import type { AuthState, Student } from './AuthContext'
+import { removePushSubscriptionOnSignOut } from '../lib/pushNotifications'
 
 function isCompleteStudent(value: unknown, userId: string): value is Student {
   if (!value || typeof value !== 'object') return false
@@ -98,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     if (!supabase) return
+    await removePushSubscriptionOnSignOut()
     const { error } = await supabase.auth.signOut()
     if (error) throw error
     ++requestId.current

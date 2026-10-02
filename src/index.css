@@ -432,6 +432,11 @@ em { color: var(--color-cali-accent); font-style: normal; }
 :root[data-theme="dark"] .workspace-profile-save-error { color: #FFB8B4; }
 .workspace-profile-saved { margin: 8px 0 0; color: var(--color-cali-accent); font-size: 12px; font-weight: 700; }
 .workspace-install-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 22px; margin-top: 20px; padding: 24px 29px; border: 1px solid var(--color-cali-border); border-radius: 19px; background: var(--color-cali-surface); }
+.workspace-notification-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 22px; margin-top: 20px; padding: 24px 29px; border: 1px solid var(--color-cali-border); border-radius: 19px; background: var(--color-cali-surface); }
+.workspace-notification-card h2 { margin: 0; color: var(--profile-ink); font-size: 17px; }
+.workspace-notification-card .workspace-install-copy>p:last-child { margin-bottom: 0; }
+.workspace-notification-disable { min-height: 42px; padding: 9px 16px; border: 1px solid var(--color-cali-border); border-radius: 10px; background: transparent; color: var(--color-cali-ink); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
+.workspace-notification-disable:hover { border-color: var(--color-cali-blue); color: var(--color-cali-blue); }
 .workspace-install-copy { min-width: 0; }
 .workspace-install-copy .workspace-overline { margin: 0 0 5px; }
 .workspace-install-copy h2 { margin: 0; color: var(--profile-ink); font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 700; }
@@ -473,6 +478,8 @@ em { color: var(--color-cali-accent); font-style: normal; }
   .workspace-profile-section + .workspace-profile-section { border-left: 0; border-top: 1px solid var(--color-cali-border); }
   .workspace-profile-section dl > div { min-height: 0; padding: 14px 0; }
   .workspace-install-card { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 21px; }
+  .workspace-notification-card { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 21px; }
+  .workspace-notification-card button { width: 100%; }
   .workspace-install-action { width: 100%; }
 }
 

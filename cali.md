@@ -94,7 +94,11 @@ The database enforces lowercase 3–30-character unique usernames, nonblank prog
 
 **Confirmed:** Class reminders belong to Schedules. They must appear as device notifications even when CALI's tab is closed, including on the lock screen when the device and operating system permit notifications. In-app alerts alone do not meet this requirement.
 
-**Proposed architecture:** Each student opts in to Web Push on each device. CALI stores each push subscription securely. One cron-job.org job calls an authenticated backend endpoint each minute; the backend finds due class meetings, sends Web Push, and records delivery attempts to prevent duplicates. A service worker receives the push and displays the notification. The scheduler only triggers the endpoint and receives a short status response; student schedules and push subscriptions are never sent to cron-job.org. Reminder timing, destination when tapped, and handling of edited or canceled meetings still need definition.
+**Confirmed reminder timing:** Class, task, and event reminder controls use the preset choices **30 minutes**, **1 hour**, **3 hours**, and **5 hours**, followed by **Custom**. Custom timing provides separate hours and minutes inputs and must resolve to a non-zero lead time. The notification configuration UI and delivered notification must use Cali's visual style while remaining compatible with each operating system's native notification presentation.
+
+**Confirmed free technology baseline:** The browser uses the native Push API, Notifications API, and existing root service worker; no notification SDK is added to the client. Supabase Postgres stores reminder settings, per-device push subscriptions, and idempotent delivery attempts behind RLS and focused RPCs. A TypeScript Supabase Edge Function running on the Deno-compatible Edge Runtime sends standards-based Web Push with the pinned `web-push@3.6.7` npm package and VAPID. One cron-job.org job calls the Edge Function once per minute to process a bounded batch. Secrets are split between a public VAPID key exposed to the Vite client and the private VAPID key plus cron authentication secret stored only in Supabase Edge Function secrets; cron-job.org sends the cron secret in a request header and receives only a minimal status response. Vercel continues to host only the React/Vite PWA and does not run reminder cron jobs or notification-sending functions.
+
+Each student opts in separately on each device. The scheduler finds due class meetings, tasks, and events, the Edge Function sends the encrypted pushes, and the database records attempts with unique idempotency keys so late or repeated scheduler runs cannot duplicate a notification. The service worker displays the notification and handles notification clicks. No OneSignal, Firebase application SDK, SMS/email provider, paid queue, or Apple Developer account is required. Notification-click destinations and handling of edited or canceled records still need definition.
 
 **Agreed cross-platform direction:** CALI remains a responsive website and will also be installable as a Home Screen web app on iOS and Android. On iPhone and iPad, students who want closed-tab lock-screen reminders must add CALI to the Home Screen and grant notification permission. Core features remain accessible in the browser without installation. The app must explain the iOS Home Screen step clearly.
 
@@ -162,7 +166,7 @@ Generative AI use is currently planned only for study workflows. Schedule scanni
 | Layer | Candidate | Decision still needed |
 | --- | --- | --- |
 | Test tooling | Vitest and React Testing Library | Confirm when the test plan is defined |
-| Web Push sender package | To select | Compare with the confirmed Web Push architecture |
+| Web Push sender package | `web-push@3.6.7` | Implemented in the Supabase Edge Function |
 
 ### Single-project folder structure
 
@@ -196,11 +200,15 @@ Implemented packages are recorded in the root `package.json` and `package-lock.j
 | Browser runtime | `react`, `react-dom`, `react-router`, `@supabase/supabase-js` |
 | Build and styles | `typescript`, `vite`, `@vitejs/plugin-react`, `tailwindcss`, `@tailwindcss/vite`, `@types/react`, `@types/react-dom` |
 | Browser schedule OCR | `@paddleocr/paddleocr-js` with locally hosted PP-OCRv5 models |
+| Browser reminders | Native Push API, Notifications API, and the existing service worker |
+| Reminder persistence | Supabase Postgres, RLS, constraints, and focused RPCs |
+| Reminder sender | Supabase Edge Function (TypeScript/Deno) with pinned `web-push@3.6.7` |
+| Reminder scheduler | cron-job.org authenticated request, once per minute |
 | Server runtime | `@supabase/supabase-js`, `pdfjs-dist`, `mammoth` |
 | Server development | `tsx`, `@types/node` |
 | Tests, when relevant | `vitest`, `@testing-library/react`, `@testing-library/dom`, `jsdom` |
 
-The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK is not required for the current plan. A Web Push sending package will be selected before implementing class reminders. cron-job.org is an external scheduling service, not an npm dependency. Charting and end-to-end test dependencies will be chosen when their respective requirements are defined. Fredoka and Inter are font assets rather than required npm packages.
+The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK is not required for the current plan. Reminder delivery uses `web-push@3.6.7` only inside its Supabase Edge Function, not in the browser bundle. Charting and end-to-end test dependencies will be chosen when their respective requirements are defined. Fredoka and Inter are font assets rather than required npm packages.
 
 **Validation approach:** Since Zod is excluded, each endpoint and processing step needs explicit, focused checks. Database constraints provide an additional line of validation. AI output must be treated as untrusted, even if a provider returns structured JSON.
 
@@ -209,7 +217,7 @@ The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK 
 - Vercel Node functions are the confirmed backend deployment shape, not a continuously running server.
 - Large study-material uploads should avoid passing through a function request body. Private Supabase Storage with controlled access is the temporary transfer path; files are deleted after processing.
 - Backend document processing needs a deployment trial with real PDF and `.docx` files.
-- cron-job.org is the preferred external trigger for closed-tab class reminders. It supports up to one request per minute, custom request headers, and failure monitoring. Its documented request timeout is 30 seconds, and it does not guarantee exact punctuality. Backend processing must be authenticated, bounded, idempotent, and able to handle late or repeated triggers. The endpoint must not return student data in its response. Sources: [cron-job.org FAQ](https://cron-job.org/en/faq/) and [service terms](https://cron-job.org/en/tos/).
+- cron-job.org is the confirmed reminder trigger. It calls the reminder Edge Function once per minute with a dedicated authentication header and receives only a minimal status response; student records, reminder details, and push subscriptions are never returned to it. Processing must be bounded, idempotent, and able to handle late or repeated runs. One invocation processes the complete due batch rather than scheduling one invocation per student or reminder. cron-job.org is free and supports execution up to once per minute. Source: [cron-job.org FAQ](https://cron-job.org/en/faq/).
 
 ## 8. Data and authorization principles
 
@@ -238,7 +246,7 @@ The design should prioritize readable academic information and quick access to w
 | 2. Identity and onboarding | **Complete** | Google OAuth, verified RTU account eligibility, session restoration, onboarding, profile editing, authorization policies, and confirmed account deletion. |
 | 3. Dashboard foundation | **Complete** | Personalized dashboard, current and upcoming class summaries, next actionable tasks, schedule-aware empty states, quick actions, and module panels. |
 | 4. Schedule management and intake | **Complete** | Manual subjects and meetings, weekly and unscheduled views, confirmed deletion from both views, local web/PWA RTU form scanning, cancellable recognition, responsive editable validation, direct links to missing fields, and confirmed atomic schedule replacement. |
-| 5. Class reminders | **Planned** | Push subscriptions, Web Push delivery, reminder timing, idempotency, service worker behavior, and pause controls. |
+| 5. Class, task, and event reminders | **Implemented; final smoke test pending** | Per-item presets/custom lead times, device subscriptions, Web Push delivery, indexed scheduling, retries/idempotency, service-worker display/deep links, and device-level enable/disable controls. |
 | 6. Tasks | **Complete** | Focused responsive Today, Upcoming, and Completed planning, guided checklist steps, planned work dates, secure ownership policies, and dashboard integration. |
 | 7. Calendar | **In progress** | Independent Cali-branded monthly calendar focused on class meetings, task deadlines, and separate Events, with a responsive selected-day detail panel, preview modals, a three-way create menu, and ten theme-aware named colors for schedules and Events. Weekly and daily browsing remain in Schedules. Direct record targeting and Event editing/deletion remain. |
 | 8. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
@@ -251,8 +259,8 @@ Each remaining phase should receive its own user flow, data contract, validation
 ## 11. Open architecture decisions
 
 1. Select an OpenRouter model or model-selection policy after testing study material examples.
-2. Specify reminder lead times, late-delivery tolerance, backend batching, and the iOS Home Screen and notification-permission flow.
-3. Select a Web Push sender package and finalize the test tooling.
+2. Complete the reminder release smoke test by activating the prepared cron-job.org job, confirming an authenticated dispatcher run, and receiving a real-device notification.
+3. Finalize broader component and end-to-end test tooling.
 4. Decide whether any code from the previously mentioned GitHub project should be brought into the new standalone project. The current planning workspace is separate from the requested project folder.
 
 ## 11. Documentation process

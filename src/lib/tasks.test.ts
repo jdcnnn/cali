@@ -16,6 +16,7 @@ function task(overrides: Partial<Task> = {}): Task {
     status: 'todo',
     position: 0,
     completed_at: null,
+    reminder_minutes: null,
     created_at: '2026-09-20T00:00:00.000Z',
     updated_at: '2026-09-20T00:00:00.000Z',
     ...overrides,

@@ -8,13 +8,16 @@ import { CalendarColorPicker } from './CalendarColorPicker'
 import { CaliTimePicker } from './CaliDateTimePicker'
 import { ScheduleScanner } from './ScheduleScanner'
 import { StatusIcon } from './StatusIcon'
+import { ReminderField } from './ReminderField'
+import { reminderLabel } from '../lib/reminders'
+import { enablePushNotifications } from '../lib/pushNotifications'
 import './schedules.css'
 import './skeleton.css'
 
 type DayCode = 'M' | 'T' | 'W' | 'H' | 'F' | 'S' | 'U'
 type Subject = { id: string; user_id: string; subject_code: string; title: string; units: number; block_section: string; color_key: CalendarColorKey }
-type Meeting = { id: string; subject_id: string; day_code: DayCode; starts_at: string; ends_at: string; room: string | null }
-type Draft = { subjectId: string; code: string; title: string; units: string; block: string; colorKey: CalendarColorKey; day: DayCode; start: string; end: string; room: string }
+type Meeting = { id: string; subject_id: string; day_code: DayCode; starts_at: string; ends_at: string; room: string | null; reminder_minutes: number | null }
+type Draft = { subjectId: string; code: string; title: string; units: string; block: string; colorKey: CalendarColorKey; day: DayCode; start: string; end: string; room: string; reminderMinutes: number | null }
 type Modal = { kind: 'details' | 'delete'; meetingId: string } | { kind: 'delete-subject'; subjectId: string } | { kind: 'editor'; meetingId: string | null; initial: Draft }
 
 const days: { code: DayCode; name: string }[] = [
@@ -41,7 +44,7 @@ function duration(start: string, end: string) {
 }
 
 function newDraft(day: DayCode, subject?: Subject): Draft {
-  return { subjectId: subject?.id ?? '', code: subject?.subject_code ?? '', title: subject?.title ?? '', units: subject ? String(subject.units) : '', block: subject?.block_section ?? '', colorKey: subject?.color_key ?? defaultCalendarColor, day, start: '', end: '', room: '' }
+  return { subjectId: subject?.id ?? '', code: subject?.subject_code ?? '', title: subject?.title ?? '', units: subject ? String(subject.units) : '', block: subject?.block_section ?? '', colorKey: subject?.color_key ?? defaultCalendarColor, day, start: '', end: '', room: '', reminderMinutes: null }
 }
 
 function sanitizeUnits(value: string) {
@@ -95,7 +98,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
     let nextMeetings: Meeting[] = []
     if (nextSubjects.length) {
       const { data: meetingRows, error: meetingError } = await supabase.from('schedule_meetings')
-        .select('id,subject_id,day_code,starts_at,ends_at,room').in('subject_id', nextSubjects.map(subject => subject.id))
+        .select('id,subject_id,day_code,starts_at,ends_at,room,reminder_minutes').in('subject_id', nextSubjects.map(subject => subject.id))
       if (meetingError) throw meetingError
       nextMeetings = (meetingRows ?? []) as Meeting[]
     }
@@ -134,6 +137,17 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
   }, [loaded, loading, pageError, modal, searchParams, setSearchParams, now])
 
   useEffect(() => {
+    if (!loaded || loading || pageError || modal) return
+    const requestedMeeting = searchParams.get('meeting')
+    if (!requestedMeeting || !meetings.some(meeting => meeting.id === requestedMeeting)) return
+    const timer = window.setTimeout(() => {
+      setModal({ kind: 'details', meetingId: requestedMeeting })
+      setSearchParams({}, { replace: true })
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loaded, loading, pageError, modal, meetings, searchParams, setSearchParams])
+
+  useEffect(() => {
     const dialog = dialogRef.current
     if (modal && dialog && !dialog.open) dialog.showModal()
     if (!modal && dialog?.open) dialog.close()
@@ -164,7 +178,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
   function openEditor(day: DayCode, meeting?: Meeting) {
     const owner = meeting ? subjectById.get(meeting.subject_id) : undefined
     const initial = meeting && owner
-      ? { ...newDraft(meeting.day_code, owner), start: meeting.starts_at.slice(0, 5), end: meeting.ends_at.slice(0, 5), room: meeting.room ?? '' }
+      ? { ...newDraft(meeting.day_code, owner), start: meeting.starts_at.slice(0, 5), end: meeting.ends_at.slice(0, 5), room: meeting.room ?? '', reminderMinutes: meeting.reminder_minutes }
       : newDraft(day, owner)
     setDraft(initial)
     setFormError('')
@@ -185,6 +199,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
     if (busy || modal?.kind !== 'editor' || !supabase) return
     const message = validationError(draft)
     if (message) { setFormError(message); return }
+    if (draft.reminderMinutes) void enablePushNotifications().catch(() => undefined)
     setBusy(true)
     setFormError('')
     let createdSubjectId: string | null = null
@@ -196,7 +211,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
         subjectId = data.id
         createdSubjectId = data.id
       }
-      const payload = { day_code: draft.day, starts_at: draft.start, ends_at: draft.end, room: cleanText(draft.room) || null }
+      const payload = { day_code: draft.day, starts_at: draft.start, ends_at: draft.end, room: cleanText(draft.room) || null, reminder_minutes: draft.reminderMinutes }
       if (modal.meetingId) {
         const originalMeeting = meetings.find(meeting => meeting.id === modal.meetingId)
         const originalSubject = originalMeeting ? subjectById.get(originalMeeting.subject_id) : null
@@ -207,7 +222,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
         if (subjectChanged) {
           const { error: subjectError } = await supabase.from('schedule_subjects').update({ subject_code: cleanText(draft.code), title: cleanText(draft.title), units: Number(draft.units), block_section: cleanText(draft.block), color_key: draft.colorKey }).eq('id', subjectId).eq('user_id', studentId).select('id').single()
           if (subjectError) {
-            const { error: rollbackError } = await supabase.from('schedule_meetings').update({ day_code: originalMeeting.day_code, starts_at: originalMeeting.starts_at, ends_at: originalMeeting.ends_at, room: originalMeeting.room }).eq('id', originalMeeting.id).select('id').single()
+            const { error: rollbackError } = await supabase.from('schedule_meetings').update({ day_code: originalMeeting.day_code, starts_at: originalMeeting.starts_at, ends_at: originalMeeting.ends_at, room: originalMeeting.room, reminder_minutes: originalMeeting.reminder_minutes }).eq('id', originalMeeting.id).select('id').single()
             if (rollbackError) throw new Error('The save was incomplete. Refresh your schedule before editing again.')
             throw subjectError
           }
@@ -285,6 +300,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
               <CaliTimePicker label="End time" value={draft.end} onChange={value => setDraft(previous => ({ ...previous, end: value }))} />
               {duration(draft.start, draft.end) && <p className="schedule-duration">Duration <strong>{duration(draft.start, draft.end)}</strong></p>}
               <label className="schedule-field schedule-field-wide">Room (optional)<input value={draft.room} maxLength={120} onChange={event => setDraft(previous => ({ ...previous, room: event.target.value }))} /></label>
+              <ReminderField id="class-reminder" value={draft.reminderMinutes} onChange={reminderMinutes => setDraft(previous => ({ ...previous, reminderMinutes }))} />
               <label className="schedule-field schedule-field-wide">Block / section<input value={draft.block} maxLength={80} disabled={Boolean(draft.subjectId && !modal.meetingId)} onChange={event => setDraft(previous => ({ ...previous, block: event.target.value }))} required /></label>
             </div>
           </section>
@@ -304,6 +320,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
           <div><dt>Room</dt><dd>{selectedMeeting.room || 'Not set'}</dd></div>
           <div><dt>Block / section</dt><dd>{selectedSubject.block_section}</dd></div>
           <div><dt>Units</dt><dd>{selectedSubject.units}</dd></div>
+          <div><dt>Reminder</dt><dd>{reminderLabel(selectedMeeting.reminder_minutes)}</dd></div>
         </dl>
       </div>}
       {modal?.kind === 'delete' && selectedMeeting && selectedSubject && <div className="schedule-dialog-content"><p className="workspace-overline">DELETE SUBJECT</p><h2 id="schedule-dialog-title">Delete {selectedSubject.subject_code}?</h2><p className="schedule-delete-copy">This removes the subject and {selectedSubjectMeetingCount === 1 ? `its meeting on ${days.find(day => day.code === selectedMeeting.day_code)?.name}, ${clock(selectedMeeting.starts_at)} - ${clock(selectedMeeting.ends_at)}` : `all ${selectedSubjectMeetingCount} of its weekly meetings`}. This cannot be undone.</p>{formError && <p className="schedule-error" role="alert">{formError}</p>}<div className="schedule-dialog-actions"><button type="button" className="schedule-secondary" onClick={requestClose} disabled={busy}>Keep subject</button><button type="button" className="schedule-danger" onClick={() => { void deleteSubject() }} disabled={busy}>{busy ? 'Deleting...' : 'Delete subject'}</button></div></div>}

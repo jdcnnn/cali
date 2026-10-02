@@ -18,6 +18,8 @@ import { CalendarPage } from './components/CalendarPage'
 import { InstallCali } from './components/InstallCali'
 import { ConnectionNotice } from './components/ConnectionNotice'
 import { ThemePicker } from './theme/ThemePicker'
+import { disablePushNotifications, enablePushNotifications, getPushStatus } from './lib/pushNotifications'
+import type { PushStatus } from './lib/pushNotifications'
 
 const programs = [
   'Bachelor of Science in Architecture',
@@ -495,6 +497,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
         </form> : <><dl><div><dt>Username</dt><dd>{student.username}</dd></div><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div></dl>{saved && <p className="workspace-profile-saved" role="status">Profile details saved.</p>}</>}
       </section>
     </div>
+    <NotificationSettings />
     <InstallCali />
     <section className="workspace-danger-zone" aria-labelledby="danger-zone-title"><div><p className="workspace-danger-label">DANGER ZONE</p><h2 id="danger-zone-title">Delete account</h2><p>Delete your Cali profile, saved schedules, and institutional email stored in Cali.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></section>
     <dialog ref={deleteDialogRef} className="signout-dialog workspace-delete-dialog" aria-labelledby="delete-account-title" aria-describedby="delete-account-description" onCancel={event => { if (deleting) event.preventDefault() }} onClose={() => { setDeleteOpen(false); deleteTriggerRef.current?.focus() }}>
@@ -506,6 +509,49 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
       </form>
     </dialog>
   </div>
+}
+
+function NotificationSettings() {
+  const [status, setStatus] = useState<PushStatus | 'loading'>('loading')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    void getPushStatus().then(async next => {
+      if (next === 'enabled') await enablePushNotifications()
+      if (active) setStatus(next)
+    }).catch(() => { if (active) setStatus('unsupported') })
+    return () => { active = false }
+  }, [])
+
+  async function toggle() {
+    if (busy || status === 'unsupported' || status === 'denied') return
+    setBusy(true)
+    setError('')
+    try {
+      if (status === 'enabled') await disablePushNotifications()
+      else await enablePushNotifications()
+      setStatus(await getPushStatus())
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not update notification settings.')
+      setStatus(await getPushStatus().catch(() => 'unsupported'))
+    } finally { setBusy(false) }
+  }
+
+  const enabled = status === 'enabled'
+  const description = status === 'unsupported'
+    ? 'This browser does not support Web Push notifications.'
+    : status === 'denied'
+      ? 'Notifications are blocked. Allow them in your browser or device settings, then return to Cali.'
+      : enabled
+        ? 'This device receives reminders selected on your classes, tasks, and events.'
+        : 'Enable reminders on this device. Each schedule item keeps its own lead time.'
+
+  return <section className="workspace-notification-card" aria-labelledby="notification-settings-title">
+    <div className="workspace-install-copy"><p className="workspace-overline">REMINDERS</p><h2 id="notification-settings-title">Push notifications</h2><p>{description}</p>{error && <p className="workspace-install-error" role="alert">{error}</p>}</div>
+    <button type="button" className={enabled ? 'workspace-notification-disable' : 'button-primary workspace-install-action'} onClick={() => { void toggle() }} disabled={busy || status === 'loading' || status === 'unsupported' || status === 'denied'}>{busy ? 'Updating...' : enabled ? 'Disable notifications' : 'Enable notifications'}</button>
+  </section>
 }
 
 function ModuleScreen({ section }: { section: ModuleSection }) {

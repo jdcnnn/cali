@@ -29,7 +29,7 @@ Scanner limits are 12 MB per image and 20 megapixels. Images are reduced to a ma
 
 Apply all Supabase migrations before testing. `20260925010000_replace_own_schedule.sql` adds the authenticated atomic replacement function used by the scanner.
 
-Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in your local `.env`. The anon key is the public browser key. Never put a service role key in a `VITE_` variable or commit `.env`.
+Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_VAPID_PUBLIC_KEY` in your local `.env`. The anon and VAPID public keys are safe browser values. Never put a service role key, VAPID private key, or cron secret in a `VITE_` variable or commit `.env`.
 
 ## Task module
 
@@ -76,7 +76,7 @@ The web and installed-app icon uses the exact graduation-cap structure from Cali
 - supabase/migrations/: database migrations
 - cali.md: current project decisions and plan
 
-Auth, onboarding, manual weekly schedule management, local schedule scanning, student task planning, and the independent Calendar foundation are implemented. Closed-tab class reminders and the remaining application modules described in cali.md remain planned work.
+Auth, onboarding, manual weekly schedule management, local schedule scanning, student task planning, the independent Calendar foundation, and closed-tab reminders for classes, tasks, and events are implemented. The remaining application modules are described in cali.md.
 
 ## Vercel deployment
 
@@ -84,15 +84,15 @@ The repository is configured as a Vite project with `dist` as its build output. 
 
 The Vercel project is connected to `https://github.com/jdcnnn/cali.git`. Pushes to `main` create production deployments and pushes to other branches create previews. Check recent deployments with `npx vercel ls cali`; `npx vercel --prod` remains available for an intentional manual production deployment.
 
-Before deployment, run `npm test`, `npm run lint`, and `npm run build`. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel for the required environments. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, or other server credentials as Vite environment variables.
+Before deployment, run `npm test`, `npm run lint`, and `npm run build`. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_VAPID_PUBLIC_KEY` in Vercel for the required environments. The `send-reminders` Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`; cron-job.org calls it once per minute with `X-Cali-Cron-Secret`. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, the VAPID private key, or the cron secret as Vite environment variables.
 
-All repository migrations through `20260928000000_student_task_planner.sql` are already applied to the currently linked Cali Supabase project, and the linked schema passes `supabase db lint`. A different Supabase project still needs the complete migration sequence.
+All repository migrations through `20261002010000_push_reminders.sql` are already applied to the currently linked Cali Supabase project, and the linked schema passes `supabase db lint`. A different Supabase project still needs the complete migration sequence.
 
 ## Progressive web app
 
 Cali is installable from supported desktop and mobile browsers. Signed-in students can find installation guidance under Profile. On iPhone and iPad, open Cali in Safari and use Share → Add to Home Screen.
 
-The current PWA remains online-only. Its service worker provides the root-scoped foundation needed for future class-reminder notifications and a navigation-only connection-unavailable page. It cache-first stores only immutable, versioned OCR model/runtime files after they are requested; it does not cache the app, Supabase data, registration images, or OCR results. Navigations bypass HTTP caches, service-worker updates bypass the browser cache, and the app checks for a worker update when it starts so deployed versions are adopted without requiring a PWA reinstall.
+The current PWA remains online-only. Its root-scoped service worker displays Web Push reminders, opens their exact class/task/event destination when clicked, and provides a navigation-only connection-unavailable page. It cache-first stores only immutable, versioned OCR model/runtime files after they are requested; it does not cache the app, Supabase data, registration images, OCR results, or notification payloads. Navigations bypass HTTP caches, service-worker updates bypass the browser cache, and the app checks for a worker update when it starts so deployed versions are adopted without requiring a PWA reinstall.
 
 Returning students keep their Supabase session. Public-page calls to action open the dashboard directly when a completed signed-in session is present instead of starting Google OAuth again.
 
