@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { OpenRouter } from '@openrouter/sdk'
 import { createClient } from '@supabase/supabase-js'
 import {
   generatedReviewerToTipTap,
-  reviewerJsonSchema,
   reviewerSystemPrompt,
   validateGeneratedReviewer,
   type ReviewerDetail,
@@ -11,7 +11,12 @@ import {
 const MAX_SOURCE_CHARS = 120_000
 const MIN_SOURCE_CHARS = 200
 const MAX_FOCUS_CHARS = 500
-const REQUEST_TIMEOUT_MS = 110_000
+const REQUEST_TIMEOUT_MS = 108_000
+const NVIDIA_STUDY_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free'
+const FREE_STUDY_FALLBACKS = [
+  'dots-studio/dots-3-note-preview:free',
+  'apodex/apodex-1.1-mini:free',
+] as const
 
 type RequestBody = {
   requestId?: string
@@ -20,13 +25,6 @@ type RequestBody = {
   sourceType?: 'pdf' | 'docx' | 'text'
   detail?: ReviewerDetail
   focus?: string
-  privacyAccepted?: boolean
-}
-
-type OpenRouterResponse = {
-  model?: string
-  choices?: Array<{ message?: { content?: string } }>
-  error?: { message?: string }
 }
 
 function send(res: VercelResponse, status: number, payload: Record<string, unknown>) {
@@ -74,7 +72,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const focus = typeof body.focus === 'string' ? body.focus.trim().slice(0, MAX_FOCUS_CHARS) : ''
   const sourceType = body.sourceType
   const detail = body.detail
-  if (!body.privacyAccepted) return send(res, 400, { error: 'Please accept the privacy notice before generating.' })
   if (!body.requestId || !/^[0-9a-f-]{36}$/i.test(body.requestId)) return send(res, 400, { error: 'Invalid generation request.' })
   if (!sourceType || !['pdf', 'docx', 'text'].includes(sourceType)) return send(res, 400, { error: 'Choose a supported source.' })
   if (!detail || !['concise', 'standard', 'detailed'].includes(detail)) return send(res, 400, { error: 'Choose a valid detail level.' })
@@ -99,14 +96,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return send(res, 500, { error: 'Could not start reviewer generation.' })
   }
 
-  const models = (process.env.OPENROUTER_STUDY_MODELS ?? '').split(',').map(model => model.trim()).filter(model => model.endsWith(':free'))
-  if (!models.length) {
-    await admin.rpc('cali_fail_reviewer_generation', { p_request_id: body.requestId, p_user_id: authData.user.id, p_reason: 'no_free_models' })
-    return send(res, 503, { error: 'No free study model is configured.' })
-  }
+  const configuredModels = (process.env.OPENROUTER_STUDY_MODELS ?? '').split(',').map(model => model.trim()).filter(model => model.endsWith(':free'))
+  const models = [...new Set([NVIDIA_STUDY_MODEL, ...configuredModels.filter(model => model !== NVIDIA_STUDY_MODEL), ...FREE_STUDY_FALLBACKS])]
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  res.status(200)
+  res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders()
+  const emit = (event: Record<string, unknown>) => res.write(`${JSON.stringify(event)}\n`)
+
   try {
     const userPrompt = [
       title ? `Preferred title: ${title}` : 'Choose a short, specific title from the material.',
@@ -115,35 +114,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       sourceText,
     ].filter(Boolean).join('\n\n')
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST', signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${openRouterKey}`,
-        'HTTP-Referer': `https://${String(req.headers['x-forwarded-host'] ?? req.headers.host ?? 'cali.app')}`,
-        'X-Title': 'Cali Study Reviewers',
-      },
-      body: JSON.stringify({
-        models,
-        messages: [
-          { role: 'system', content: reviewerSystemPrompt(detail) },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.25,
-        max_tokens: 10000,
-        response_format: { type: 'json_schema', json_schema: reviewerJsonSchema },
-        provider: { require_parameters: true, data_collection: 'deny' },
-      }),
-    })
-    const result = await response.json() as OpenRouterResponse
-    const raw = result.choices?.[0]?.message?.content
-    if (!response.ok || !raw) throw new Error(result.error?.message || `Provider error ${response.status}`)
-    const reviewer = validateGeneratedReviewer(cleanJson(raw))
+    const openRouter = new OpenRouter({ apiKey: openRouterKey })
+    let reviewer: ReturnType<typeof validateGeneratedReviewer> | null = null
+    let model = NVIDIA_STUDY_MODEL
+    let lastModelError: unknown = null
+    const generationDeadline = Date.now() + REQUEST_TIMEOUT_MS
+
+    for (const [index, requestedModel] of models.entries()) {
+      const remainingMs = generationDeadline - Date.now()
+      if (remainingMs < 3_000) break
+      const attemptsLeft = models.length - index
+      const attemptTimeoutMs = index === 0
+        ? Math.min(75_000, remainingMs - Math.max(0, attemptsLeft - 1) * 6_000)
+        : Math.max(3_000, Math.floor(remainingMs / attemptsLeft))
+      const displayName = requestedModel === NVIDIA_STUDY_MODEL ? 'NVIDIA Nemotron' : 'a backup free model'
+      emit({ type: 'status', stage: index === 0 ? 'Waiting for NVIDIA Nemotron…' : `Trying ${displayName}…` })
+      try {
+        const stream = await openRouter.chat.send({
+          httpReferer: `https://${String(req.headers['x-forwarded-host'] ?? req.headers.host ?? 'cali.app')}`,
+          appTitle: 'Cali Study Reviewers',
+          chatRequest: {
+            model: requestedModel,
+            messages: [
+              { role: 'system', content: reviewerSystemPrompt(detail) },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.25,
+            maxTokens: 10000,
+            responseFormat: { type: 'json_object' },
+            provider: { requireParameters: true, dataCollection: 'deny', allowFallbacks: true },
+            stream: true,
+          },
+        }, { timeoutMs: attemptTimeoutMs })
+
+        let raw = ''
+        let receivedContent = false
+        if (!(Symbol.asyncIterator in stream)) throw new Error('OpenRouter did not start a generation stream.')
+        for await (const chunk of stream) {
+          if (chunk.error) throw new Error(chunk.error.message)
+          model = chunk.model || requestedModel
+          const content = chunk.choices[0]?.delta?.content
+          if (!content) continue
+          if (!receivedContent) {
+            receivedContent = true
+            emit({ type: 'status', stage: `${displayName} is writing…` })
+          }
+          raw += content
+          if (raw.length > 1_000_000) throw new Error('The generated reviewer was too large.')
+        }
+        if (!raw.trim()) throw new Error(`${displayName} returned an empty response.`)
+        reviewer = validateGeneratedReviewer(cleanJson(raw))
+        break
+      } catch (modelError) {
+        lastModelError = modelError
+        console.warn('reviewer model attempt failed', requestedModel, modelError instanceof Error ? modelError.message.slice(0, 180) : '')
+      }
+    }
+    if (!reviewer) throw lastModelError instanceof Error ? lastModelError : new Error('Every free model was unavailable.')
+
+    emit({ type: 'status', stage: 'Structuring your preview…' })
     if (title) reviewer.title = title
     const document = generatedReviewerToTipTap(reviewer)
     if (document.plainText.length < 80) throw new Error('The generated reviewer was incomplete.')
-    const model = result.model ?? models[0]
-
+    emit({ type: 'status', stage: 'Securing your private preview…' })
     const { error: completeError } = await admin.rpc('cali_complete_reviewer_generation', {
       p_request_id: body.requestId,
       p_user_id: authData.user.id,
@@ -153,13 +186,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       p_plain_text: document.plainText,
     })
     if (completeError) throw new Error('Could not securely store the generated preview.')
-    return send(res, 200, { requestId: body.requestId, title: reviewer.title, content: document.content, model })
+    emit({ type: 'result', requestId: body.requestId, title: reviewer.title, content: document.content, model })
+    return res.end()
   } catch (error) {
-    const reason = error instanceof Error && error.name === 'AbortError' ? 'timeout' : 'provider_failure'
+    const errorName = error instanceof Error ? error.name : ''
+    const reason = /abort|timeout/i.test(errorName) ? 'timeout' : 'provider_failure'
     await admin.rpc('cali_fail_reviewer_generation', { p_request_id: body.requestId, p_user_id: authData.user.id, p_reason: reason })
-    console.error('reviewer generation failed', reason)
-    return send(res, reason === 'timeout' ? 504 : 502, { error: reason === 'timeout' ? 'Generation took too long. Try a shorter source.' : 'The free AI provider could not create a reviewer this time. Please try again.' })
-  } finally {
-    clearTimeout(timer)
+    console.error('reviewer generation failed', reason, error instanceof Error ? error.message.slice(0, 240) : '')
+    emit({ type: 'error', error: reason === 'timeout' ? 'Generation took too long. Try a shorter source.' : 'NVIDIA Nemotron could not create a reviewer this time. Please try again.' })
+    return res.end()
   }
 }

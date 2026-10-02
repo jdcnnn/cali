@@ -143,8 +143,10 @@ function AiDialog({ open, subjects, recovered, onClose, onSaved }: { open: boole
   const [sourceText, setSourceText] = useState('')
   const [sourceType, setSourceType] = useState<ReviewerSourceType>('text')
   const [fileName, setFileName] = useState('')
-  const [accepted, setAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [generationSeconds, setGenerationSeconds] = useState(0)
+  const [generationStage, setGenerationStage] = useState('Preparing your source…')
   const [extracting, setExtracting] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
@@ -154,6 +156,12 @@ function AiDialog({ open, subjects, recovered, onClose, onSaved }: { open: boole
   // Recovery arrives asynchronously with the private draft query.
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { if (recovered) setPreview(recovered) }, [recovered])
+  useEffect(() => {
+    if (!generating) return
+    const startedAt = Date.now()
+    const timer = window.setInterval(() => setGenerationSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1000)
+    return () => window.clearInterval(timer)
+  }, [generating])
 
   const chooseFile = async (file?: File) => {
     if (!file) return
@@ -178,22 +186,48 @@ function AiDialog({ open, subjects, recovered, onClose, onSaved }: { open: boole
     event.preventDefault()
     const issue = validateSourceText(sourceText)
     if (issue) { setError(issue); return }
-    if (!accepted) { setError('Accept the privacy notice to continue.'); return }
     if (!supabase) return
-    setBusy(true); setError('')
+    setBusy(true); setGenerationSeconds(0); setGenerationStage('Preparing your source…'); setGenerating(true); setError('')
     try {
       const { data } = await supabase.auth.getSession()
       if (!data.session) throw new Error('Session expired. Please sign in again.')
       const requestId = crypto.randomUUID()
       const response = await fetch('/api/study/reviewer-generations', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` },
-        body: JSON.stringify({ requestId, title, focus, detail, sourceText, sourceType, privacyAccepted: true }),
+        body: JSON.stringify({ requestId, title, focus, detail, sourceText, sourceType }),
       })
-      const result = await response.json() as { error?: string; requestId?: string; title?: string; content?: JSONContent }
-      if (!response.ok || !result.requestId || !result.title || !result.content) throw new Error(result.error ?? 'Generation failed.')
-      setPreview({ request_id: result.requestId, title: result.title, content: result.content })
+      if (!response.ok) {
+        const result = await response.json() as { error?: string }
+        throw new Error(result.error ?? 'Generation failed.')
+      }
+      if (!response.body) throw new Error('The generation stream could not be opened.')
+
+      type StreamEvent = { type: 'status'; stage: string } | { type: 'error'; error: string } | { type: 'result'; requestId: string; title: string; content: JSONContent }
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffered = ''
+      let result: Extract<StreamEvent, { type: 'result' }> | null = null
+      const handleLine = (line: string) => {
+        if (!line.trim()) return
+        const update = JSON.parse(line) as StreamEvent
+        if (update.type === 'status') setGenerationStage(update.stage)
+        else if (update.type === 'error') throw new Error(update.error)
+        else result = update
+      }
+      while (true) {
+        const { done, value } = await reader.read()
+        buffered += decoder.decode(value, { stream: !done })
+        const lines = buffered.split('\n')
+        buffered = lines.pop() ?? ''
+        for (const line of lines) handleLine(line)
+        if (done) break
+      }
+      handleLine(buffered)
+      if (!result) throw new Error('Generation ended before the preview was ready.')
+      const completed = result as Extract<StreamEvent, { type: 'result' }>
+      setPreview({ request_id: completed.requestId, title: completed.title, content: completed.content })
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Generation failed.') }
-    finally { setBusy(false) }
+    finally { setBusy(false); setGenerating(false) }
   }
 
   const save = async () => {
@@ -217,7 +251,7 @@ function AiDialog({ open, subjects, recovered, onClose, onSaved }: { open: boole
         <div className="study-source-tabs"><button type="button" className={mode === 'file' ? 'is-active' : ''} onClick={() => setMode('file')}>Upload PDF or DOCX</button><button type="button" className={mode === 'text' ? 'is-active' : ''} onClick={() => { setMode('text'); setSourceType('text'); setFileName('') }}>Paste text</button></div>
         {mode === 'file' ? <label className={`study-file-drop${dragActive ? ' is-dragging' : ''}`} onDragEnter={event => { event.preventDefault(); setDragActive(true) }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragActive(true) }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false) }} onDrop={handleDrop}><input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => { void chooseFile(event.target.files?.[0]); event.currentTarget.value = '' }} /><strong>{extracting ? 'Reading on your device…' : dragActive ? 'Drop it here' : fileName || 'Choose or drop a PDF or DOCX'}</strong><span>Up to 10 MB · PDF up to 100 pages · scanned files are not supported</span></label> : <label className="study-field study-field--wide"><span>Source text <small>{sourceText.length.toLocaleString()}/120,000</small></span><textarea rows={9} maxLength={120001} value={sourceText} onChange={event => { setSourceText(event.target.value); setSourceType('text') }} placeholder="Paste lecture notes, readings, or a lesson here…" /></label>}
         <div className="study-form-grid"><label className="study-field"><span>Title <small>Optional</small></span><input maxLength={160} value={title} onChange={event => setTitle(event.target.value)} placeholder="Cali can choose one" /></label><label className="study-field"><span>Detail</span><select value={detail} onChange={event => setDetail(event.target.value as ReviewerDetail)}><option value="concise">Concise</option><option value="standard">Standard</option><option value="detailed">Detailed</option></select></label><label className="study-field study-field--wide"><span>Focus <small>{focus.length}/500 · Optional</small></span><textarea rows={2} maxLength={500} value={focus} onChange={event => setFocus(event.target.value)} placeholder="Example: emphasize the formulas and sample problems" /></label></div>
-        <label className="study-privacy"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span><strong>Send extracted text to a free AI provider</strong>The original file never leaves this device. Its extracted text will be sent through OpenRouter to a free model, whose retention practices may vary. Do not submit sensitive or confidential material.</span></label>
+        {generating && <div className="study-generation-progress" role="status" aria-live="polite"><div><strong>{generationStage}</strong><span>{generationSeconds}s elapsed</span></div><div className="study-generation-track" aria-hidden="true"><span /></div><p>NVIDIA Nemotron is primary. Cali may use another free model only if it is unavailable. Keep this window open.</p></div>}
         {error && <p className="study-form-error" role="alert">{error}</p>}
       </form>}
       <footer>{preview ? <><button type="button" className="study-secondary" onClick={() => { void discard() }} disabled={busy}>Discard</button><button type="button" className="button-primary" onClick={() => { void save() }} disabled={busy}>{busy ? 'Saving…' : 'Save reviewer'}</button></> : <><button type="button" className="study-secondary" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" form="study-ai-form" className="button-primary" disabled={busy || extracting}>{busy ? 'Generating…' : extracting ? 'Reading file…' : 'Generate preview'}</button></>}</footer>
