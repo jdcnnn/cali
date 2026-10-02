@@ -13,9 +13,13 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification(title, {
     body: message.body || 'You have an upcoming schedule item.',
     icon: '/icons/cali-192.png',
-    badge: '/icons/cali-192.png',
+    badge: '/icons/cali-notification-badge.png',
     tag: message.tag || 'cali-reminder',
     renotify: true,
+    requireInteraction: true,
+    silent: false,
+    vibrate: [200, 100, 200],
+    timestamp: Date.now(),
     data: { url: message.url || '/calendar' },
   }))
 })

@@ -17,6 +17,13 @@ const apple = wrap(`<rect width="512" height="512" fill="#F6FCFF"/>\n${mark}`)
 const smallMark = mark
 const favicon = wrap(`<rect width="512" height="512" rx="104" fill="#F6FCFF"/>
 <g transform="translate(256 256) scale(1.10) translate(-256 -256)">${smallMark}</g>`)
+const capPath = source.match(/<path id="wordmark-cap-shape"[^>]*\/>/)?.[0]
+if (!capPath) throw new Error('Cali cap silhouette was not found.')
+// Android uses only the alpha mask for the small notification icon. Keep the
+// canvas transparent and use one solid silhouette so it never becomes a box.
+const notificationBadge = wrap(`<svg x="86" y="133" width="340" height="247" viewBox="525 30 200 145">
+  ${capPath.replace(/fill="[^"]*"/, 'fill="#FFFFFF"')}
+</svg>`)
 const root = new URL('../', import.meta.url)
 const save = (path, data) => writeFileSync(new URL(path, root), data)
 const png = (svg, size) => new Resvg(svg, { fitTo: { mode: 'width', value: size } }).render().asPng()
@@ -29,6 +36,7 @@ for (const size of [192, 512]) {
 }
 save('public/icons/apple-touch-icon.png', png(apple, 180))
 save('public/icons/favicon-32.png', png(favicon, 32))
+save('public/icons/cali-notification-badge.png', png(notificationBadge, 96))
 
 // Preview artifacts are deliberately outside the public bundle.
 mkdirSync(new URL('dist/icon-preview/', root), { recursive: true })
