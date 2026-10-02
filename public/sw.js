@@ -10,9 +10,10 @@ self.addEventListener('push', event => {
   let message = {}
   try { message = event.data?.json() ?? {} } catch { message = { body: event.data?.text() } }
   const title = message.title || 'Cali reminder'
-  const actionLabel = message.actionLabel || 'Open in Cali'
+  const detail = message.body || 'You have an upcoming schedule item.'
+  const tapTarget = message.itemType === 'class' ? 'schedule' : message.itemType === 'task' ? 'task' : message.itemType === 'event' ? 'event' : 'details'
   event.waitUntil(self.registration.showNotification(title, {
-    body: message.body || 'You have an upcoming schedule item.',
+    body: `${detail}\nTap to view ${tapTarget} in Cali.`,
     icon: '/icons/cali-192.png',
     badge: '/icons/cali-notification-badge.png',
     tag: message.tag || 'cali-reminder',
@@ -21,7 +22,6 @@ self.addEventListener('push', event => {
     silent: false,
     vibrate: [200, 100, 200],
     timestamp: Date.now(),
-    actions: [{ action: 'open', title: actionLabel }],
     data: { url: message.url || '/calendar', itemType: message.itemType || 'reminder' },
   }))
 })
