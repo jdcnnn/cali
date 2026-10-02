@@ -195,7 +195,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
         subjects: parsed.subjects.map((subject, index) => ({ ...subject, colorKey: calendarColors[index % calendarColors.length].key })),
       })
       setStage('review')
-      setStatus(`Setup ${Math.round(result.setupMs)} ms · image ${Math.round(result.prepareMs)} ms · reading ${Math.round(result.predictMs)} ms · total ${Math.round(result.totalMs)} ms`)
+      setStatus('Scanned privately on this device. Review every detail before saving.')
     } catch (caught) {
       if (controller.signal.aborted) return
       setStage('select')
@@ -398,7 +398,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       {confirming && <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-confirm-title" aria-describedby="schedule-confirm-description">
         <h3 id="schedule-confirm-title">{currentSubjectCount ? 'Replace your saved schedule?' : 'Save this schedule?'}</h3>
         <p id="schedule-confirm-description">{currentSubjectCount ? `Cali will remove your ${currentSubjectCount} saved ${currentSubjectCount === 1 ? 'subject' : 'subjects'} and replace them with the reviewed details.` : 'Cali will add the reviewed subjects and meetings to your schedule.'}</p>
-        <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirming(false)} disabled={busy}>Go back</button><button type="button" className="schedule-danger" onClick={() => { void replaceSchedule() }} disabled={busy}>{stage === 'saving' ? 'Saving…' : currentSubjectCount ? 'Replace schedule' : 'Save schedule'}</button></div>
+        <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirming(false)} disabled={busy}>Go back</button><button type="button" className="schedule-scan-primary" onClick={() => { void replaceSchedule() }} disabled={busy}>{stage === 'saving' ? 'Saving…' : currentSubjectCount ? 'Replace schedule' : 'Save schedule'}</button></div>
       </div>}
 
       {confirmStop && <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-stop-title" aria-describedby="schedule-stop-description">
