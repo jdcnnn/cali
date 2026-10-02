@@ -10,6 +10,7 @@ self.addEventListener('push', event => {
   let message = {}
   try { message = event.data?.json() ?? {} } catch { message = { body: event.data?.text() } }
   const title = message.title || 'Cali reminder'
+  const actionLabel = message.actionLabel || 'Open in Cali'
   event.waitUntil(self.registration.showNotification(title, {
     body: message.body || 'You have an upcoming schedule item.',
     icon: '/icons/cali-192.png',
@@ -20,20 +21,29 @@ self.addEventListener('push', event => {
     silent: false,
     vibrate: [200, 100, 200],
     timestamp: Date.now(),
-    data: { url: message.url || '/calendar' },
+    actions: [{ action: 'open', title: actionLabel }],
+    data: { url: message.url || '/calendar', itemType: message.itemType || 'reminder' },
   }))
 })
 
 self.addEventListener('notificationclick', event => {
   event.notification.close()
   const target = new URL(event.notification.data?.url || '/calendar', self.location.origin).href
-  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
-    for (const client of clients) {
-      if ('navigate' in client) await client.navigate(target)
-      if ('focus' in client) return client.focus()
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    for (const client of windows) {
+      if (new URL(client.url).origin !== self.location.origin) continue
+      try {
+        if ('navigate' in client && client.url !== target) await client.navigate(target)
+        if ('focus' in client) await client.focus()
+        return
+      } catch {
+        // A desktop browser can reject navigation for a stale window. Try the
+        // next window, then fall back to opening a fresh Cali window below.
+      }
     }
-    return self.clients.openWindow(target)
-  }))
+    await self.clients.openWindow(target)
+  })())
 })
 
 const OCR_CACHE = 'cali-ocr-v1'

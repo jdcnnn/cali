@@ -79,6 +79,7 @@ Deno.serve(async request => {
       let title = 'Cali reminder'
       let body = `Scheduled for ${manilaTime(reminder.occurrence_at)}`
       let url = '/calendar'
+      let actionLabel = 'Open Cali'
 
       if (reminder.item_type === 'class') {
         const { data: meeting } = await admin.from('schedule_meetings')
@@ -89,9 +90,10 @@ Deno.serve(async request => {
           continue
         }
         const subject = Array.isArray(meeting.schedule_subjects) ? meeting.schedule_subjects[0] : meeting.schedule_subjects
-        title = `${subject.subject_code} · ${subject.title}`
-        body = `${manilaTime(reminder.occurrence_at)}${meeting.room ? ` · ${meeting.room}` : ''}`
+        title = `Class · ${subject.subject_code}`
+        body = `${subject.title} • ${manilaTime(reminder.occurrence_at)}${meeting.room ? ` • ${meeting.room}` : ''}`
         url = `/schedules?meeting=${encodeURIComponent(reminder.item_id)}`
+        actionLabel = 'View class'
       } else if (reminder.item_type === 'task') {
         const { data: task } = await admin.from('tasks')
           .select('title,status,schedule_subjects(subject_code,title)').eq('id', reminder.item_id).maybeSingle()
@@ -101,9 +103,10 @@ Deno.serve(async request => {
           continue
         }
         const subject = Array.isArray(task.schedule_subjects) ? task.schedule_subjects[0] : task.schedule_subjects
-        title = `Task due: ${task.title}`
-        body = `${subject ? `${subject.subject_code} · ${subject.title} · ` : ''}${manilaTime(reminder.occurrence_at)}`
+        title = `Task due · ${task.title}`
+        body = `${subject ? `${subject.subject_code} • ${subject.title} • ` : ''}Due ${manilaTime(reminder.occurrence_at)}`
         url = `/tasks?task=${encodeURIComponent(reminder.item_id)}`
+        actionLabel = 'View task'
       } else {
         const { data: event } = await admin.from('calendar_events').select('title,location').eq('id', reminder.item_id).maybeSingle()
         if (!event) {
@@ -111,9 +114,10 @@ Deno.serve(async request => {
           missed++
           continue
         }
-        title = `Event: ${event.title}`
-        body = `${manilaTime(reminder.occurrence_at)}${event.location ? ` · ${event.location}` : ''}`
+        title = `Event · ${event.title}`
+        body = `Starts ${manilaTime(reminder.occurrence_at)}${event.location ? ` • ${event.location}` : ''}`
         url = `/calendar?date=${manilaDateKey(reminder.occurrence_at)}&event=${encodeURIComponent(reminder.item_id)}`
+        actionLabel = 'View event'
       }
 
       const pendingSubscriptions = (subscriptions as PushSubscriptionRow[]).filter(subscription => !delivered.has(subscription.id))
@@ -125,7 +129,7 @@ Deno.serve(async request => {
           await webpush.sendNotification({
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
-          }, JSON.stringify({ title, body, tag: `cali-${reminder.item_type}-${reminder.item_id}`, url }), {
+          }, JSON.stringify({ title, body, tag: `cali-${reminder.item_type}-${reminder.item_id}`, url, actionLabel, itemType: reminder.item_type }), {
             TTL: 900,
             urgency: 'high',
           })
