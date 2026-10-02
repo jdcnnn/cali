@@ -33,6 +33,8 @@ button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 :focus-visible { outline: 2px solid var(--color-cali-accent); outline-offset: 3px; }
+.workspace-module-loading { min-height: 520px; padding-top: 24px; }
+.workspace-module-loading .skeleton-block { display: block; width: 100%; height: 520px; border-radius: 22px; }
 
 @layer components {
   .field-label { @apply mb-2 block text-sm font-semibold text-cali-ink; }

@@ -1,4 +1,4 @@
-import { Component, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Component, Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ErrorInfo, FormEvent, ReactNode } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { AuthProvider } from './auth/AuthProvider'
@@ -20,6 +20,8 @@ import { ConnectionNotice } from './components/ConnectionNotice'
 import { ThemePicker } from './theme/ThemePicker'
 import { disablePushNotifications, enablePushNotifications, getPushStatus } from './lib/pushNotifications'
 import type { PushStatus } from './lib/pushNotifications'
+
+const StudyPage = lazy(() => import('./components/StudyPage').then(module => ({ default: module.StudyPage })))
 
 const programs = [
   'Bachelor of Science in Architecture',
@@ -635,7 +637,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
             </div></section>
           </div>
         </div>
-      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : <ModuleScreen section={section} />}
+      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : section === 'study' ? <Suspense fallback={<div className="workspace-module-loading" aria-label="Loading Study"><span className="skeleton-block" /></div>}><StudyPage studentId={student.user_id} /></Suspense> : <ModuleScreen section={section} />}
     </div>
   </main>
 }

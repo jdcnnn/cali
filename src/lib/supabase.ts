@@ -22,14 +22,14 @@ export function clearAuthRedirectError() {
 }
 
 const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const publicKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const configurationError =
-  !url || !anonKey ? 'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.' : null
+  !url || !publicKey ? 'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.' : null
 
 export const supabase = configurationError
   ? null
-  : createClient(url, anonKey, {
+  : createClient(url, publicKey, {
       auth: {
         flowType: 'pkce',
         detectSessionInUrl: true,
