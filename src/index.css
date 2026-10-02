@@ -35,7 +35,23 @@ button:disabled { cursor: not-allowed; }
 :focus-visible { outline: 2px solid var(--color-cali-accent); outline-offset: 3px; }
 
 @layer components {
-  .button-primary { @apply min-h-13 rounded-xl bg-cali-action px-6 py-3 font-semibold text-white transition hover:bg-cali-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cali-action disabled:opacity-60; }
+  .button-primary {
+    @apply bg-cali-action text-white transition hover:bg-cali-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cali-action disabled:opacity-60;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 9px 18px;
+    border: 0;
+    border-radius: 10px;
+    font-family: "DM Sans", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+  }
   .field-label { @apply mb-2 block text-sm font-semibold text-cali-ink; }
   .field-input { @apply min-h-12 w-full rounded-xl border border-cali-border bg-white px-4 py-3 text-sm text-cali-ink outline-none transition placeholder:text-cali-slate focus:border-cali-action focus:ring-2 focus:ring-cali-pale; }
 }
