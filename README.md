@@ -47,7 +47,9 @@ Apply both task migrations before opening the deployed Tasks page. `202609270000
 
 Calendar is an independent workspace module at `/calendar`, placed directly after Tasks in the sidebar. It follows the same centered workspace width, spacing, and surface treatment as the other Cali modules. It combines repeating class meetings and open task deadlines in a focused monthly view while keeping the two event types visually distinct.
 
-The month grid avoids repeating class names across every week. Each date uses recognizable blue academic-cap and amber checklist icons to indicate class meetings and deadlines, while a readable selected-day panel holds the actual details and preview actions. Each preview includes the relevant date, time, subject, room or importance, and notes when available, plus a link to the owning Tasks or Schedules module. Selected-date creation remains a later Calendar phase.
+The month grid avoids repeating class names across every week. Each date uses recognizable academic-cap, checklist, and event icons to indicate class meetings, deadlines, and events, while a readable selected-day panel holds the actual details and preview actions. A bottom-right create menu opens the existing class and task forms with the selected date or weekday prefilled, or opens an Event form directly in Calendar.
+
+Events are separate private records with a title, date, optional start and end time, optional location, notes, and a named color. Schedules save one color per subject and Events save one color per event. Both use the same ten Cali presets—Ocean, Sky, Teal, Mint, Fern, Sunflower, Tangerine, Coral, Rose, and Violet—with theme-specific values that remain clear in light and dark mode. Apply `20261001000000_calendar_events_and_colors.sql` before using these controls.
 
 ## Auth and onboarding
 

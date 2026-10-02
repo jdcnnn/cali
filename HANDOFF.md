@@ -95,6 +95,8 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added a dedicated Cali-branded Calendar screen that reads repeating class meetings and open task deadlines without changing their existing database models.
 - Calendar follows the same centered width, spacing, and rounded surface system as the other workspace modules. It provides one focused Month view with a selected-day detail panel instead of duplicating the weekly and daily browsing already available in Schedules.
 - Month date cells use blue academic-cap and amber checklist icons instead of repeated schedule text, dots, or abstract bars. The same indicators appear in the legend, and each full day cell selects a readable detail panel with full-size preview actions.
+- Added a bottom-right Calendar create menu for Class meeting, Task deadline, and Event. Class and task creation receive the selected weekday/date through route parameters; Event is a separate private calendar record with title, date, optional time range, location, notes, and color.
+- Added ten named color presets for schedule subjects and Events: Ocean, Sky, Teal, Mint, Fern, Sunflower, Tangerine, Coral, Rose, and Violet. Only the key is stored; theme-aware CSS values preserve contrast in light and dark mode. Migration: `20261001000000_calendar_events_and_colors.sql`.
 - Added loading, retryable error, and first-use empty states. Calendar entries open preview modals with focused class or task details and a link to the owning module. Numeric section counts were intentionally omitted. Selected-date creation remains for the next Calendar phase.
 
 ## Current behavior and known follow-ups

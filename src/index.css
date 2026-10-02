@@ -18,8 +18,8 @@
   --color-cali-border: #CFE7F2;
 }
 
-:root { --theme-duration: 260ms; --theme-ease: cubic-bezier(.2,.75,.2,1); color-scheme: light; font-family: "DM Sans", sans-serif; color: var(--color-cali-ink); background: var(--color-cali-canvas); font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
-:root[data-theme="dark"] { color-scheme: dark; --color-cali-deep: #0B6F9C; --color-cali-primary: #71C7EC; --color-cali-accent: #71C7EC; --color-cali-ink: #EAF5F9; --color-cali-slate: #A9C2CF; --color-cali-pale: #173848; --color-cali-canvas: #0C202B; --color-cali-surface: #142F3D; --color-cali-border: #315363; }
+:root { --theme-duration: 260ms; --theme-ease: cubic-bezier(.2,.75,.2,1); --calendar-color-ocean: #167FA8; --calendar-color-sky: #367FAF; --calendar-color-teal: #23837C; --calendar-color-mint: #3D8F68; --calendar-color-fern: #63823F; --calendar-color-sunflower: #9A7308; --calendar-color-tangerine: #B8611E; --calendar-color-coral: #B85249; --calendar-color-rose: #A84F70; --calendar-color-violet: #735AA7; color-scheme: light; font-family: "DM Sans", sans-serif; color: var(--color-cali-ink); background: var(--color-cali-canvas); font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+:root[data-theme="dark"] { color-scheme: dark; --color-cali-deep: #0B6F9C; --color-cali-primary: #71C7EC; --color-cali-accent: #71C7EC; --color-cali-ink: #EAF5F9; --color-cali-slate: #A9C2CF; --color-cali-pale: #173848; --color-cali-canvas: #0C202B; --color-cali-surface: #142F3D; --color-cali-border: #315363; --calendar-color-ocean: #5EC4EB; --calendar-color-sky: #78BDF0; --calendar-color-teal: #59C7BD; --calendar-color-mint: #72D39F; --calendar-color-fern: #9CCA73; --calendar-color-sunflower: #E2C14F; --calendar-color-tangerine: #F0A35D; --calendar-color-coral: #F1847B; --calendar-color-rose: #E58BAA; --calendar-color-violet: #B6A0E8; }
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; margin: 0; }
 html { scroll-behavior: smooth; }

@@ -275,7 +275,9 @@ export function TasksPage({ studentId }: { studentId: string }) {
 
   useEffect(() => {
     if (!loading && !pageError && searchParams.get('new') === '1' && !editor) {
-      const timer = window.setTimeout(() => { openNewTask(); setSearchParams({}, { replace: true }) }, 0)
+      const requestedDate = searchParams.get('date') ?? ''
+      const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : ''
+      const timer = window.setTimeout(() => { openNewTask(dueDate); setSearchParams({}, { replace: true }) }, 0)
       return () => window.clearTimeout(timer)
     }
   }, [loading, pageError, searchParams, setSearchParams, editor])

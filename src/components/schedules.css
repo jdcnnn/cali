@@ -25,7 +25,7 @@
 .schedule-day-empty-note { font-size: 12px; font-weight: 400; line-height: 1.45; opacity: .8; }
 .schedule-skeleton-add { width: 34px; height: 34px; border-radius: 10px; }
 .schedule-skeleton-meeting { display: grid; align-content: center; gap: 12px; min-height: 112px; padding: 14px; border: 1px solid var(--color-cali-border); border-radius: 13px; }
-.schedule-item { position: relative; display: flex; min-width: 0; border: 1px solid var(--color-cali-border); border-radius: 13px; background: var(--color-cali-canvas); }
+.schedule-item { position: relative; display: flex; min-width: 0; border: 1px solid var(--color-cali-border); border-left: 4px solid var(--schedule-color, var(--color-cali-accent)); border-radius: 13px; background: color-mix(in srgb, var(--schedule-color, var(--color-cali-accent)) 5%, var(--color-cali-canvas)); }
 .schedule-item-main { display: flex; flex: 1; flex-direction: column; align-items: stretch; min-width: 0; padding: 14px; border: 0; border-radius: 13px; background: transparent; color: var(--color-cali-ink); text-align: left; }
 .schedule-item-code { display: block; max-width: calc(100% - 32px); overflow: hidden; color: var(--color-cali-ink); font-size: 15px; font-weight: 800; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .schedule-item-title { display: -webkit-box; overflow: hidden; margin-top: 6px; color: var(--color-cali-ink); font-size: 14px; font-weight: 600; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
