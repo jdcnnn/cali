@@ -1,19 +1,21 @@
 .reminder-field {
   display: grid;
-  gap: 10px;
+  grid-column: 1 / -1;
+  align-content: start;
+  gap: 7px;
   min-width: 0;
 }
 
-.reminder-field-heading { display: flex; align-items: center; gap: 10px; }
-.reminder-field-icon { display: grid; width: 34px; height: 34px; flex: none; place-items: center; border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-pale); color: var(--color-cali-accent); }
-.reminder-field-icon svg { width: 18px; height: 18px; }
-.reminder-field-heading > span:last-child { display: grid; gap: 1px; }
-.reminder-field-heading label { color: var(--color-cali-ink); font-size: 12px; font-weight: 800; }
-.reminder-field-heading small { color: var(--color-cali-slate); font-size: 10px; font-weight: 600; }
+.reminder-field-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--color-cali-ink); font-size: 12px; font-weight: 800; }
+.reminder-field-label small { color: var(--color-cali-slate); font-size: 10px; font-weight: 600; }
 
 .reminder-select-shell { position: relative; min-width: 0; }
-.reminder-select-shell select { width: 100%; min-height: 48px; appearance: none; padding: 0 44px 0 14px; border: 1px solid var(--color-cali-border); border-radius: 12px; outline: 0; background: var(--color-cali-surface); color: var(--color-cali-ink); font: inherit; font-size: 13px; font-weight: 700; transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
-.reminder-select-shell > svg { position: absolute; top: 50%; right: 14px; width: 17px; height: 17px; transform: translateY(-50%); pointer-events: none; color: var(--color-cali-accent); }
+.reminder-select-shell select { width: 100%; min-height: 46px; appearance: none; padding: 0 44px 0 45px; border: 1px solid var(--color-cali-border); border-radius: 10px; outline: 0; background: var(--color-cali-surface); color: var(--color-cali-ink); font: inherit; font-size: 13px; font-weight: 700; transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
+.reminder-select-icon, .reminder-select-chevron { position: absolute; top: 50%; z-index: 1; display: grid; place-items: center; transform: translateY(-50%); pointer-events: none; color: var(--color-cali-accent); }
+.reminder-select-icon { left: 13px; width: 22px; height: 22px; border-radius: 7px; background: var(--color-cali-pale); }
+.reminder-select-icon svg { width: 14px; height: 14px; }
+.reminder-select-chevron { right: 13px; }
+.reminder-select-chevron svg { width: 17px; height: 17px; }
 .reminder-select-shell select:hover:not(:disabled) { border-color: color-mix(in srgb, var(--color-cali-accent) 55%, var(--color-cali-border)); background: color-mix(in srgb, var(--color-cali-pale) 35%, var(--color-cali-surface)); }
 .reminder-select-shell select:focus { border-color: var(--color-cali-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-cali-accent) 17%, transparent); }
 
@@ -38,7 +40,7 @@
 .reminder-custom > p { text-align: center; }
 .reminder-disabled-note { display: flex; align-items: center; gap: 7px; }
 .reminder-disabled-note span { display: grid; width: 17px; height: 17px; flex: none; place-items: center; border-radius: 50%; background: var(--color-cali-pale); color: var(--color-cali-accent); font-size: 10px; font-weight: 800; }
-.reminder-field.is-disabled .reminder-field-icon, .reminder-field.is-disabled .reminder-select-shell { opacity: .62; }
+.reminder-field.is-disabled .reminder-select-shell { opacity: .62; }
 .reminder-field.is-disabled select { cursor: not-allowed; }
 
 @keyframes reminder-custom-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }

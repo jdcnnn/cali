@@ -38,8 +38,9 @@ export function ReminderField({ value, onChange, disabled = false, id = 'reminde
   }
 
   return <div className={`reminder-field${disabled ? ' is-disabled' : ''}`}>
-    <div className="reminder-field-heading"><span className="reminder-field-icon"><BellIcon /></span><span><label htmlFor={id}>Reminder</label><small>Notify me before</small></span></div>
+    <label className="reminder-field-label" htmlFor={id}><span>Reminder</span><small>Notify me before</small></label>
     <div className="reminder-select-shell">
+      <span className="reminder-select-icon" aria-hidden="true"><BellIcon /></span>
       <select id={id} value={customVisible ? 'custom' : value === null ? '' : String(value)} disabled={disabled} onChange={event => {
         if (event.target.value === 'custom') { setCustom(true); onChange(value ?? 30); return }
         setCustom(false)
@@ -48,7 +49,7 @@ export function ReminderField({ value, onChange, disabled = false, id = 'reminde
         {reminderPresets.map(option => <option value={option.value} key={option.value || 'none'}>{option.label}</option>)}
         <option value="custom">Custom lead time</option>
       </select>
-      <ChevronIcon />
+      <span className="reminder-select-chevron" aria-hidden="true"><ChevronIcon /></span>
     </div>
     {customVisible && !disabled && <section className="reminder-custom" aria-label="Custom reminder lead time">
       <header><span>Custom lead time</span><strong>{reminderLabel(value)}</strong></header>

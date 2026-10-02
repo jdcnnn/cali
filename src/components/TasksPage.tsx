@@ -140,8 +140,8 @@ function TaskEditor({ editor, subjects, busy, error, onChange, onSave, onRequest
             <div className="task-field"><span>Subject <small>Optional</small></span><OnboardingDropdown id="task-subject" label="Subject" placeholder="General" value={draft.subjectId} options={[{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))]} onChange={subjectId => onChange({ ...draft, subjectId })} searchable={subjects.length > 6} /></div>
             <CaliDatePicker label="Due date" value={draft.dueDate} onChange={dueDate => onChange({ ...draft, dueDate })} required />
             <CaliTimePicker label="Due time" value={draft.dueTime} onChange={dueTime => onChange({ ...draft, dueTime, reminderMinutes: dueTime ? draft.reminderMinutes : null })} optional />
-            <ReminderField id="task-reminder" value={draft.reminderMinutes} onChange={reminderMinutes => onChange({ ...draft, reminderMinutes })} disabled={!draft.dueTime} />
             <div className="task-field"><span>Importance</span><OnboardingDropdown id="task-priority" label="Importance" placeholder="Select importance" value={draft.priority} options={Object.entries(priorityLabels).map(([value, label]) => ({ value, label }))} onChange={priority => onChange({ ...draft, priority: priority as TaskPriority })} /></div>
+            <ReminderField id="task-reminder" value={draft.reminderMinutes} onChange={reminderMinutes => onChange({ ...draft, reminderMinutes })} disabled={!draft.dueTime} />
           </div>
         </section>
         <section className="task-checklist-editor" aria-labelledby="task-checklist-title">
