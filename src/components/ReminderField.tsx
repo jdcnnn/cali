@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { reminderLabel, reminderPresets } from '../lib/reminders'
+import { getPushStatus } from '../lib/pushNotifications'
+import type { PushStatus } from '../lib/pushNotifications'
 import './reminder-field.css'
 
 function BellIcon() {
@@ -26,10 +28,19 @@ export function ReminderField({ value, onChange, disabled = false, id = 'reminde
 }) {
   const isPreset = value === null || reminderPresets.some(item => item.value && Number(item.value) === value)
   const [custom, setCustom] = useState(!isPreset)
+  const [pushStatus, setPushStatus] = useState<PushStatus | 'loading'>('loading')
   const customVisible = custom || !isPreset
   const total = value ?? 0
   const hours = Math.floor(total / 60)
   const minutes = total % 60
+
+  useEffect(() => {
+    let active = true
+    const refresh = () => { void getPushStatus().then(status => { if (active) setPushStatus(status) }).catch(() => { if (active) setPushStatus('unsupported') }) }
+    refresh()
+    window.addEventListener('cali:push-status-changed', refresh)
+    return () => { active = false; window.removeEventListener('cali:push-status-changed', refresh) }
+  }, [])
 
   function setCustomPart(nextHours: number, nextMinutes: number) {
     const safeHours = Math.max(0, Math.min(168, Number.isFinite(nextHours) ? nextHours : 0))
@@ -57,5 +68,6 @@ export function ReminderField({ value, onChange, disabled = false, id = 'reminde
       <p>Cali will notify you before the scheduled time.</p>
     </section>}
     {disabled && <p className="reminder-disabled-note"><span aria-hidden="true">i</span>Add a specific time to enable a reminder.</p>}
+    {!disabled && value !== null && pushStatus !== 'loading' && pushStatus !== 'enabled' && <p className="reminder-device-warning" role="status"><span aria-hidden="true">!</span>{pushStatus === 'denied' ? 'Notifications are blocked on this device. Use the setup guide in Profile.' : pushStatus === 'unsupported' ? 'This browser cannot receive background notifications.' : 'Notifications are off on this device. Cali will ask when you save.'}</p>}
   </div>
 }

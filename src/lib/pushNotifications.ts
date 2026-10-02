@@ -13,6 +13,10 @@ function supportsPush() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
 }
 
+function announcePushStatusChange() {
+  window.dispatchEvent(new Event('cali:push-status-changed'))
+}
+
 export async function getPushStatus(): Promise<PushStatus> {
   if (!supportsPush()) return 'unsupported'
   if (Notification.permission === 'denied') return 'denied'
@@ -45,6 +49,7 @@ export async function enablePushNotifications(): Promise<void> {
     await subscription.unsubscribe().catch(() => false)
     throw error
   }
+  announcePushStatusChange()
 }
 
 export async function disablePushNotifications(): Promise<void> {
@@ -58,6 +63,7 @@ export async function disablePushNotifications(): Promise<void> {
   }
   const removed = await subscription.unsubscribe()
   if (!removed) throw new Error('The browser could not disable notifications. Please try again.')
+  announcePushStatusChange()
 }
 
 export async function removePushSubscriptionOnSignOut() {
@@ -67,4 +73,20 @@ export async function removePushSubscriptionOnSignOut() {
   if (!subscription) return
   if (supabase) await supabase.rpc('cali_remove_own_push_subscription', { p_endpoint: subscription.endpoint })
   await subscription.unsubscribe().catch(() => false)
+  announcePushStatusChange()
+}
+
+export async function clearLocalAccountData() {
+  try {
+    window.localStorage.removeItem('cali-theme')
+  } catch {
+    // Storage may be unavailable, but that must not block account deletion.
+  }
+
+  if (!supportsPush()) return
+  const registration = await navigator.serviceWorker.getRegistration()
+  const subscription = await registration?.pushManager.getSubscription()
+  if (!subscription) return
+  await subscription.unsubscribe().catch(() => false)
+  announcePushStatusChange()
 }

@@ -6,9 +6,10 @@ Updated: 2026-10-02
 
 CALI (Class Ally) is an independent academic workspace for Rizal Technological University students. This is a React 19, TypeScript, Vite, and Tailwind CSS project with Supabase Auth and database migrations. `cali.md` records the broader product decisions and proposed modules; `README.md` covers local setup.
 
-## Next phase decision
+## Phase status
 
-- Reminder timing is defined across classes, tasks, and events: 30 minutes, 1 hour, 3 hours, 5 hours, or Custom. Custom uses separate hours and minutes fields and must be non-zero. The confirmed $0 technology baseline is native browser Web Push, Supabase Postgres/RLS, a TypeScript Supabase Edge Function using pinned `web-push@3.6.7`, and an authenticated cron-job.org request once per minute. Vercel continues to host only the PWA. Delivery, subscriptions, migrations, and notification-click handling remain unimplemented.
+- The reminder and notification phase is complete and deployed. Class, task, and event reminders use the 30-minute, 1-hour, 3-hour, and 5-hour presets or a non-zero Custom lead time. The $0 delivery stack is native browser permission and Web Push, Supabase Postgres/RLS, the deployed `send-reminders` Edge Function with pinned `web-push@3.6.7`, and an enabled authenticated cron-job.org request once per minute. Device subscriptions, delivery, notification actions/deep links, banner instructions, and account-deletion cleanup are implemented.
+- The next product phases remain Study, Learning analytics, Community, and final release review, as tracked in `cali.md`.
 
 ## Completed work
 
@@ -19,7 +20,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added Google OAuth with PKCE, session restoration, sign-out, error and access-denied states, and a verified `@rtu.edu.ph` Google account eligibility check.
 - Added first-sign-in onboarding for a unique lowercase username, program (listed or custom), and year level. Trusted database functions populate and refresh the Google name and avatar.
 - Completed the workspace foundation: a responsive sidebar and mobile navigation, a personalized `/dashboard`, a `/profile` page, and routed Schedules, Tasks, Study, and Community pages. The dashboard shows compact live schedule and task summaries plus quick actions. It highlights classes happening now, the next three weekly meetings, and the next three actionable tasks. Dashboard and Schedules data use skeleton loading; empty states distinguish an unconfigured schedule, a day with no classes, and a day whose classes have finished.
-- Added profile editing for the unique username, program, and year level, plus a confirmed account deletion flow backed by `20260925000000_delete_own_account.sql`.
+- Added profile editing for the unique username, program, and year level. Account deletion is now hardened by `20261002020000_harden_account_deletion.sql`: one transaction explicitly removes every current user-owned table and the Auth account, with foreign-key cascades as a second safeguard. The client also removes the current Push subscription, local Auth session, and theme preference.
 
 ### Landing page and splash
 
@@ -50,6 +51,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 - Completed manual weekly schedule management: students can create subjects and meetings, edit saved details, and delete a subject with confirmation from any meeting card or directly from the Unscheduled section. Subject deletion cascades to all of its meetings and does not leave an unscheduled copy behind. Imported subjects explicitly lacking a meeting time can remain in Unscheduled until scheduled or deleted.
 - Added a free, on-device RTU registration-form scanner using PaddleOCR.js, a background browser worker, locally hosted PP-OCRv5 models, and deterministic table parsing. It works in both the web app and installed PWA. Images are not uploaded or stored, and semester and term values are ignored.
+- Optimized first-scan startup without changing recognition behavior: scanner opening starts one deduplicated Cali-owned module worker; file selection remains available; image preparation and initialization overlap; subsequent scans reuse the worker; and five minutes of inactivity releases it. Cancellation or worker failure terminates the active worker so retry creates a healthy one. Vite selects the standard SIMD WASM-only ONNX Runtime instead of JSEP, while legacy public runtime files remain temporarily for already-open deployments. Technical timing fields remain available internally but are not shown in the scanner UI.
 - Added an editable three-step import flow for image selection, review, and saving. It supports subject and meeting corrections, additions, removal confirmations, prominent accuracy guidance, and direct links from missing-detail instructions to the affected fields. Final schedule replacement uses a confirmation modal on desktop and mobile.
 - Added client and database validation for required schedule fields, duplicate records, valid RTU day codes, ordered meeting times, and bounded payload sizes.
 - Added `20260925010000_replace_own_schedule.sql`. Its authenticated `replace_own_schedule` function validates the full import and replaces the current schedule in one transaction.
@@ -91,7 +93,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Added `20260928000000_student_task_planner.sql` with private checklist steps, planner fields, ownership policies, and trusted checklist replacement/toggle functions. The dashboard now uses the same planner ranking and surfaces the next unfinished step.
 - Replaced ambiguous completion controls with deliberate actions. Task previews show the next step without updating it; selecting task content in Today or Upcoming opens a responsive structured overview with explicit Mark done and Undo controls for steps plus separate Edit and full-task Mark done actions. Full-task completion still requires confirmation.
 - Removed effort estimates and their summary metric from the interface, client model, and planner calculations; students now see only planning information that drives an immediate action. The deployed `estimate_minutes` column remains unused for non-destructive compatibility.
-- Simplified Tasks on 2026-10-01 by removing the Kanban Board and embedded task Calendar. Today, Upcoming, Completed, task details, editing, steps, filters, completion, and reopening remain. Existing task status and ordering fields are retained for data compatibility, and calendar planning will move to a separate module.
+- Simplified Tasks on 2026-10-01 by removing the Kanban Board and embedded task Calendar. Today, Upcoming, Completed, task details, editing, steps, filters, completion, and reopening remain. Existing task status and ordering fields are retained for data compatibility, while date-based planning is available in the separate Calendar module.
 
 ### Independent Calendar foundation (2026-10-01)
 
@@ -101,16 +103,17 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Month date cells use blue academic-cap and amber checklist icons instead of repeated schedule text, dots, or abstract bars. The same indicators appear in the legend, and each full day cell selects a readable detail panel with full-size preview actions.
 - Added a bottom-right Calendar create menu for Class meeting, Task deadline, and Event. Class and task creation receive the selected weekday/date through route parameters; Event is a separate private calendar record with title, date, optional time range, location, notes, and color.
 - Added ten named color presets for schedule subjects and Events: Ocean, Sky, Teal, Mint, Fern, Sunflower, Tangerine, Coral, Rose, and Violet. Only the key is stored; theme-aware CSS values preserve contrast in light and dark mode. Migration: `20261001000000_calendar_events_and_colors.sql`.
-- Added loading, retryable error, and first-use empty states. Calendar entries open preview modals with focused class or task details and a link to the owning module. Numeric section counts were intentionally omitted. Selected-date creation remains for the next Calendar phase.
+- Added loading, retryable error, and first-use empty states. Calendar entries open preview modals with focused details and links to the owning module. Selected-date class/task/event creation, direct event targeting, and event editing/deletion are complete. Numeric section counts were intentionally omitted.
 
 ### Web Push reminders (2026-10-02)
 
 - Added independent reminders to every class meeting, task, and event. New items default to No reminder; available lead times are 30 minutes, 1 hour, 3 hours, 5 hours, and a custom value from 1 minute through 7 days. Tasks and events require a specific time.
 - Added device-level Enable/Disable Notifications controls to Profile. Permission is requested only from a user action or when the user explicitly saves an item with a reminder. Signing out removes the current browser subscription; other subscribed devices remain active.
+- Reminder saves directly invoke the browser's native notification permission flow when the device is not subscribed. Push registration failure does not block the class, task, or event from saving. Profile includes expandable Android, Windows, and macOS instructions for enabling alert/banner presentation.
 - Added private push subscriptions, an indexed next-reminder queue, per-device delivery records, owner RLS, trusted subscription RPCs, and automatic queue triggers in `20261002010000_push_reminders.sql`. Item edits rebuild pending work, completed/deleted tasks cancel it, and recurring classes enqueue their next weekly occurrence.
 - Added the `send-reminders` Supabase Edge Function with pinned `web-push@3.6.7`, dedicated cron-secret authentication, atomic claiming, a 15-minute late-delivery window, up to three transient retries, permanent expired-subscription cleanup, and duplicate prevention per device.
 - Extended `public/sw.js` with push display and notification-click handling. Notifications open the relevant class, task, or event. Class copy includes subject code/title and optional room; tasks include their subject and due time; events include their start time and optional location.
-- Reminder calculations use Asia/Manila. cron-job.org remains the once-per-minute scheduler and must stay inactive until its final production smoke test is complete.
+- Reminder calculations use Asia/Manila. The cron-job.org once-per-minute scheduler is enabled in the Asia/Manila time zone, and real desktop and installed Android PWA delivery has been verified.
 - The migration and Edge Function are deployed to the linked Supabase project. Production frontend deployment is live at `https://cali-class-ally.vercel.app`; the deployed service worker responds successfully and contains both push handlers.
 
 ## Current behavior and known follow-ups
@@ -118,12 +121,12 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
 - Core schedule management and intake are complete: manual creation, editing, cascading subject deletion from scheduled or unscheduled views, local web/PWA form scanning, cancellable recognition, editable review, validation, and atomic replacement are working.
 - The scanner fixes and modal enhancements are complete. No scanner-specific follow-up is currently planned.
-- All migrations through `20261002010000_push_reminders.sql` are applied to the linked Cali Supabase project. Remote migration history matches the repository, and the linked public schema passes database lint.
-- Vercel project `jadeee/cali` is connected to `https://github.com/jdcnnn/cali.git` and configured for Vite with `dist` output. The latest checked `origin/main` commit automatically produced a Ready production deployment with the `cali-git-main` alias. Use `npx vercel ls cali` to verify future automatic deployments.
-- Closed-tab Web Push reminders are implemented and deployed. The remaining release step is to activate the prepared cron-job.org job and verify one authenticated run plus a real-device notification.
-- The PWA manifest and service-worker foundation are complete. The reminder phase can extend `public/sw.js` with push and notification-click handlers without introducing application or data caching.
+- All migrations through `20261002020000_harden_account_deletion.sql` are applied to the linked Cali Supabase project.
+- Vercel project `jadeee/cali` is connected to `https://github.com/jdcnnn/cali.git` and configured for Vite with `dist` output. The completed phase was manually deployed Ready on 2026-10-02 and aliased to `https://cali-class-ally.vercel.app`; pushes to `main` continue to create production deployments. Use `npx vercel ls cali` to verify future deployments.
+- Closed-tab Web Push reminders are implemented, deployed, scheduled, and verified on desktop and an installed Android PWA. Notification-body clicks and item-specific actions deep-link to the correct class, task, or event.
+- The PWA manifest and service worker include Push display and notification-click handlers without application or personal-data caching. Only versioned public OCR runtime/model assets enter Cache Storage.
 - Study and Community routes still explain planned tools. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
-- The independent Calendar foundation and event previews are implemented. Selected-date creation and direct record targeting remain follow-ups.
+- The independent Calendar, selected-date creation, direct event targeting, and event editing/deletion are implemented.
 - Scanner behavior has been verified by the user in both the regular web app and installed PWA. The student planner passes `npm test`, `npm.cmd run build`, and `npm.cmd run lint`; its desktop/mobile CSS and dark-mode states are implemented, but live planner interaction and a full device matrix still require manual verification because browser automation was unavailable in this environment.
 - Live OAuth requires a configured Supabase project, the migrations, redirect URLs, and a verified RTU Google account. See `README.md` for details. A live end-to-end OAuth check was not part of the landing-page styling work.
 
@@ -145,6 +148,6 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ## Run and verify
 
-Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations, including `20261002010000_push_reminders.sql`, before testing reminders. The local/Vercel frontend environment must define `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_VAPID_PUBLIC_KEY`; it is ignored by Git. Edge Function secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`. Keep private keys, cron secrets, the service role, and `SUPABASE_DB_PASSWORD` out of browser-facing Vite variables. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
+Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, and `npm run lint` before shipping. Apply all Supabase migrations through `20261002020000_harden_account_deletion.sql` before testing. The local/Vercel frontend environment must define `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_VAPID_PUBLIC_KEY`; `.env` is ignored by Git. Edge Function secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`. cron-job.org sends `POST <SUPABASE_URL>/functions/v1/send-reminders` every minute with the matching `X-Cali-Cron-Secret` header. Keep private keys, cron secrets, the service role, and `SUPABASE_DB_PASSWORD` out of browser-facing Vite variables. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
 
 The generated `dist/` build can be recreated with `npm run build`.

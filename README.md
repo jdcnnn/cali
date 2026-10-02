@@ -25,6 +25,8 @@ The import flow extracts subjects, units, block sections, meetings, and rooms in
 
 Scanning can be cancelled from the scanner's close or Cancel controls. Because cancellation discards the selected image and unfinished results, Cali asks for confirmation while keeping the live scanner visible behind the confirmation dialog. Scanner failures are shown as concise, user-facing recovery messages rather than raw module or worker errors. If a deployment leaves an old JavaScript chunk open, the scanner offers a reload action to update Cali.
 
+Scanner startup uses one Cali-owned module worker with PaddleOCR initialized inside it. Opening the scanner begins a deduplicated preload while file selection remains available; image preparation then runs concurrently with any remaining initialization. The initialized worker is reused for later scans, released after five idle minutes, and recreated cleanly after cancellation or failure. Vite resolves ONNX Runtime to its standard SIMD WASM entry instead of the larger JSEP runtime. The current PP-OCRv5 models, thresholds, resolution, and deterministic parser remain unchanged. Setup, preparation, prediction, and total timings remain internal diagnostics and are not displayed to students.
+
 Scanner limits are 12 MB per image and 20 megapixels. Images are reduced to a maximum 2048-pixel edge for processing. There is no scan count, daily quota, subscription, or API usage limit. Manual entry remains available when local scanning is unsupported or a form cannot be recognized.
 
 Apply all Supabase migrations before testing. `20260925010000_replace_own_schedule.sql` adds the authenticated atomic replacement function used by the scanner.
@@ -35,7 +37,7 @@ Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_VAPID_PUBLIC_KEY` i
 
 The Tasks page is a focused responsive student planner with Today, Upcoming, and Completed views. Its unified task form keeps title, subject, due date, optional due time, importance, steps, and notes together without a separate planning section. Today separates overdue work, today’s plan, and suggested next work; Upcoming groups approaching deadlines; Completed keeps finished tasks accessible for review, reopening, editing, or deletion.
 
-The planner follows the same solid surface, spacing, typography, and responsive system as Schedules in light and dark themes. Desktop uses compact grouped task rows, while mobile stacks them into one readable column. Task previews show the next step without changing progress. Selecting a task opens its structured overview, where each step has an explicit Mark done or Undo action. Editing, deletion, step progress, and final completion remain separate deliberate actions, and marking the full task done always requires confirmation. Calendar planning is being moved into a future independent Calendar module.
+The planner follows the same solid surface, spacing, typography, and responsive system as Schedules in light and dark themes. Desktop uses compact grouped task rows, while mobile stacks them into one readable column. Task previews show the next step without changing progress. Selecting a task opens its structured overview, where each step has an explicit Mark done or Undo action. Editing, deletion, step progress, and final completion remain separate deliberate actions, and marking the full task done always requires confirmation. Date-based planning is available in the independent Calendar module.
 
 Task creation, completion transitions, and checklist changes use authenticated database functions. Row-level security keeps tasks and checklist steps private to their owner, and linked subjects must belong to the same student. Deleting a schedule subject keeps its tasks and changes their subject to General. Existing status and ordering fields remain in the data model for compatibility even though the Kanban board is no longer shown.
 
@@ -51,6 +53,33 @@ The month grid avoids repeating class names across every week. Each date uses re
 
 Events are separate private records with a title, date, optional start and end time, optional location, notes, and a named color. Schedules save one color per subject and Events save one color per event. Both use the same ten Cali presets—Ocean, Sky, Teal, Mint, Fern, Sunflower, Tangerine, Coral, Rose, and Violet—with theme-specific values that remain clear in light and dark mode. Apply `20261001000000_calendar_events_and_colors.sql` before using these controls.
 
+Events can be opened from the selected-day panel or a notification deep link, then edited or deleted with confirmation. Tasks and class meetings similarly open their exact Tasks or Schedules destination from a notification.
+
+## Reminders and Web Push
+
+Classes, tasks, and calendar events each keep an independent optional reminder. The presets are 30 minutes, 1 hour, 3 hours, and 5 hours; Custom accepts a non-zero lead time from 1 minute through 7 days. Tasks and events need a specific time before a reminder can be selected. Editing an item rebuilds its pending reminder, while deleting an item or completing a task cancels pending work.
+
+When a student saves an item with a reminder on a device that is not subscribed, Cali directly invokes the browser's native notification permission flow. The reminder still saves if permission or Push registration is unavailable. Profile contains the device-level Enable/Disable Notifications control and expandable banner instructions for Android, Windows, and macOS. Permission and subscription are per device; disabling or signing out on one device does not affect another device.
+
+Notifications use Cali's icon, monochrome Android badge, high urgency, vibration where supported, persistent interaction, and one item-specific action. Selecting the notification body or its action opens the exact class meeting, task, or event in Cali on desktop and in the installed Android PWA. The operating system controls banner presentation and sound. On Android, set Cali's notification category to Alert/High and enable Banner, Floating notifications, or Pop on screen. On Windows or macOS, enable notification banners for Cali or its browser. Closed-app delivery still depends on permission, connectivity, browser push support, and operating-system settings.
+
+The free delivery stack is native Web Push plus the root service worker, Supabase Postgres and Edge Functions, pinned `web-push@3.6.7`, and cron-job.org. `20261002010000_push_reminders.sql` adds reminder fields, private subscriptions, an indexed queue, delivery records, RLS, and queue functions. The deployed `send-reminders` Edge Function atomically claims at most 50 due reminders, accepts delivery up to 15 minutes late, retries transient failures up to three times, disables expired subscriptions, and prevents duplicate delivery per device. All reminder calculations use Asia/Manila.
+
+### Reminder service configuration
+
+Frontend environments require `VITE_VAPID_PUBLIC_KEY`. Set these Supabase Edge Function secrets: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (the configured `mailto:` contact), and `CALI_CRON_SECRET`. Supabase provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to its deployed function; neither belongs in the browser environment.
+
+The enabled cron-job.org job uses:
+
+- URL: `<VITE_SUPABASE_URL>/functions/v1/send-reminders`
+- Method: `POST`
+- Schedule: every minute
+- Time zone: `Asia/Manila`
+- Header: `X-Cali-Cron-Secret: <CALI_CRON_SECRET>`
+- Body: empty or `{}` with `Content-Type: application/json`
+
+Keep the cron secret and VAPID private key out of Git, Vercel client variables, logs, and screenshots. A healthy invocation returns only aggregate counts such as `claimed`, `sent`, `missed`, and `retrying`; it does not return student records or notification content.
+
 ## Auth and onboarding
 
 The app uses Google OAuth with PKCE and restores a saved session on startup. It checks the account with Supabase Auth and the database's `cali_is_eligible_user` function before allowing onboarding or `/dashboard`. Onboarding saves a unique lowercase username, a listed or custom program, and year level 1–5 through `cali_complete_onboarding`. This trusted database function reads the Google name and avatar from `auth.identities`; browser clients cannot write those fields. Returning profiles are refreshed through `cali_refresh_google_profile`.
@@ -61,6 +90,8 @@ For local OAuth, open the Vite URL as `http://localhost:5173`. The linked Supaba
 
 For a phone on the same Wi-Fi as the development PC, start Vite with `npm run dev` and open `http://192.168.100.15:5173` on the phone. Vite listens on the LAN, and that exact URL is in the linked project's Auth redirect allowlist. If the PC's Wi-Fi address changes, update the allowlist entry in `supabase/config.toml` and the linked project's Auth URL Configuration. `localhost` on a phone means the phone itself and will not reach the PC. For regular mobile use, deploy to an HTTPS origin and allow that origin in Supabase.
 
+Account deletion is permanent and transactional. `20261002020000_harden_account_deletion.sql` removes the authenticated user's reminder deliveries and queue entries, push subscriptions, task steps and tasks, calendar events, schedule meetings and subjects, student profile, and `auth.users` record. Existing foreign-key cascades remain as a second safeguard, including Supabase-managed identity and session cleanup. After the transaction succeeds, the client removes its Web Push subscription, local Auth session, and Cali theme preference. The current app does not persist student uploads in Supabase Storage; schedule scan images and OCR results stay on-device and are never stored. Any future user-owned table or Storage bucket must be added to this deletion contract before release.
+
 The initial program options are a short subset of [RTU's published undergraduate offerings](https://www.rtu.edu.ph/college/). Students can enter any other program as text.
 
 The reusable CALI logo assets are `src/assets/cali-wordmark.svg` and `src/assets/cali-wordmark-white.svg`. Both have transparent backgrounds and are used through the shared wordmark component.
@@ -70,13 +101,13 @@ The web and installed-app icon uses the exact graduation-cap structure from Cali
 ## Project layout
 
 - src/: React application
-- public/: static assets and future web app assets
+- public/: PWA manifest/icons, service worker, and versioned local OCR assets
 - api/: reserved for later Vercel Node API endpoints
 - server/: reserved for later server-only business logic
 - supabase/migrations/: database migrations
 - cali.md: current project decisions and plan
 
-Auth, onboarding, manual weekly schedule management, local schedule scanning, student task planning, the independent Calendar foundation, and closed-tab reminders for classes, tasks, and events are implemented. The remaining application modules are described in cali.md.
+Auth, onboarding, manual weekly schedule management, local schedule scanning, student task planning, the independent Calendar, and closed-tab reminders for classes, tasks, and events are implemented. The remaining application modules are described in cali.md.
 
 ## Vercel deployment
 
@@ -86,7 +117,7 @@ The Vercel project is connected to `https://github.com/jdcnnn/cali.git`. Pushes 
 
 Before deployment, run `npm test`, `npm run lint`, and `npm run build`. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_VAPID_PUBLIC_KEY` in Vercel for the required environments. The `send-reminders` Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`; cron-job.org calls it once per minute with `X-Cali-Cron-Secret`. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, the VAPID private key, or the cron secret as Vite environment variables.
 
-All repository migrations through `20261002010000_push_reminders.sql` are already applied to the currently linked Cali Supabase project, and the linked schema passes `supabase db lint`. A different Supabase project still needs the complete migration sequence.
+All repository migrations through `20261002020000_harden_account_deletion.sql` are already applied to the currently linked Cali Supabase project. A different Supabase project still needs the complete migration sequence.
 
 ## Progressive web app
 

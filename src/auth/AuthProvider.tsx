@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { configurationError, supabase } from '../lib/supabase'
 import { AuthContext } from './AuthContext'
 import type { AuthState, Student } from './AuthContext'
-import { removePushSubscriptionOnSignOut } from '../lib/pushNotifications'
+import { clearLocalAccountData, removePushSubscriptionOnSignOut } from '../lib/pushNotifications'
 
 function isCompleteStudent(value: unknown, userId: string): value is Student {
   if (!value || typeof value !== 'object') return false
@@ -144,7 +144,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.rpc('cali_delete_own_account')
     if (error?.code === 'PGRST202') throw new Error('Account deletion has not been enabled for this Cali project yet.')
     if (error) throw error
-    await supabase.auth.signOut({ scope: 'local' })
+    await Promise.allSettled([
+      clearLocalAccountData(),
+      supabase.auth.signOut({ scope: 'local' }),
+    ])
     ++requestId.current
     validatedUserId.current = null
     setState({ status: 'signedOut', user: null, student: null, message: null })

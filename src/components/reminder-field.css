@@ -40,6 +40,10 @@
 .reminder-custom > p { text-align: center; }
 .reminder-disabled-note { display: flex; align-items: center; gap: 7px; }
 .reminder-disabled-note span { display: grid; width: 17px; height: 17px; flex: none; place-items: center; border-radius: 50%; background: var(--color-cali-pale); color: var(--color-cali-accent); font-size: 10px; font-weight: 800; }
+.reminder-device-warning { display: flex; align-items: center; gap: 7px; margin: 1px 0 0; color: #8a650b; font-size: 10px; font-weight: 650; line-height: 1.45; }
+.reminder-device-warning span { display: grid; width: 17px; height: 17px; flex: none; place-items: center; border-radius: 50%; background: #fff4cf; color: #8a650b; font-size: 10px; font-weight: 900; }
+:root[data-theme="dark"] .reminder-device-warning { color: #f2cf62; }
+:root[data-theme="dark"] .reminder-device-warning span { background: #493f23; color: #ffd86a; }
 .reminder-field.is-disabled .reminder-select-shell { opacity: .62; }
 .reminder-field.is-disabled select { cursor: not-allowed; }
 

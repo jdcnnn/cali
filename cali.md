@@ -70,6 +70,8 @@ Scanning is cancellable from the close and Cancel controls. If recognition is ac
 
 The scanner accepts images up to 12 MB and 20 megapixels and reduces the longest image edge to 2048 pixels before recognition. Accuracy still depends on a readable, complete, reasonably straight form, so manual review is required and manual schedule management remains available.
 
+**Implemented startup optimization (2026-10-02):** Opening the scanner preloads one deduplicated Cali-owned module worker while preserving file selection. Image preparation overlaps any remaining PaddleOCR initialization, and the initialized worker is reused across scans before a five-minute idle release. Cancellation or failure terminates it so retry starts from a healthy state. Vite resolves ONNX Runtime to the standard SIMD WASM-only entry; the existing PP-OCRv5 models, thresholds, 2048-pixel processing limit, and deterministic parser are unchanged. Stage timing is retained for diagnostics but is not exposed in the student interface.
+
 ### Schedule fields
 
 Each class meeting has:
@@ -92,17 +94,21 @@ The database enforces lowercase 3–30-character unique usernames, nonblank prog
 
 ### Class reminders
 
+**Implemented and verified (2026-10-02):** Independent reminders are available on class meetings, tasks, and events. The deployed stack uses native Web Push, private Supabase persistence, the `send-reminders` Edge Function, and an enabled cron-job.org job running every minute in Asia/Manila. Real delivery has been verified on desktop and an installed Android PWA.
+
 **Confirmed:** Class reminders belong to Schedules. They must appear as device notifications even when CALI's tab is closed, including on the lock screen when the device and operating system permit notifications. In-app alerts alone do not meet this requirement.
 
 **Confirmed reminder timing:** Class, task, and event reminder controls use the preset choices **30 minutes**, **1 hour**, **3 hours**, and **5 hours**, followed by **Custom**. Custom timing provides separate hours and minutes inputs and must resolve to a non-zero lead time. The notification configuration UI and delivered notification must use Cali's visual style while remaining compatible with each operating system's native notification presentation.
 
 **Confirmed free technology baseline:** The browser uses the native Push API, Notifications API, and existing root service worker; no notification SDK is added to the client. Supabase Postgres stores reminder settings, per-device push subscriptions, and idempotent delivery attempts behind RLS and focused RPCs. A TypeScript Supabase Edge Function running on the Deno-compatible Edge Runtime sends standards-based Web Push with the pinned `web-push@3.6.7` npm package and VAPID. One cron-job.org job calls the Edge Function once per minute to process a bounded batch. Secrets are split between a public VAPID key exposed to the Vite client and the private VAPID key plus cron authentication secret stored only in Supabase Edge Function secrets; cron-job.org sends the cron secret in a request header and receives only a minimal status response. Vercel continues to host only the React/Vite PWA and does not run reminder cron jobs or notification-sending functions.
 
-Each student opts in separately on each device. The scheduler finds due class meetings, tasks, and events, the Edge Function sends the encrypted pushes, and the database records attempts with unique idempotency keys so late or repeated scheduler runs cannot duplicate a notification. The service worker displays the notification and handles notification clicks. No OneSignal, Firebase application SDK, SMS/email provider, paid queue, or Apple Developer account is required. Notification-click destinations and handling of edited or canceled records still need definition.
+Each student opts in separately on each device. The scheduler finds due class meetings, tasks, and events, the Edge Function sends the encrypted pushes, and the database records attempts with unique idempotency keys so late or repeated scheduler runs cannot duplicate a notification. The service worker displays the notification and handles notification clicks. The notification body and item-specific action deep-link to the exact schedule meeting, task, or calendar event. Edits rebuild pending queue work; deletion and task completion cancel it. No OneSignal, Firebase application SDK, SMS/email provider, paid queue, or Apple Developer account is required.
+
+Saving a reminder on an unsubscribed device directly invokes the native browser notification permission flow. Declining permission or a Push registration failure does not discard the saved reminder. Profile provides per-device Enable/Disable controls and banner instructions for Android, Windows, and macOS. The notification requests high urgency, vibration, persistent interaction, a Cali icon, and an Android-compatible monochrome badge, but the operating system remains responsible for banners and sound.
 
 **Agreed cross-platform direction:** CALI remains a responsive website and will also be installable as a Home Screen web app on iOS and Android. On iPhone and iPad, students who want closed-tab lock-screen reminders must add CALI to the Home Screen and grant notification permission. Core features remain accessible in the browser without installation. The app must explain the iOS Home Screen step clearly.
 
-**Implemented PWA foundation (2026-09-26):** Cali is installable with a manifest, platform icons, Profile installation guidance, and a root-scoped service worker. The app remains online-only: the service worker provides a self-contained message when a navigation fails without internet and cache-first stores only requested immutable files under the versioned OCR model/runtime path. It does not cache application files, Supabase data, registration images, or OCR results. Navigation requests use `no-store`, registration bypasses the browser cache when checking the service-worker script, and the app requests an update at startup. Deployments therefore do not require reinstalling the PWA. Future class reminders will add push and notification-click handling to this worker.
+**Implemented PWA and Push foundation (updated 2026-10-02):** Cali is installable with a manifest, platform icons, Profile installation guidance, and a root-scoped service worker. The worker displays branded Push notifications and handles desktop/browser and installed-PWA notification clicks. The app remains online-only: the service worker provides a self-contained message when a navigation fails without internet and cache-first stores only requested immutable files under the versioned OCR model/runtime path. It does not cache application files, Supabase data, registration images, OCR results, or notification payloads. Navigation requests use `no-store`, registration bypasses the browser cache when checking the service-worker script, and the app requests an update at startup. Deployments therefore do not require reinstalling the PWA.
 
 **Implemented connection and error states (2026-09-26):** Cali shows styled pages for unknown routes, authentication failures, access denial, and unexpected application errors. An open page reports loss of connectivity and briefly confirms when Cali is back online. These messages do not imply offline feature support; schedule, account, OCR, and other data operations still require a connection.
 
@@ -112,7 +118,7 @@ Each student opts in separately on each device. The scheduler finds due class me
 
 ## 5. Task direction
 
-**Implemented student planner (updated 2026-10-01):** Tasks open to a focused Today view that separates overdue work, work due or planned today, and suggested next work when today is empty. Upcoming groups future deadlines, while Completed keeps finished work accessible for review and reopening. The Kanban Board and embedded task Calendar were removed so Tasks remains focused on list-based planning. Calendar planning will move to a separate application module. Mobile uses compact vertical planner rows.
+**Implemented student planner (updated 2026-10-02):** Tasks open to a focused Today view that separates overdue work, work due or planned today, and suggested next work when today is empty. Upcoming groups future deadlines, while Completed keeps finished work accessible for review and reopening. The Kanban Board and embedded task Calendar were removed so Tasks remains focused on list-based planning; date-based planning is available in the separate Calendar module. Mobile uses compact vertical planner rows.
 
 The unified task form keeps title, subject, due date, optional due time, importance, steps, and notes in one clear flow without a separate planning section. The first unfinished step appears as read-only context in task previews. Students update step progress from the task overview through explicit Mark done and Undo actions; completing a first step starts the task, while final task completion remains separate and confirmed. Date-only work remains due through the end of the local calendar day. Subject and importance filters are available.
 
@@ -120,7 +126,7 @@ Selecting a task opens a structured overview without entering edit mode. Step up
 
 Task creation, movement, and checklist changes use trusted database functions. `tasks` and `task_steps` rows are private to their owner through row-level security, and a linked subject must belong to that owner. Deleting a subject sets the link to null without deleting the task; deleting a task cascades to its steps. Moving into Done records `completed_at`; reopening clears it. The dashboard shows the next three actionable incomplete tasks and their next unfinished step when available.
 
-Migration `20260927000000_create_tasks.sql` adds the base table and atomic create/move functions. Migration `20260928000000_student_task_planner.sql` adds student-planner fields, private ordered checklist steps, and trusted checklist operations. The application no longer reads or writes effort estimates; the legacy database column remains unused to avoid destructive data removal. Attachments, recurrence, task reminders, search, custom columns, task types, grading, and automatic schedule-slot planning remain outside this focused module.
+Migration `20260927000000_create_tasks.sql` adds the base table and atomic create/move functions. Migration `20260928000000_student_task_planner.sql` adds student-planner fields, private ordered checklist steps, and trusted checklist operations. The application no longer reads or writes effort estimates; the legacy database column remains unused to avoid destructive data removal. Task reminders are implemented by the shared reminder system. Attachments, recurrence, search, custom columns, task types, grading, and automatic schedule-slot planning remain outside this focused module.
 
 ## 6. Study direction
 
@@ -155,9 +161,9 @@ Generative AI use is currently planned only for study workflows. Schedule scanni
 | Study document text extraction | PDF.js (`pdfjs-dist`) for PDF and Mammoth (`mammoth`) for `.docx` | Confirmed; deployment compatibility to test |
 | AI provider | OpenRouter | Confirmed; exact models to choose after evaluation |
 | Cross-platform delivery | Responsive website that is also installable as a Home Screen web app | Confirmed direction for iOS and Android |
-| Class reminders | Closed-tab, lock-screen notifications | Confirmed requirement; iOS needs Home Screen installation and permission |
-| Notification delivery | Web Push, service worker, and backend sender | Confirmed architecture |
-| Reminder trigger | cron-job.org | Confirmed for the scheduled backend trigger |
+| Class, task, and event reminders | Closed-tab, lock-screen notifications | Implemented; iOS needs Home Screen installation and permission |
+| Notification delivery | Web Push, service worker, and backend sender | Implemented and device-verified |
+| Reminder trigger | cron-job.org | Implemented; enabled once per minute in Asia/Manila |
 | Hosting | Vercel for the frontend and native Node.js API functions | Confirmed; processing limits to verify with representative files |
 | Validation library | No Zod for the MVP | Confirmed |
 
@@ -227,6 +233,7 @@ The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK 
 - The backend must verify the authenticated user and ownership before privileged operations. Database row-level security and Storage policies should enforce the same boundaries.
 - The Supabase service role key and OpenRouter API key are server-side secrets. Neither belongs in frontend code or committed files.
 - Study-material uploads require type, size, and processing-result checks. Every uploaded file must be deleted after processing or failure, with cleanup for abandoned temporary files.
+- Account deletion is an atomic privacy boundary. Migration `20261002020000_harden_account_deletion.sql` explicitly deletes the current user's reminder deliveries/queue, Push subscriptions, task steps/tasks, calendar events, schedule meetings/subjects, profile, and Supabase Auth account; foreign-key cascades remain as defense in depth. The client then removes the local Push subscription, Auth session, and theme preference. Future user-owned tables and Storage buckets must be added to this deletion contract before release.
 
 ### Initial data domains, not a complete schema
 
@@ -243,12 +250,12 @@ The design should prioritize readable academic information and quick access to w
 | Phase | Status | Scope |
 | --- | --- | --- |
 | 1. Product foundation | **Complete** | Single React and Vite project, routing, responsive workspace shell, themes, shared visual system, policy pages, documentation conventions, and Vercel SPA configuration. |
-| 2. Identity and onboarding | **Complete** | Google OAuth, verified RTU account eligibility, session restoration, onboarding, profile editing, authorization policies, and confirmed account deletion. |
+| 2. Identity and onboarding | **Complete** | Google OAuth, verified RTU account eligibility, session restoration, onboarding, profile editing, authorization policies, and transactional deletion of all current account data. |
 | 3. Dashboard foundation | **Complete** | Personalized dashboard, current and upcoming class summaries, next actionable tasks, schedule-aware empty states, quick actions, and module panels. |
 | 4. Schedule management and intake | **Complete** | Manual subjects and meetings, weekly and unscheduled views, confirmed deletion from both views, local web/PWA RTU form scanning, cancellable recognition, responsive editable validation, direct links to missing fields, and confirmed atomic schedule replacement. |
-| 5. Class, task, and event reminders | **Implemented; final smoke test pending** | Per-item presets/custom lead times, device subscriptions, Web Push delivery, indexed scheduling, retries/idempotency, service-worker display/deep links, and device-level enable/disable controls. |
+| 5. Class, task, and event reminders | **Complete** | Per-item presets/custom lead times, native browser permission, device subscriptions, Web Push delivery, enabled cron scheduling, retries/idempotency, service-worker display/deep links, banner instructions, and device-level enable/disable controls. |
 | 6. Tasks | **Complete** | Focused responsive Today, Upcoming, and Completed planning, guided checklist steps, planned work dates, secure ownership policies, and dashboard integration. |
-| 7. Calendar | **In progress** | Independent Cali-branded monthly calendar focused on class meetings, task deadlines, and separate Events, with a responsive selected-day detail panel, preview modals, a three-way create menu, and ten theme-aware named colors for schedules and Events. Weekly and daily browsing remain in Schedules. Direct record targeting and Event editing/deletion remain. |
+| 7. Calendar | **Complete** | Independent Cali-branded monthly calendar for class meetings, task deadlines, and Events, with a responsive selected-day detail panel, preview modals, selected-date creation, notification targeting, Event editing/deletion, a three-way create menu, and ten theme-aware named colors. Weekly browsing remains in Schedules. |
 | 8. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
 | 9. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
 | 10. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |
@@ -259,9 +266,8 @@ Each remaining phase should receive its own user flow, data contract, validation
 ## 11. Open architecture decisions
 
 1. Select an OpenRouter model or model-selection policy after testing study material examples.
-2. Complete the reminder release smoke test by activating the prepared cron-job.org job, confirming an authenticated dispatcher run, and receiving a real-device notification.
-3. Finalize broader component and end-to-end test tooling.
-4. Decide whether any code from the previously mentioned GitHub project should be brought into the new standalone project. The current planning workspace is separate from the requested project folder.
+2. Finalize broader component and end-to-end test tooling.
+3. Decide whether any code from the previously mentioned GitHub project should be brought into the new standalone project. The current planning workspace is separate from the requested project folder.
 
 ## 11. Documentation process
 
