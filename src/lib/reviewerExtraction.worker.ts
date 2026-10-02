@@ -1,10 +1,13 @@
 /// <reference lib="webworker" />
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url'
 import * as mammoth from 'mammoth/mammoth.browser'
 import type { ExtractRequest, ExtractResult } from './reviewerExtractionProtocol'
 import { REVIEWER_MAX_PDF_PAGES } from './reviewers'
 
 declare const self: DedicatedWorkerGlobalScope
+
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 self.onmessage = async (event: MessageEvent<ExtractRequest>) => {
   const { id, buffer, sourceType } = event.data

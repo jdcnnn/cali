@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { DragEvent, FormEvent } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -146,6 +146,7 @@ function AiDialog({ open, subjects, recovered, onClose, onSaved }: { open: boole
   const [accepted, setAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [extracting, setExtracting] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<AiPreview | null>(recovered)
 
@@ -165,6 +166,12 @@ function AiDialog({ open, subjects, recovered, onClose, onSaved }: { open: boole
     } catch (reason) {
       setSourceText(''); setFileName(''); setError(reason instanceof Error ? reason.message : 'Could not read the file.')
     } finally { setExtracting(false) }
+  }
+
+  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault()
+    setDragActive(false)
+    void chooseFile(event.dataTransfer.files[0])
   }
 
   const generate = async (event: FormEvent) => {
@@ -208,7 +215,7 @@ function AiDialog({ open, subjects, recovered, onClose, onSaved }: { open: boole
       <header><div><p className="workspace-overline">AI REVIEWER</p><h2>{preview ? 'Review before saving' : 'Turn notes into a reviewer'}</h2><p>{preview ? 'This private preview expires after 24 hours unless you save it.' : 'Cali uses free AI models only. Your original file stays on this device.'}</p></div><button type="button" className="study-dialog-close" onClick={onClose} disabled={busy}><CloseIcon /></button></header>
       {preview ? <div className="study-preview"><div className="study-preview-meta"><strong>{preview.title}</strong><label>Subject <select value={subjectId} onChange={event => setSubjectId(event.target.value)}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code}</option>)}</select></label></div><DocumentView content={preview.content} />{error && <p className="study-form-error" role="alert">{error}</p>}</div> : <form id="study-ai-form" onSubmit={generate}>
         <div className="study-source-tabs"><button type="button" className={mode === 'file' ? 'is-active' : ''} onClick={() => setMode('file')}>Upload PDF or DOCX</button><button type="button" className={mode === 'text' ? 'is-active' : ''} onClick={() => { setMode('text'); setSourceType('text'); setFileName('') }}>Paste text</button></div>
-        {mode === 'file' ? <label className="study-file-drop"><input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => { void chooseFile(event.target.files?.[0]) }} /><strong>{extracting ? 'Reading on your device…' : fileName || 'Choose a PDF or DOCX'}</strong><span>Up to 10 MB · PDF up to 100 pages · scanned files are not supported</span></label> : <label className="study-field study-field--wide"><span>Source text <small>{sourceText.length.toLocaleString()}/120,000</small></span><textarea rows={9} maxLength={120001} value={sourceText} onChange={event => { setSourceText(event.target.value); setSourceType('text') }} placeholder="Paste lecture notes, readings, or a lesson here…" /></label>}
+        {mode === 'file' ? <label className={`study-file-drop${dragActive ? ' is-dragging' : ''}`} onDragEnter={event => { event.preventDefault(); setDragActive(true) }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDragActive(true) }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragActive(false) }} onDrop={handleDrop}><input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={event => { void chooseFile(event.target.files?.[0]); event.currentTarget.value = '' }} /><strong>{extracting ? 'Reading on your device…' : dragActive ? 'Drop it here' : fileName || 'Choose or drop a PDF or DOCX'}</strong><span>Up to 10 MB · PDF up to 100 pages · scanned files are not supported</span></label> : <label className="study-field study-field--wide"><span>Source text <small>{sourceText.length.toLocaleString()}/120,000</small></span><textarea rows={9} maxLength={120001} value={sourceText} onChange={event => { setSourceText(event.target.value); setSourceType('text') }} placeholder="Paste lecture notes, readings, or a lesson here…" /></label>}
         <div className="study-form-grid"><label className="study-field"><span>Title <small>Optional</small></span><input maxLength={160} value={title} onChange={event => setTitle(event.target.value)} placeholder="Cali can choose one" /></label><label className="study-field"><span>Detail</span><select value={detail} onChange={event => setDetail(event.target.value as ReviewerDetail)}><option value="concise">Concise</option><option value="standard">Standard</option><option value="detailed">Detailed</option></select></label><label className="study-field study-field--wide"><span>Focus <small>{focus.length}/500 · Optional</small></span><textarea rows={2} maxLength={500} value={focus} onChange={event => setFocus(event.target.value)} placeholder="Example: emphasize the formulas and sample problems" /></label></div>
         <label className="study-privacy"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span><strong>Send extracted text to a free AI provider</strong>The original file never leaves this device. Its extracted text will be sent through OpenRouter to a free model, whose retention practices may vary. Do not submit sensitive or confidential material.</span></label>
         {error && <p className="study-form-error" role="alert">{error}</p>}
