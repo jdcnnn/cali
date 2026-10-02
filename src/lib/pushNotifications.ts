@@ -2,6 +2,8 @@ import { supabase } from './supabase'
 
 export type PushStatus = 'unsupported' | 'denied' | 'disabled' | 'enabled'
 
+let enablingNotifications: Promise<void> | null = null
+
 function urlBase64ToUint8Array(value: string) {
   const padding = '='.repeat((4 - value.length % 4) % 4)
   const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/')
@@ -17,6 +19,29 @@ function announcePushStatusChange() {
   window.dispatchEvent(new Event('cali:push-status-changed'))
 }
 
+function isPushServiceRegistrationError(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : String(cause)
+  return /registration failed|push service error|push subscription failed|push service unavailable/i.test(message)
+}
+
+async function subscribeToPush(registration: ServiceWorkerRegistration, applicationServerKey: Uint8Array<ArrayBuffer>) {
+  try {
+    return await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
+  } catch (firstError) {
+    if (!isPushServiceRegistrationError(firstError)) throw firstError
+    // An installed Chromium PWA can retain a temporarily stale Push channel.
+    // Refresh its worker and retry once before surfacing recovery guidance.
+    await registration.update().catch(() => undefined)
+    await new Promise(resolve => window.setTimeout(resolve, 500))
+    try {
+      return await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
+    } catch (retryError) {
+      console.error('Push service registration failed after retry.', retryError)
+      throw new Error('This browser could not reconnect to its push service. Fully close and reopen Cali, then try another network. See the setup guide below if it continues.')
+    }
+  }
+}
+
 export async function getPushStatus(): Promise<PushStatus> {
   if (!supportsPush()) return 'unsupported'
   if (Notification.permission === 'denied') return 'denied'
@@ -24,7 +49,7 @@ export async function getPushStatus(): Promise<PushStatus> {
   return await registration.pushManager.getSubscription() ? 'enabled' : 'disabled'
 }
 
-export async function enablePushNotifications(): Promise<void> {
+async function enablePushNotificationsOnce(): Promise<void> {
   if (!supportsPush()) throw new Error('Push notifications are not supported by this browser.')
   const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
   if (!publicKey) throw new Error('Notifications are not configured yet.')
@@ -32,10 +57,8 @@ export async function enablePushNotifications(): Promise<void> {
   if (permission !== 'granted') throw new Error('Notification permission was not granted. You can enable it in your browser settings.')
 
   const registration = await navigator.serviceWorker.ready
-  const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey),
-  })
+  const subscription = await registration.pushManager.getSubscription()
+    ?? await subscribeToPush(registration, urlBase64ToUint8Array(publicKey))
   const json = subscription.toJSON()
   if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error('The browser returned an incomplete push subscription.')
   if (!supabase) throw new Error('Cali is not connected to the database.')
@@ -50,6 +73,12 @@ export async function enablePushNotifications(): Promise<void> {
     throw error
   }
   announcePushStatusChange()
+}
+
+export function enablePushNotifications(): Promise<void> {
+  if (enablingNotifications) return enablingNotifications
+  enablingNotifications = enablePushNotificationsOnce().finally(() => { enablingNotifications = null })
+  return enablingNotifications
 }
 
 export async function disablePushNotifications(): Promise<void> {
