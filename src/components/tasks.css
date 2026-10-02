@@ -154,8 +154,23 @@
 .task-search input:focus { border-color: var(--color-cali-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-cali-accent) 13%, transparent); }
 
 .tasks-planner { display: grid; gap: 15px; max-width: 960px; }
-.tasks-planner-loading { display: grid; gap: 14px; }
-.tasks-planner-loading .skeleton-block { height: 180px; border-radius: 16px; }
+.tasks-loading-heading > div { display: grid; width: min(560px, 70%); gap: 12px; }
+.tasks-loading-title { width: 42%; height: 48px; border-radius: 12px; }
+.tasks-loading-add { width: 130px; height: 42px; border-radius: 11px; }
+.tasks-loading-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 16px; padding: 12px 15px; border: 1px solid var(--color-cali-border); border-radius: 14px; background: var(--color-cali-surface); }
+.tasks-loading-tabs { width: 230px; height: 38px; border-radius: 10px; }
+.tasks-loading-filters { width: min(430px, 44%); height: 38px; border-radius: 10px; }
+.tasks-loading-sections { display: grid; max-width: 960px; gap: 15px; }
+.tasks-loading-section { overflow: hidden; border: 1px solid var(--color-cali-border); border-radius: 17px; background: var(--color-cali-surface); }
+.tasks-loading-section > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px 19px; border-bottom: 1px solid var(--color-cali-border); }
+.tasks-loading-section > header > div { display: grid; width: min(360px, 62%); gap: 8px; }
+.tasks-loading-section-title { width: 42%; height: 20px; }
+.tasks-loading-count { width: 30px; height: 28px; border-radius: 99px; }
+.tasks-loading-section > div { display: grid; gap: 10px; padding: 12px; }
+.tasks-loading-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) 28px; align-items: center; gap: 13px; min-height: 76px; padding: 14px 16px; border: 1px solid var(--color-cali-border); border-radius: 13px; background: var(--color-cali-canvas); }
+.tasks-loading-row > div { display: grid; width: min(460px, 72%); gap: 10px; }
+.tasks-loading-check { width: 18px; height: 18px; border-radius: 50%; }
+.tasks-loading-menu { width: 28px; height: 28px; border-radius: 8px; }
 .planner-section { overflow: visible; border: 1px solid var(--color-cali-border); border-radius: 17px; background: var(--color-cali-surface); }
 .planner-section > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px 19px; border-bottom: 1px solid var(--color-cali-border); }
 .planner-section > header h2 { margin: 0; font-family: 'Fredoka', sans-serif; font-size: 21px; font-weight: 500; }
@@ -244,6 +259,8 @@
 .dark .tasks-page .planner-checklist-done, .dark .tasks-page .task-status--done, .dark .tasks-page .task-detail-checklist li > span { color: #91d6ac; }
 
 @media (max-width: 780px) {
+  .tasks-loading-toolbar { align-items: stretch; flex-direction: column; }
+  .tasks-loading-tabs, .tasks-loading-filters { width: 100%; }
   .task-view-bar { align-items: stretch; flex-direction: column; }
   .task-view-tabs { display: grid; grid-template-columns: repeat(3, 1fr); }
   .task-view-tabs button { padding-inline: 8px; }
@@ -254,6 +271,13 @@
 }
 
 @media (max-width: 620px) {
+  .tasks-loading-heading { display: flex; margin-top: 16px; }
+  .tasks-loading-heading > div { width: 72%; }
+  .tasks-loading-title { width: 72%; height: 38px; }
+  .tasks-loading-add { display: none; }
+  .tasks-loading-row { grid-template-columns: 18px minmax(0, 1fr); min-height: 82px; padding: 13px; }
+  .tasks-loading-row > div { width: 88%; }
+  .tasks-loading-menu { display: none; }
   .planner-section > header { padding: 15px; }
   .planner-task-list { gap: 9px; padding: 9px; }
   .planner-task-row { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px; }

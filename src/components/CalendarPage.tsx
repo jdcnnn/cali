@@ -198,7 +198,11 @@ function CalendarPreviewDialog({ preview, subjects, onClose, onEditEvent }: { pr
 }
 
 function CalendarSkeleton() {
-  return <div className="calendar-page"><div className="calendar-heading"><div><div className="skeleton skeleton-line skeleton-line--short" /><div className="skeleton skeleton-line skeleton-line--title" /></div></div><div className="calendar-skeleton"><div className="skeleton skeleton-block" /><div className="skeleton skeleton-block" /></div></div>
+  return <div className="calendar-page calendar-page--loading" aria-label="Loading calendar" aria-busy="true"><section className="calendar-shell calendar-loading-shell">
+    <header className="calendar-heading calendar-loading-heading"><div><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--short" /><span className="cali-skeleton calendar-loading-title" /><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--medium" /></div></header>
+    <div className="calendar-loading-toolbar"><span className="cali-skeleton calendar-loading-today" /><span className="cali-skeleton calendar-loading-arrows" /><span className="cali-skeleton calendar-loading-month-label" /></div>
+    <div className="calendar-loading-layout"><div className="calendar-loading-board"><div className="calendar-loading-weekdays">{Array.from({ length: 7 }, (_, index) => <span className="cali-skeleton cali-skeleton-line" key={index} />)}</div><div className="calendar-loading-grid">{Array.from({ length: 42 }, (_, index) => <span key={index}><i className="cali-skeleton" />{index % 3 === 0 && <b className="cali-skeleton" />}</span>)}</div></div><aside className="calendar-loading-agenda"><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--short" /><span className="cali-skeleton calendar-loading-agenda-title" /><div className="calendar-loading-legend">{[0, 1, 2].map(item => <span className="cali-skeleton" key={item} />)}</div>{[0, 1, 2].map(item => <div className="calendar-loading-card" key={item}><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--long" /><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--medium" /></div>)}</aside></div>
+  </section></div>
 }
 
 export function CalendarPage({ studentId, now }: { studentId: string; now: Date }) {

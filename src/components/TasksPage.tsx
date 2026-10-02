@@ -212,6 +212,14 @@ function TaskConfirmationDialog({ eyebrow, title, description, confirmLabel, bus
   return <dialog ref={dialogRef} className="task-confirm-dialog" aria-labelledby="task-confirm-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><div className={`task-confirm-icon${danger ? '' : ' task-confirm-icon--positive'}`} aria-hidden="true">{danger ? '!' : '✓'}</div><p className="workspace-overline">{eyebrow}</p><h2 id="task-confirm-title">{title}</h2><p>{description}</p>{error && <p className="task-form-error" role="alert">{error}</p>}<footer><button type="button" className="task-secondary" autoFocus onClick={onCancel} disabled={busy}>Cancel</button><button type="button" className={danger ? 'task-danger' : 'button-primary'} onClick={onConfirm} disabled={busy}>{busy ? busyLabel : confirmLabel}</button></footer></div></dialog>
 }
 
+function TasksSkeleton() {
+  return <div className="tasks-page tasks-page--loading" aria-label="Loading tasks" aria-busy="true">
+    <header className="tasks-heading tasks-loading-heading"><div><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--short" /><span className="cali-skeleton tasks-loading-title" /><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--medium" /></div><span className="cali-skeleton tasks-loading-add" /></header>
+    <div className="tasks-loading-toolbar"><span className="cali-skeleton tasks-loading-tabs" /><span className="cali-skeleton tasks-loading-filters" /></div>
+    <div className="tasks-loading-sections">{[0, 1].map(section => <section className="tasks-loading-section" key={section}><header><div><span className="cali-skeleton tasks-loading-section-title" /><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--medium" /></div><span className="cali-skeleton tasks-loading-count" /></header><div>{[0, 1].map(row => <div className="tasks-loading-row" key={row}><span className="cali-skeleton tasks-loading-check" /><div><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--long" /><span className="cali-skeleton cali-skeleton-line cali-skeleton-line--medium" /></div><span className="cali-skeleton tasks-loading-menu" /></div>)}</div></section>)}</div>
+  </div>
+}
+
 export function TasksPage({ studentId }: { studentId: string }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const [view, setView] = useState<TaskView>('today')
@@ -427,7 +435,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
 
   const rowProps = { subjects: subjectMap, steps, now, busy, onView: (task: Task) => setViewing(task), onEdit: openEditor, onDelete: (task: Task) => { setDeleteError(''); setDeleting(task) }, onComplete: requestComplete, onReopen: (task: Task) => { void moveTask(task, 'in_progress', allColumns.in_progress.length) }, onPlanToday: (task: Task) => { void planToday(task) } }
 
-  if (loading) return <div className="tasks-page"><header className="tasks-heading"><div><div className="skeleton skeleton-line skeleton-line--short" /><div className="skeleton skeleton-line skeleton-line--title" /></div></header><div className="tasks-planner-loading"><div className="skeleton skeleton-block" /><div className="skeleton skeleton-block" /></div></div>
+  if (loading) return <TasksSkeleton />
 
   return <div className="tasks-page">
     <header className="tasks-heading"><div><p className="workspace-overline">ACADEMIC WORK</p><h1>Tasks</h1><p>Track coursework, deadlines, and the next step for each task.</p></div><button type="button" className="button-primary tasks-add" onClick={() => openNewTask()}><span aria-hidden="true">+</span> Add task</button></header>
