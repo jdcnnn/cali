@@ -10,10 +10,9 @@ self.addEventListener('push', event => {
   let message = {}
   try { message = event.data?.json() ?? {} } catch { message = { body: event.data?.text() } }
   const title = message.title || 'Cali reminder'
-  const detail = message.body || 'You have an upcoming schedule item.'
-  const tapTarget = message.itemType === 'class' ? 'schedule' : message.itemType === 'task' ? 'task' : message.itemType === 'event' ? 'event' : 'details'
+  const actionLabel = message.actionLabel || 'View in Cali'
   event.waitUntil(self.registration.showNotification(title, {
-    body: `${detail}\nTap to view ${tapTarget} in Cali.`,
+    body: message.body || 'You have an upcoming schedule item.',
     icon: '/icons/cali-192.png',
     badge: '/icons/cali-notification-badge.png',
     tag: message.tag || 'cali-reminder',
@@ -22,15 +21,33 @@ self.addEventListener('push', event => {
     silent: false,
     vibrate: [200, 100, 200],
     timestamp: Date.now(),
+    actions: [{ action: 'view', title: actionLabel }],
     data: { url: message.url || '/calendar', itemType: message.itemType || 'reminder' },
   }))
 })
 
 self.addEventListener('notificationclick', event => {
-  event.notification.close()
   const target = new URL(event.notification.data?.url || '/calendar', self.location.origin).href
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const exactWindow = windows.find(client => client.url === target)
+    if (exactWindow && 'focus' in exactWindow) {
+      await exactWindow.focus()
+      return
+    }
+
+    // Chrome on Android routes an in-scope openWindow request into the
+    // installed PWA, which is more reliable than navigating a browser tab.
+    if (/Android/i.test(self.navigator.userAgent)) {
+      try {
+        const opened = await self.clients.openWindow(target)
+        if (opened && 'focus' in opened) await opened.focus()
+        if (opened) return
+      } catch {
+        // Fall through to reuse an existing same-origin window.
+      }
+    }
+
     for (const client of windows) {
       if (new URL(client.url).origin !== self.location.origin) continue
       try {
