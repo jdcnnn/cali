@@ -81,11 +81,16 @@ function emptyEventDraft(date: string): EventDraft {
   return { title: '', date, start: '', end: '', location: '', notes: '', colorKey: 'violet', reminderMinutes: null }
 }
 
-function EventEditorDialog({ studentId, initialDate, onClose, onSaved }: { studentId: string; initialDate: string; onClose: () => void; onSaved: () => Promise<void> }) {
+function eventDraftFrom(event: CalendarEvent): EventDraft {
+  return { title: event.title, date: event.event_date, start: event.starts_at ?? '', end: event.ends_at ?? '', location: event.location ?? '', notes: event.notes ?? '', colorKey: event.color_key, reminderMinutes: event.reminder_minutes }
+}
+
+function EventEditorDialog({ studentId, initialDate, existingEvent, onClose, onSaved }: { studentId: string; initialDate: string; existingEvent?: CalendarEvent; onClose: () => void; onSaved: () => Promise<void> }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const [draft, setDraft] = useState(() => emptyEventDraft(initialDate))
+  const [draft, setDraft] = useState(() => existingEvent ? eventDraftFrom(existingEvent) : emptyEventDraft(initialDate))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -108,7 +113,11 @@ function EventEditorDialog({ studentId, initialDate, onClose, onSaved }: { stude
     setBusy(true)
     setError('')
     try {
-      const { error: saveError } = await supabase.from('calendar_events').insert({ user_id: studentId, title, event_date: draft.date, starts_at: draft.start || null, ends_at: draft.end || null, location: location || null, notes: notes || null, color_key: draft.colorKey, reminder_minutes: draft.reminderMinutes })
+      const details = { title, event_date: draft.date, starts_at: draft.start || null, ends_at: draft.end || null, location: location || null, notes: notes || null, color_key: draft.colorKey, reminder_minutes: draft.reminderMinutes }
+      const query = existingEvent
+        ? supabase.from('calendar_events').update(details).eq('id', existingEvent.id).eq('user_id', studentId)
+        : supabase.from('calendar_events').insert({ user_id: studentId, ...details })
+      const { error: saveError } = await query
       if (saveError) throw saveError
       await onSaved()
       onClose()
@@ -118,9 +127,31 @@ function EventEditorDialog({ studentId, initialDate, onClose, onSaved }: { stude
     }
   }
 
+  async function deleteEvent() {
+    if (busy || !supabase || !existingEvent) return
+    setBusy(true)
+    setError('')
+    try {
+      const { error: deleteError } = await supabase.from('calendar_events').delete().eq('id', existingEvent.id).eq('user_id', studentId)
+      if (deleteError) throw deleteError
+      await onSaved()
+      onClose()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not delete the event.')
+      setBusy(false)
+    }
+  }
+
   return <dialog ref={dialogRef} className="calendar-event-dialog" aria-labelledby="calendar-event-title" onCancel={event => { event.preventDefault(); if (!busy) onClose() }}>
-    <form onSubmit={save}>
-      <header><div><p className="workspace-overline">NEW EVENT</p><h2 id="calendar-event-title">Add event</h2><p>Create a dated event for your calendar.</p></div><button type="button" aria-label="Close event form" onClick={onClose} disabled={busy}><CloseIcon /></button></header>
+    {confirmDelete && existingEvent ? <div className="calendar-event-confirm">
+      <span className="calendar-event-confirm-icon" aria-hidden="true">!</span>
+      <p className="workspace-overline">DELETE EVENT</p>
+      <h2 id="calendar-event-title">Delete “{existingEvent.title}”?</h2>
+      <p>This permanently removes the event and its reminder. This cannot be undone.</p>
+      {error && <p className="calendar-event-error" role="alert">{error}</p>}
+      <footer><button type="button" className="task-secondary" autoFocus onClick={() => { setConfirmDelete(false); setError('') }} disabled={busy}>Keep event</button><button type="button" className="calendar-event-danger" onClick={() => { void deleteEvent() }} disabled={busy}>{busy ? 'Deleting...' : 'Delete event'}</button></footer>
+    </div> : <form onSubmit={save}>
+      <header><div><p className="workspace-overline">{existingEvent ? 'EDIT EVENT' : 'NEW EVENT'}</p><h2 id="calendar-event-title">{existingEvent ? 'Edit event' : 'Add event'}</h2><p>{existingEvent ? 'Update this event and its reminder.' : 'Create a dated event for your calendar.'}</p></div><button type="button" aria-label="Close event form" onClick={onClose} disabled={busy}><CloseIcon /></button></header>
       <div className="calendar-event-body">
         <label className="calendar-event-field calendar-event-field--wide"><span>Title</span><input value={draft.title} maxLength={160} autoFocus onChange={event => setDraft(previous => ({ ...previous, title: event.target.value }))} required /></label>
         <div className="calendar-event-grid"><CaliDatePicker label="Date" value={draft.date} onChange={date => setDraft(previous => ({ ...previous, date }))} required /><label className="calendar-event-field"><span>Location <small>Optional</small></span><input value={draft.location} maxLength={160} onChange={event => setDraft(previous => ({ ...previous, location: event.target.value }))} /></label><CaliTimePicker label="Start time" value={draft.start} onChange={start => setDraft(previous => ({ ...previous, start, end: start ? previous.end : '', reminderMinutes: start ? previous.reminderMinutes : null }))} optional /><CaliTimePicker label="End time" value={draft.end} onChange={end => setDraft(previous => ({ ...previous, end }))} optional disabled={!draft.start} /><ReminderField id="event-reminder" value={draft.reminderMinutes} onChange={reminderMinutes => setDraft(previous => ({ ...previous, reminderMinutes }))} disabled={!draft.start} /></div>
@@ -128,12 +159,12 @@ function EventEditorDialog({ studentId, initialDate, onClose, onSaved }: { stude
         <CalendarColorPicker value={draft.colorKey} onChange={colorKey => setDraft(previous => ({ ...previous, colorKey }))} label="Event color" />
         {error && <p className="calendar-event-error" role="alert">{error}</p>}
       </div>
-      <footer><button type="button" className="task-secondary" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy}>{busy ? 'Saving...' : 'Add event'}</button></footer>
-    </form>
+      <footer className={existingEvent ? 'calendar-event-editor-actions' : undefined}>{existingEvent && <button type="button" className="calendar-event-delete" onClick={() => { setError(''); setConfirmDelete(true) }} disabled={busy}>Delete event</button>}<span><button type="button" className="task-secondary" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy}>{busy ? 'Saving...' : existingEvent ? 'Save changes' : 'Add event'}</button></span></footer>
+    </form>}
   </dialog>
 }
 
-function CalendarPreviewDialog({ preview, subjects, onClose }: { preview: CalendarPreview; subjects: Map<string, Subject>; onClose: () => void }) {
+function CalendarPreviewDialog({ preview, subjects, onClose, onEditEvent }: { preview: CalendarPreview; subjects: Map<string, Subject>; onClose: () => void; onEditEvent: (event: CalendarEvent) => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const subjectId = preview.kind === 'task' ? preview.task.schedule_subject_id : preview.kind === 'class' ? preview.meeting.subject_id : null
   const subject = subjectId ? subjects.get(subjectId) : undefined
@@ -161,7 +192,7 @@ function CalendarPreviewDialog({ preview, subjects, onClose }: { preview: Calend
         {preview.kind === 'task' && preview.task.notes && <section><h3>Notes</h3><p>{preview.task.notes}</p></section>}
         {preview.kind === 'event' && preview.event.notes && <section><h3>Notes</h3><p>{preview.event.notes}</p></section>}
       </div>
-      <footer><button type="button" className="task-secondary" onClick={onClose}>Close</button>{preview.kind !== 'event' && <NavLink className="button-primary" to={preview.kind === 'task' ? '/tasks' : '/schedules'}>{preview.kind === 'task' ? 'Open task' : 'Open schedule'}</NavLink>}</footer>
+      <footer><button type="button" className="task-secondary" onClick={onClose}>Close</button>{preview.kind === 'event' ? <button type="button" className="button-primary" onClick={() => onEditEvent(preview.event)}>Edit event</button> : <NavLink className="button-primary" to={preview.kind === 'task' ? '/tasks' : '/schedules'}>{preview.kind === 'task' ? 'Open task' : 'Open schedule'}</NavLink>}</footer>
     </div>
   </dialog>
 }
@@ -180,6 +211,7 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [preview, setPreview] = useState<CalendarPreview | null>(null)
   const [eventEditorOpen, setEventEditorOpen] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -267,7 +299,7 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
         <div className="calendar-navigation"><button type="button" className="calendar-today" onClick={() => setSelectedDate(todayKey)}>Today</button><span className="calendar-arrow-group"><button type="button" onClick={() => movePeriod(-1)} aria-label="Previous month"><ChevronIcon direction="left" /></button><button type="button" onClick={() => movePeriod(1)} aria-label="Next month"><ChevronIcon direction="right" /></button></span><h2 aria-live="polite">{rangeLabel}</h2></div>
       </div>
 
-      {!meetings.length && !tasks.length && !events.length && <section className="calendar-empty"><div><span><CalendarEmptyIcon /></span><h2>Nothing scheduled yet</h2><p>Add a class meeting, task deadline, or event to begin filling your calendar.</p></div><div><NavLink to={`/schedules?new=1&day=${selectedDayCode}`}>Add a class</NavLink><NavLink to={`/tasks?new=1&date=${selectedDate}`}>Add a task</NavLink><button type="button" onClick={() => setEventEditorOpen(true)}>Add an event</button></div></section>}
+      {!meetings.length && !tasks.length && !events.length && <section className="calendar-empty"><div><span><CalendarEmptyIcon /></span><h2>Nothing scheduled yet</h2><p>Add a class meeting, task deadline, or event to begin filling your calendar.</p></div><div><NavLink to={`/schedules?new=1&day=${selectedDayCode}`}>Add a class</NavLink><NavLink to={`/tasks?new=1&date=${selectedDate}`}>Add a task</NavLink><button type="button" onClick={() => { setEditingEvent(null); setEventEditorOpen(true) }}>Add an event</button></div></section>}
 
       <section className="calendar-month" aria-label="Monthly calendar">
         <div className="calendar-month-board"><div className="calendar-month-weekdays" aria-hidden="true">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => <span key={day}>{day}</span>)}</div>
@@ -281,9 +313,9 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
           </div> : <div className="calendar-month-agenda-empty"><CalendarEmptyIcon /><strong>This day is clear</strong><p>No class meetings, task deadlines, or events are scheduled.</p></div>}
         </aside>
       </section>
-      {preview && <CalendarPreviewDialog preview={preview} subjects={subjectMap} onClose={() => setPreview(null)} />}
-      <details className="calendar-create"><summary aria-label="Add to calendar"><span>+</span></summary><div><p>ADD TO CALENDAR</p><NavLink to={`/schedules?new=1&day=${selectedDayCode}`}><ClassIndicatorIcon /><span><strong>Class meeting</strong><small>Add to Schedules</small></span></NavLink><NavLink to={`/tasks?new=1&date=${selectedDate}`}><DeadlineIndicatorIcon /><span><strong>Task deadline</strong><small>Due on selected date</small></span></NavLink><button type="button" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); setEventEditorOpen(true) }}><EventIndicatorIcon /><span><strong>Event</strong><small>Add to selected date</small></span></button></div></details>
-      {eventEditorOpen && <EventEditorDialog studentId={studentId} initialDate={selectedDate} onClose={() => setEventEditorOpen(false)} onSaved={load} />}
+      {preview && <CalendarPreviewDialog preview={preview} subjects={subjectMap} onClose={() => setPreview(null)} onEditEvent={event => { setPreview(null); setEditingEvent(event); setEventEditorOpen(true) }} />}
+      <details className="calendar-create"><summary aria-label="Add to calendar"><span>+</span></summary><div><p>ADD TO CALENDAR</p><NavLink to={`/schedules?new=1&day=${selectedDayCode}`}><ClassIndicatorIcon /><span><strong>Class meeting</strong><small>Add to Schedules</small></span></NavLink><NavLink to={`/tasks?new=1&date=${selectedDate}`}><DeadlineIndicatorIcon /><span><strong>Task deadline</strong><small>Due on selected date</small></span></NavLink><button type="button" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); setEditingEvent(null); setEventEditorOpen(true) }}><EventIndicatorIcon /><span><strong>Event</strong><small>Add to selected date</small></span></button></div></details>
+      {eventEditorOpen && <EventEditorDialog studentId={studentId} initialDate={selectedDate} existingEvent={editingEvent ?? undefined} onClose={() => { setEventEditorOpen(false); setEditingEvent(null) }} onSaved={load} />}
     </section>}
   </div>
 }
