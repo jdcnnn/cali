@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import { calendarColors } from '../lib/calendarColors'
+import type { CalendarColorKey } from '../lib/calendarColors'
 import { supabase } from '../lib/supabase'
 import { getImportedScheduleIssues, parseRtuSchedule } from '../lib/rtuScheduleParser'
 import type { ImportedMeetingDraft, ImportedScheduleDraft, ImportedSubjectDraft, ScheduleDayCode } from '../lib/rtuScheduleParser'
 import { runScheduleOcr } from '../lib/scheduleOcr'
+import { CalendarColorPicker } from './CalendarColorPicker'
 import './schedule-scan.css'
 
 const days: { code: ScheduleDayCode; name: string }[] = [
@@ -13,6 +16,8 @@ const days: { code: ScheduleDayCode; name: string }[] = [
 ]
 
 type Stage = 'select' | 'processing' | 'review' | 'saving'
+type ReviewSubjectDraft = ImportedSubjectDraft & { colorKey: CalendarColorKey }
+type ReviewScheduleDraft = Omit<ImportedScheduleDraft, 'subjects'> & { subjects: ReviewSubjectDraft[] }
 type PendingRemoval =
   | { kind: 'subject'; subjectId: string; label: string }
   | { kind: 'meeting'; subjectId: string; meetingId: string; label: string }
@@ -67,7 +72,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
   const [stage, setStage] = useState<Stage>('select')
   const [file, setFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
-  const [schedule, setSchedule] = useState<ImportedScheduleDraft | null>(null)
+  const [schedule, setSchedule] = useState<ReviewScheduleDraft | null>(null)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [updateRequired, setUpdateRequired] = useState(false)
@@ -172,7 +177,10 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       if (controller.signal.aborted) return
       setStatus('Building your editable schedule…')
       const parsed = parseRtuSchedule(result.lines, result.image)
-      setSchedule(parsed)
+      setSchedule({
+        ...parsed,
+        subjects: parsed.subjects.map((subject, index) => ({ ...subject, colorKey: calendarColors[index % calendarColors.length].key })),
+      })
       setStage('review')
       setStatus(`Scanned on this device in ${Math.max(1, Math.round(result.elapsedMs / 1000))} seconds.`)
     } catch (caught) {
@@ -191,7 +199,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     }
   }
 
-  function updateSubject(subjectId: string, patch: Partial<ImportedSubjectDraft>) {
+  function updateSubject(subjectId: string, patch: Partial<ReviewSubjectDraft>) {
     setSchedule(previous => previous ? {
       ...previous,
       warnings: previous.warnings.filter(warning => warning.subjectId !== subjectId),
@@ -244,6 +252,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       title: clean(subject.title),
       units: Number(subject.units),
       block_section: clean(subject.blockSection),
+      color_key: subject.colorKey,
       meetings: subject.meetings.map(meeting => ({
         day_code: meeting.dayCode,
         starts_at: meeting.startsAt,
@@ -318,7 +327,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
         </div>
         <aside className="schedule-scan-accuracy-note" aria-label="Important scanning notice">
           <strong>Review every detail before saving</strong>
-          <p>Scanner results may be inaccurate. Compare the subject codes, titles, units, sections, days, times, and rooms below with your registration form.</p>
+          <p>Scanner results may be inaccurate. Compare the subject codes, titles, units, sections, days, times, and rooms below with your registration form, then confirm each subject color.</p>
         </aside>
         {(reviewNotes.length > 0 || validationErrors.length > 0) && <div ref={validationRef} className="schedule-review-status" tabIndex={-1}>
           <div className="schedule-review-status-head">
@@ -342,6 +351,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
             <label className="schedule-scan-wide">Subject title<input id={`schedule-scan-subject-${subject.id}-title`} value={subject.title} maxLength={200} placeholder="Add subject title" aria-invalid={!clean(subject.title)} onChange={event => updateSubject(subject.id, { title: event.target.value })} disabled={busy} /></label>
             <label className="schedule-scan-wide">Block / section<input id={`schedule-scan-subject-${subject.id}-section`} value={subject.blockSection} maxLength={80} placeholder="Add block section" aria-invalid={!clean(subject.blockSection)} onChange={event => updateSubject(subject.id, { blockSection: event.target.value.toUpperCase() })} disabled={busy} /></label>
           </div>
+          <CalendarColorPicker label="Subject color" value={subject.colorKey} onChange={colorKey => updateSubject(subject.id, { colorKey })} disabled={busy} />
           <div className="schedule-scan-meetings-head"><strong>Meetings</strong><button type="button" onClick={() => addMeeting(subject.id)} disabled={busy}>+ Add meeting</button></div>
           {subject.meetings.length === 0 ? <p className="schedule-scan-unscheduled">No class time was found. Add a meeting if the subject has one; otherwise it will be saved as unscheduled.</p> : <div className="schedule-scan-meetings">{subject.meetings.map(meeting => <div id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}`} tabIndex={-1} className={`schedule-scan-meeting${meeting.confidence < 0.85 ? ' schedule-scan-meeting--check' : ''}${meetingNeedsAttention(meeting) ? ' schedule-scan-meeting--invalid' : ''}`} key={meeting.id}>
             <label>Day<select id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-day`} value={meeting.dayCode} onChange={event => updateMeeting(subject.id, meeting.id, { dayCode: event.target.value as ScheduleDayCode })} disabled={busy}>{days.map(day => <option value={day.code} key={day.code}>{day.name}</option>)}</select></label>
