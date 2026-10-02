@@ -92,7 +92,7 @@ All repository migrations through `20260928000000_student_task_planner.sql` are 
 
 Cali is installable from supported desktop and mobile browsers. Signed-in students can find installation guidance under Profile. On iPhone and iPad, open Cali in Safari and use Share → Add to Home Screen.
 
-The current PWA is intentionally online-only. Its service worker provides the root-scoped foundation needed for future class-reminder notifications and a navigation-only connection-unavailable page. It does not cache the app, Supabase data, or OCR files for offline use. Navigations bypass HTTP caches, service-worker updates bypass the browser cache, and the app checks for a worker update when it starts so deployed versions are adopted without requiring a PWA reinstall.
+The current PWA remains online-only. Its service worker provides the root-scoped foundation needed for future class-reminder notifications and a navigation-only connection-unavailable page. It cache-first stores only immutable, versioned OCR model/runtime files after they are requested; it does not cache the app, Supabase data, registration images, or OCR results. Navigations bypass HTTP caches, service-worker updates bypass the browser cache, and the app checks for a worker update when it starts so deployed versions are adopted without requiring a PWA reinstall.
 
 Returning students keep their Supabase session. Public-page calls to action open the dashboard directly when a completed signed-in session is present instead of starting Google OAuth again.
 

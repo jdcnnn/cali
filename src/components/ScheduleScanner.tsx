@@ -5,7 +5,7 @@ import type { CalendarColorKey } from '../lib/calendarColors'
 import { supabase } from '../lib/supabase'
 import { getImportedScheduleIssues, parseRtuSchedule } from '../lib/rtuScheduleParser'
 import type { ImportedMeetingDraft, ImportedScheduleDraft, ImportedSubjectDraft, ScheduleDayCode } from '../lib/rtuScheduleParser'
-import { runScheduleOcr } from '../lib/scheduleOcr'
+import { preloadScheduleOcr, runScheduleOcr } from '../lib/scheduleOcr'
 import { CalendarColorPicker } from './CalendarColorPicker'
 import './schedule-scan.css'
 
@@ -74,6 +74,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
   const [previewUrl, setPreviewUrl] = useState('')
   const [schedule, setSchedule] = useState<ReviewScheduleDraft | null>(null)
   const [status, setStatus] = useState('')
+  const [preloadStatus, setPreloadStatus] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle')
   const [error, setError] = useState('')
   const [updateRequired, setUpdateRequired] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -108,6 +109,18 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
     const dialog = dialogRef.current
     if (open && dialog && !dialog.open) dialog.showModal()
     if (!open && dialog?.open) dialog.close()
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    let current = true
+    void preloadScheduleOcr().then(() => {
+      if (current) setPreloadStatus('ready')
+    }).catch(error => {
+      console.error('Cali schedule scanner preload failed.', error)
+      if (current) setPreloadStatus('failed')
+    })
+    return () => { current = false }
   }, [open])
 
   useEffect(() => {
@@ -182,7 +195,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
         subjects: parsed.subjects.map((subject, index) => ({ ...subject, colorKey: calendarColors[index % calendarColors.length].key })),
       })
       setStage('review')
-      setStatus(`Scanned on this device in ${Math.max(1, Math.round(result.elapsedMs / 1000))} seconds.`)
+      setStatus(`Setup ${Math.round(result.setupMs)} ms · image ${Math.round(result.prepareMs)} ms · reading ${Math.round(result.predictMs)} ms · total ${Math.round(result.totalMs)} ms`)
     } catch (caught) {
       if (controller.signal.aborted) return
       setStage('select')
@@ -280,7 +293,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
   }
 
   return <>
-    <button type="button" className="schedule-scan-trigger" onClick={() => { reset(); setOpen(true) }}>
+    <button type="button" className="schedule-scan-trigger" onClick={() => { reset(); setPreloadStatus('loading'); setOpen(true) }}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><path d="M7 12h10M7 15h7" /></svg>
       Scan form
     </button>
@@ -299,6 +312,9 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       {stage === 'select' && <div className="schedule-scan-body">
         <p className="schedule-scan-intro">Add a clear photo or scan of your RTU registration form. Cali reads the class table and lets you correct every field before saving.</p>
         <div className="schedule-scan-privacy"><span aria-hidden="true">✓</span><div><strong>Private and free</strong><p>The image stays on this device. It is never uploaded or stored.</p></div></div>
+        <p className={`schedule-scan-preload schedule-scan-preload--${preloadStatus}`} role="status" aria-live="polite">
+          {preloadStatus === 'ready' ? 'Scanner ready.' : preloadStatus === 'failed' ? 'Scanner setup paused. Choose an image and Scan schedule to retry.' : 'Preparing the scanner in the background… You can choose an image now.'}
+        </p>
         <input ref={inputRef} className="schedule-scan-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event: ChangeEvent<HTMLInputElement>) => chooseFile(event.target.files?.[0] ?? null)} />
         <button type="button" className={`schedule-scan-picker${previewUrl ? ' schedule-scan-picker--selected' : ''}`} onClick={() => inputRef.current?.click()}>
           {previewUrl ? <><img src={previewUrl} alt="Selected registration form preview" /><span className="schedule-scan-change">Choose a different image</span></> : <span className="schedule-scan-picker-empty"><span className="schedule-scan-picker-icon" aria-hidden="true">＋</span><strong>Choose a registration form image</strong><small>JPG, PNG, or WebP · up to 12 MB</small></span>}
@@ -320,6 +336,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
       </div>}
 
       {(stage === 'review' || stage === 'saving') && schedule && <div className="schedule-scan-review">
+        <p className="schedule-scan-timing" role="status">{status}</p>
         <div className="schedule-scan-summary">
           <div><strong>{schedule.subjects.length}</strong><span>subjects</span></div>
           <div><strong>{schedule.subjects.reduce((sum, subject) => sum + subject.meetings.length, 0)}</strong><span>meetings</span></div>
