@@ -20,6 +20,9 @@ const editorExtensions = [StarterKit.configure({ heading: { levels: [2, 3] }, li
 
 function CloseIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg> }
 function SearchIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg> }
+function BackIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg> }
+function EditIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg> }
+function ShareIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4" /></svg> }
 
 function DocumentView({ content, editable = false, onEditor }: { content: JSONContent; editable?: boolean; onEditor?: (editor: Editor) => void }) {
   const editor = useEditor({ extensions: editorExtensions, content, editable, immediatelyRender: false })
@@ -104,12 +107,53 @@ export function StudyPage({ studentId }: { studentId: string }) {
   const updateReviewer = (changed: Reviewer) => setReviewers(current => [changed, ...current.filter(item => item.id !== changed.id)])
   const duplicate = async (reviewer: Reviewer) => { if (!supabase) return; const { data, error } = await supabase.rpc('cali_duplicate_own_reviewer', { p_id: reviewer.id }).single(); if (error || !data) setNotice({ kind: 'error', text: 'Could not duplicate this reviewer.' }); else { const copy = data as Reviewer; setReviewers(current => [copy, ...current]); navigate({ reviewer: copy.id, edit: null }); setNotice({ kind: 'success', text: 'Reviewer duplicated.' }) } }
   const remove = async (reviewer: Reviewer) => { if (!supabase || !window.confirm(`Permanently delete “${reviewer.title}”? This cannot be undone.`)) return; const { error } = await supabase.from('reviewers').delete().eq('id', reviewer.id); if (error) setNotice({ kind: 'error', text: 'Could not delete this reviewer.' }); else { setReviewers(current => current.filter(item => item.id !== reviewer.id)); navigate({ reviewer: null, edit: null }); setNotice({ kind: 'success', text: 'Reviewer deleted.' }) } }
+  const shareReviewer = async (reviewer: Reviewer) => {
+    const shareText = `${reviewer.title}\n\n${reviewer.plain_text || 'A reviewer created in Cali.'}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: reviewer.title, text: shareText })
+        setNotice({ kind: 'success', text: 'Reviewer shared.' })
+      } else {
+        await navigator.clipboard.writeText(shareText)
+        setNotice({ kind: 'success', text: 'Reviewer copied to your clipboard.' })
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setNotice({ kind: 'error', text: 'Could not share this reviewer. Please try again.' })
+    }
+  }
+  const noticeBanner = notice && <div className={`study-notice study-notice--${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}><span>{notice.text}</span><button type="button" aria-label="Dismiss" onClick={() => setNotice(null)}><CloseIcon /></button></div>
+
+  if (selected) {
+    const selectedSubject = selected.subject_id ? subjectMap.get(selected.subject_id) : null
+    return <section className="study-page study-page--reviewer">
+      <nav className="reviewer-page-nav" aria-label="Reviewer navigation">
+        <button type="button" className="reviewer-back" onClick={() => navigate({ reviewer: null, edit: null })}><BackIcon /> Back to library</button>
+      </nav>
+      {noticeBanner}
+      {editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} /> : <article className="reviewer-reading">
+        <header>
+          <div><p className="workspace-overline">{selectedSubject?.subject_code ?? 'GENERAL REVIEWER'}</p><h1>{selected.title}</h1><p>Updated {formatReviewerDate(selected.updated_at)}</p></div>
+          <div className="reviewer-reader-actions">
+            <button type="button" className="study-secondary" onClick={() => navigate({ edit: '1' })}><EditIcon /> Edit</button>
+            <button type="button" className="study-secondary" onClick={() => { void shareReviewer(selected) }}><ShareIcon /> Share</button>
+            <details><summary aria-label="More reviewer actions">•••</summary><div><button type="button" onClick={() => { void duplicate(selected) }}>Duplicate</button><button type="button" className="is-danger" onClick={() => { void remove(selected) }}>Delete permanently</button></div></details>
+          </div>
+        </header>
+        <DocumentView content={selected.content} />
+      </article>}
+    </section>
+  }
+
   return <section className="study-page">
     <header className="study-heading"><div><p className="workspace-overline">STUDY SPACE</p><h1>Study <em>smarter.</em></h1><p>Write focused reviewers and keep them organized with your subjects.</p></div><div className="study-heading-actions"><button type="button" className="button-primary" onClick={() => navigate({ new: 'manual', reviewer: null, edit: null })}><span aria-hidden="true">+</span> New reviewer</button></div></header>
     <div className="study-tabs" role="tablist" aria-label="Study tools"><button type="button" className="is-active" role="tab" aria-selected="true">Reviewers</button><button type="button" role="tab" aria-selected="false" disabled>Flashcards <span>Coming soon</span></button><button type="button" role="tab" aria-selected="false" disabled>Quizzes <span>Coming soon</span></button></div>
-    {notice && <div className={`study-notice study-notice--${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}><span>{notice.text}</span><button type="button" aria-label="Dismiss" onClick={() => setNotice(null)}><CloseIcon /></button></div>}
-    <div className={`study-workspace${selected ? ' study-workspace--selected' : ''}`}><aside className="reviewer-library" aria-label="Reviewer library"><div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>Reviewers</h2></div><span>{reviewers.length}</span></div><div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers" aria-label="Search reviewers" /></label><select value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)} aria-label="Filter by subject"><option value="">All subjects</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code}</option>)}</select></div><div className="reviewer-list">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(reviewer => { const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null; return <button type="button" key={reviewer.id} className={selected?.id === reviewer.id ? 'is-active' : ''} onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}><span className="reviewer-list-top"><strong>{reviewer.title}</strong></span><span>{subject?.subject_code ?? 'General'} · {formatReviewerDate(reviewer.updated_at)}</span><p>{reviewer.plain_text || 'Start writing your reviewer…'}</p></button> }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div></aside>
-      <main className="reviewer-reader">{selected ? editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} /> : <article className="reviewer-reading"><header><button type="button" className="reviewer-mobile-back" onClick={() => navigate({ reviewer: null })}>← Library</button><div><p className="workspace-overline">{selected.subject_id ? subjectMap.get(selected.subject_id)?.subject_code ?? 'REVIEWER' : 'GENERAL REVIEWER'}</p><h2>{selected.title}</h2><p>Updated {formatReviewerDate(selected.updated_at)}</p></div><div className="reviewer-reader-actions"><button type="button" className="study-secondary" onClick={() => navigate({ edit: '1' })}>Edit</button><details><summary aria-label="Reviewer actions">•••</summary><div><button type="button" onClick={() => { void duplicate(selected) }}>Duplicate</button><button type="button" className="is-danger" onClick={() => { void remove(selected) }}>Delete permanently</button></div></details></div></header><DocumentView content={selected.content} /></article> : <div className="reviewer-reader-empty"><p className="workspace-overline">REVIEWER READER</p><h2>Pick a reviewer to begin.</h2><p>Your reading view stays calm and distraction-free. Create a reviewer when you’re ready to add something new.</p><div><button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>New reviewer</button></div></div>}</main></div>
+    {noticeBanner}
+    <section className="reviewer-library" aria-label="Reviewer library">
+      <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>Your reviewers</h2></div><span>{reviewers.length}</span></div>
+      <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers" aria-label="Search reviewers" /></label><select value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)} aria-label="Filter by subject"><option value="">All subjects</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code}</option>)}</select></div>
+      <div className="reviewer-list">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(reviewer => { const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null; return <button type="button" key={reviewer.id} className="reviewer-preview-card" onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}><span className="reviewer-list-top"><strong>{reviewer.title}</strong><span aria-hidden="true">→</span></span><span className="reviewer-preview-meta">{subject?.subject_code ?? 'General'} · {formatReviewerDate(reviewer.updated_at)}</span><p>{reviewer.plain_text || 'This reviewer is ready for your notes.'}</p><span className="reviewer-preview-open">Open reviewer</span></button> }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div>
+    </section>
     <dialog ref={createRef} className="study-dialog study-create-dialog" onCancel={event => { event.preventDefault(); navigate({ new: null }) }}><form onSubmit={createReviewer} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Start with a blank page</h2><p>Give it a clear title. You can change the subject anytime.</p></div><button type="button" className="study-dialog-close" onClick={() => navigate({ new: null })}><CloseIcon /></button></header><div className="study-form-grid"><label className="study-field study-field--wide"><span>Title <small>{newTitle.length}/160</small></span><input autoFocus required maxLength={160} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Example: Midterm reviewer" /></label><label className="study-field study-field--wide"><span>Subject</span><select value={newSubject} onChange={event => setNewSubject(event.target.value)}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><footer><button type="button" className="study-secondary" onClick={() => navigate({ new: null })}>Cancel</button><button type="submit" className="button-primary" disabled={creating || !newTitle.trim()}>{creating ? 'Creating…' : 'Create reviewer'}</button></footer></form></dialog>
   </section>
 }
