@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useEditor, EditorContent, Extension, Node as TiptapNode } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/react'
-import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
@@ -12,6 +12,8 @@ import Underline from '@tiptap/extension-underline'
 import { TableKit } from '@tiptap/extension-table'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import type { EditorView } from '@tiptap/pm/view'
 import { useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
 import { EMPTY_REVIEWER_DOCUMENT, formatReviewerDate, reviewerMatches, type Reviewer, type ReviewerSubject } from '../lib/reviewers'
@@ -19,6 +21,40 @@ import './study.css'
 import './skeleton.css'
 
 type Notice = { kind: 'error' | 'success'; text: string } | null
+type ReviewerPreviewBlock = { kind: 'heading' | 'text' | 'list' | 'table'; text: string; checked?: boolean }
+
+function reviewerNodeText(node: JSONContent): string {
+  if (node.text) return node.text
+  return (node.content ?? []).map(reviewerNodeText).join(' ').replace(/\s+/g, ' ').trim()
+}
+
+function reviewerPreviewBlocks(content: JSONContent): ReviewerPreviewBlock[] {
+  const blocks: ReviewerPreviewBlock[] = []
+  const add = (block: ReviewerPreviewBlock) => {
+    const text = block.text.replace(/\s+/g, ' ').trim()
+    if (text && blocks.length < 5) blocks.push({ ...block, text })
+  }
+  const visit = (node: JSONContent) => {
+    if (blocks.length >= 5) return
+    if (node.type === 'heading') { add({ kind: 'heading', text: reviewerNodeText(node) }); return }
+    if (node.type === 'paragraph') { add({ kind: 'text', text: reviewerNodeText(node) }); return }
+    if (node.type === 'bulletList' || node.type === 'orderedList' || node.type === 'taskList') {
+      for (const item of node.content ?? []) add({ kind: 'list', text: reviewerNodeText(item), checked: item.attrs?.checked === true })
+      return
+    }
+    if (node.type === 'table') {
+      const rows = node.content ?? []
+      const columnCount = rows[0]?.content?.length ?? 0
+      add({ kind: 'table', text: `${rows.length} rows × ${columnCount} columns` })
+      const firstRow = rows[0]?.content?.map(reviewerNodeText).filter(Boolean).join(' · ')
+      if (firstRow) add({ kind: 'text', text: firstRow })
+      return
+    }
+    for (const child of node.content ?? []) visit(child)
+  }
+  visit(content)
+  return blocks
+}
 
 function usesLightForeground(pageColor: string): boolean {
   const compact = pageColor.trim().replace(/^#/, '')
@@ -122,6 +158,79 @@ const Column = TiptapNode.create({
   renderHTML() { return ['div', { 'data-reviewer-column': 'true' }, 0] },
 })
 
+const TableRowResize = Extension.create({
+  name: 'tableRowResize',
+  addGlobalAttributes() {
+    return [{
+      types: ['tableRow'],
+      attributes: {
+        rowHeight: {
+          default: null,
+          parseHTML: element => {
+            const height = Number.parseFloat(element.style.height)
+            return Number.isFinite(height) ? height : null
+          },
+          renderHTML: attributes => attributes.rowHeight ? { style: `height: ${attributes.rowHeight}px`, 'data-row-height': String(attributes.rowHeight) } : {},
+        },
+      },
+    }]
+  },
+  addProseMirrorPlugins() {
+    const boundarySize = 6
+    const findRow = (view: EditorView, event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof HTMLElement)) return null
+      const cell = target.closest('td, th')
+      const row = cell?.parentElement
+      if (!cell || !row || Math.abs(event.clientY - row.getBoundingClientRect().bottom) > boundarySize) return null
+      const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY - 2 })
+      if (!coordinates) return null
+      const resolved = view.state.doc.resolve(coordinates.pos)
+      for (let depth = resolved.depth; depth > 0; depth -= 1) {
+        if (resolved.node(depth).type.name === 'tableRow') return { position: resolved.before(depth), element: row }
+      }
+      return null
+    }
+    return [new Plugin({
+      key: new PluginKey('reviewerTableRowResize'),
+      props: {
+        handleDOMEvents: {
+          mousemove(view, event) {
+            view.dom.classList.toggle('is-table-row-resize-ready', Boolean(findRow(view, event)))
+            return false
+          },
+          mouseleave(view) {
+            view.dom.classList.remove('is-table-row-resize-ready')
+            return false
+          },
+          mousedown(view, event) {
+            const row = findRow(view, event)
+            if (!row || event.button !== 0) return false
+            event.preventDefault()
+            const startY = event.clientY
+            const startHeight = row.element.getBoundingClientRect().height
+            view.dom.classList.add('is-resizing-table-row')
+            const move = (moveEvent: MouseEvent) => {
+              const nextHeight = Math.max(36, Math.round(startHeight + moveEvent.clientY - startY))
+              const rowNode = view.state.doc.nodeAt(row.position)
+              if (!rowNode || rowNode.type.name !== 'tableRow') return
+              view.dispatch(view.state.tr.setNodeMarkup(row.position, undefined, { ...rowNode.attrs, rowHeight: nextHeight }))
+            }
+            const finish = () => {
+              view.dom.classList.remove('is-resizing-table-row', 'is-table-row-resize-ready')
+              window.removeEventListener('mousemove', move)
+              window.removeEventListener('mouseup', finish)
+            }
+            window.addEventListener('mousemove', move)
+            window.addEventListener('mouseup', finish, { once: true })
+            return true
+          },
+        },
+      },
+    })]
+  },
+})
+
 const editorExtensions = [
   StarterKit.configure({ heading: { levels: [2, 3] }, italic: { HTMLAttributes: { class: 'reviewer-italic' } } }),
   TextStyle,
@@ -135,6 +244,7 @@ const editorExtensions = [
   Columns,
   Column,
   TableKit.configure({ table: { resizable: true } }),
+  TableRowResize,
   TaskList,
   TaskItem.configure({ nested: true }),
 ]
@@ -159,6 +269,7 @@ function ChecklistIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="c
 function ColumnsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 4v16" /></svg> }
 function TableIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 9v11M15 9v11" /></svg> }
 function ClearFormattingIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 17 7-7 6 6-4 4H7Z" /><path d="m14 7 3-3 4 4-3 3M3 21h18" /></svg> }
+function FontSizeStepIcon({ increase = false }: { increase?: boolean }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3.5 18 4.2-12h2.1L14 18M5.2 13h7.1" /><path d={increase ? 'M18.5 18V6m-3 3 3-3 3 3' : 'M18.5 6v12m-3-3 3 3 3-3'} /></svg> }
 
 type CaliSelectOption = { value: string; label: string; detail?: string; triggerLabel?: string }
 
@@ -302,6 +413,7 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
     <div className="reviewer-toolbar" aria-label="Reviewer formatting">
     <div className="reviewer-toolbar-group reviewer-toolbar-style"><CaliSelect ariaLabel="Text style" className="cali-select--toolbar cali-select--text-style" value={blockType} options={textStyleOptions} onChange={nextValue => { if (nextValue === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (nextValue === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }} /></div>
     <div className="reviewer-toolbar-group reviewer-font-size">
+      {button('Decrease font size', false, () => setFontSize(fontSize - 1), <FontSizeStepIcon />, fontSize <= 8)}
       <input
         key={`font-size-${fontSize}`}
         type="number"
@@ -323,6 +435,7 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
           else event.currentTarget.value = String(fontSize)
         }}
       />
+      {button('Increase font size', false, () => setFontSize(fontSize + 1), <FontSizeStepIcon increase />, fontSize >= 72)}
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-format">
       {button('Bold', editor.isActive('bold'), () => { editor.chain().focus().toggleBold().run() }, <strong>B</strong>)}
@@ -362,28 +475,66 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
 }
 
 function TableContextMenu({ editor }: { editor: Editor | null }) {
-  if (!editor) return null
-  const run = (action: () => void) => action()
-  return <BubbleMenu
-    editor={editor}
-    pluginKey="reviewer-table-menu"
-    updateDelay={0}
-    resizeDelay={60}
-    shouldShow={({ editor: activeEditor }) => activeEditor.isEditable && activeEditor.isActive('table')}
-    options={{ placement: 'top', offset: 9, flip: true, shift: { padding: 12 } }}
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!editor) return
+    const editorElement = editor.view.dom
+    const openMenu = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof HTMLElement) || !target.closest('td, th')) { setPosition(null); return }
+      event.preventDefault()
+      const resolved = editor.view.posAtCoords({ left: event.clientX, top: event.clientY })
+      if (resolved) editor.chain().focus().setTextSelection(resolved.pos).run()
+      const menuWidth = Math.min(240, window.innerWidth - 24)
+      const x = Math.max(12, Math.min(event.clientX, window.innerWidth - menuWidth - 12))
+      const menuHeight = Math.min(390, window.innerHeight - 24)
+      const y = Math.max(12, Math.min(event.clientY, window.innerHeight - menuHeight - 12))
+      setPosition({ x, y })
+    }
+    editorElement.addEventListener('contextmenu', openMenu)
+    return () => editorElement.removeEventListener('contextmenu', openMenu)
+  }, [editor])
+
+  useEffect(() => {
+    if (!position) return
+    const closeOnPointer = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setPosition(null) }
+    const close = () => setPosition(null)
+    const closeOnKey = (event: KeyboardEvent) => { if (event.key === 'Escape') close() }
+    window.addEventListener('pointerdown', closeOnPointer)
+    window.addEventListener('keydown', closeOnKey)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('pointerdown', closeOnPointer)
+      window.removeEventListener('keydown', closeOnKey)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [position])
+
+  if (!editor || !position) return null
+  const run = (action: () => void) => { action(); setPosition(null) }
+  return createPortal(<div
+    ref={menuRef}
     className="reviewer-table-context"
-    role="toolbar"
+    role="menu"
     aria-label="Selected table cell actions"
+    style={{ left: position.x, top: position.y }}
+    onContextMenu={event => event.preventDefault()}
   >
-    <span className="reviewer-table-context-label">Table</span>
-    <button type="button" title="Add row below" aria-label="Add row below" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().addRowAfter().run() })}>Row <strong>+</strong></button>
-    <button type="button" title="Delete selected row" aria-label="Delete selected row" disabled={!editor.can().deleteRow()} onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteRow().run() })}>Row <strong>−</strong></button>
+    <span className="reviewer-table-context-label">Selected cell</span>
+    <button type="button" role="menuitem" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().addRowBefore().run() })}>Insert row above</button>
+    <button type="button" role="menuitem" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().addRowAfter().run() })}>Insert row below</button>
+    <button type="button" role="menuitem" className="is-danger-soft" disabled={!editor.can().deleteRow()} onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteRow().run() })}>Delete row</button>
     <span className="reviewer-table-context-divider" aria-hidden="true" />
-    <button type="button" title="Add column to the right" aria-label="Add column to the right" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().addColumnAfter().run() })}>Column <strong>+</strong></button>
-    <button type="button" title="Delete selected column" aria-label="Delete selected column" disabled={!editor.can().deleteColumn()} onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteColumn().run() })}>Column <strong>−</strong></button>
+    <button type="button" role="menuitem" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().addColumnBefore().run() })}>Insert column left</button>
+    <button type="button" role="menuitem" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().addColumnAfter().run() })}>Insert column right</button>
+    <button type="button" role="menuitem" className="is-danger-soft" disabled={!editor.can().deleteColumn()} onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteColumn().run() })}>Delete column</button>
     <span className="reviewer-table-context-divider" aria-hidden="true" />
-    <button type="button" className="is-danger" title="Delete table" aria-label="Delete table" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteTable().run() })}>Delete table</button>
-  </BubbleMenu>
+    <button type="button" role="menuitem" className="is-danger" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteTable().run() })}>Delete table</button>
+  </div>, document.body)
 }
 
 function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChange }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onSaved: (reviewer: Reviewer) => void; onClose: () => void; onPageColorChange: (pageColor: string) => void }) {
@@ -527,6 +678,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
         const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null
         const pageColor = String(reviewer.content.attrs?.pageColor ?? '')
         const previewContrastClass = usesLightForeground(pageColor) ? ' uses-light-foreground' : ' uses-dark-foreground'
+        const previewBlocks = reviewerPreviewBlocks(reviewer.content)
         return <button
           type="button"
           key={reviewer.id}
@@ -534,7 +686,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
           style={pageColor ? { '--reviewer-preview-page-color': pageColor } as CSSProperties : undefined}
           aria-label={`Open ${reviewer.title}`}
           onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}
-        ><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><p>{reviewer.plain_text || 'This reviewer is ready for your notes.'}</p></button>
+        ><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><span className="reviewer-preview-content" aria-hidden="true">{previewBlocks.length ? previewBlocks.map((block, index) => <span key={`${block.kind}-${index}`} className={`reviewer-preview-line reviewer-preview-line--${block.kind}${block.checked ? ' is-checked' : ''}`}>{block.text}</span>) : <span className="reviewer-preview-line reviewer-preview-line--empty">This reviewer is ready for your notes.</span>}</span></button>
       }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div>
     </section>
     <dialog ref={createRef} className="study-dialog study-create-dialog" onCancel={event => { event.preventDefault(); navigate({ new: null }) }}><form onSubmit={createReviewer} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Start with a blank page</h2><p>Give it a clear title. You can change the subject anytime.</p></div><button type="button" className="study-dialog-close" onClick={() => navigate({ new: null })}><CloseIcon /></button></header><div className="study-form-grid"><label className="study-field study-field--wide"><span>Title <small>{newTitle.length}/160</small></span><input autoFocus required maxLength={160} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Example: Midterm reviewer" /></label><div className="study-field study-field--wide"><span>Subject</span><CaliSelect ariaLabel="New reviewer subject" className="cali-select--form" value={newSubject} options={subjectOptions} onChange={setNewSubject} /></div></div><footer><button type="button" className="study-secondary" onClick={() => navigate({ new: null })}>Cancel</button><button type="submit" className="button-primary" disabled={creating || !newTitle.trim()}>{creating ? 'Creating…' : 'Create reviewer'}</button></footer></form></dialog>
