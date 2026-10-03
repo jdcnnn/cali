@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, ReactNode } from 'react'
-import { useEditor, EditorContent, Extension } from '@tiptap/react'
+import { useEditor, EditorContent, Extension, Node as TiptapNode } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Color } from '@tiptap/extension-color'
@@ -8,6 +8,9 @@ import Highlight from '@tiptap/extension-highlight'
 import TextAlign from '@tiptap/extension-text-align'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Underline from '@tiptap/extension-underline'
+import { TableKit } from '@tiptap/extension-table'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
 import { useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
 import { EMPTY_REVIEWER_DOCUMENT, formatReviewerDate, reviewerMatches, type Reviewer, type ReviewerSubject } from '../lib/reviewers'
@@ -53,6 +56,12 @@ const BlockLayout = Extension.create({
   },
   addKeyboardShortcuts() {
     const adjustIndent = (amount: number) => {
+      if (this.editor.isActive('table')) return false
+      if (this.editor.isActive('taskItem')) {
+        if (amount > 0) this.editor.commands.sinkListItem('taskItem')
+        else this.editor.commands.liftListItem('taskItem')
+        return true
+      }
       if (this.editor.isActive('listItem')) {
         if (amount > 0) this.editor.commands.sinkListItem('listItem')
         else this.editor.commands.liftListItem('listItem')
@@ -94,7 +103,40 @@ const PageStyle = Extension.create({
   },
 })
 
-const editorExtensions = [StarterKit.configure({ heading: { levels: [2, 3] }, italic: { HTMLAttributes: { class: 'reviewer-italic' } } }), TextStyle, Color, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ['heading', 'paragraph'] }), Underline, BlockLayout, FontSize, PageStyle]
+const Columns = TiptapNode.create({
+  name: 'columns',
+  group: 'block',
+  content: 'column{2,3}',
+  defining: true,
+  isolating: true,
+  parseHTML() { return [{ tag: 'div[data-reviewer-columns]' }] },
+  renderHTML() { return ['div', { 'data-reviewer-columns': 'true' }, 0] },
+})
+
+const Column = TiptapNode.create({
+  name: 'column',
+  content: 'block+',
+  defining: true,
+  parseHTML() { return [{ tag: 'div[data-reviewer-column]' }] },
+  renderHTML() { return ['div', { 'data-reviewer-column': 'true' }, 0] },
+})
+
+const editorExtensions = [
+  StarterKit.configure({ heading: { levels: [2, 3] }, italic: { HTMLAttributes: { class: 'reviewer-italic' } } }),
+  TextStyle,
+  Color,
+  Highlight.configure({ multicolor: true }),
+  TextAlign.configure({ types: ['heading', 'paragraph'] }),
+  Underline,
+  BlockLayout,
+  FontSize,
+  PageStyle,
+  Columns,
+  Column,
+  TableKit.configure({ table: { resizable: true } }),
+  TaskList,
+  TaskItem.configure({ nested: true }),
+]
 
 function CloseIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg> }
 function SearchIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg> }
@@ -112,6 +154,10 @@ function ItalicIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="curr
 function PageColorIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6Z" /><path d="M15 3v5h5M9 16h7" /></svg> }
 function LineSpacingIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 6h11M8 12h11M8 18h11M4 5v14M2 7l2-2 2 2M2 17l2 2 2-2" /></svg> }
 function SelectChevronIcon() { return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg> }
+function ChecklistIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="5" rx="1" /><path d="m4.5 6.5 1 1 2-2M11 6.5h10" /><rect x="3" y="15" width="5" height="5" rx="1" /><path d="M11 17.5h10" /></svg> }
+function ColumnsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 4v16" /></svg> }
+function TableIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 9v11M15 9v11" /></svg> }
+function ClearFormattingIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 17 7-7 6 6-4 4H7Z" /><path d="m14 7 3-3 4 4-3 3M3 21h18" /></svg> }
 
 type CaliSelectOption = { value: string; label: string; detail?: string; triggerLabel?: string }
 
@@ -191,12 +237,23 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
   }
   const setBlockAttribute = (attributes: Record<string, unknown>) => { editor.chain().focus().updateAttributes(blockName, attributes).run() }
   const adjustIndent = (amount: number) => {
+    if (editor.isActive('taskItem')) {
+      if (amount > 0) editor.chain().focus().sinkListItem('taskItem').run()
+      else editor.chain().focus().liftListItem('taskItem').run()
+      return
+    }
     if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
       if (amount > 0) editor.chain().focus().sinkListItem('listItem').run()
       else editor.chain().focus().liftListItem('listItem').run()
       return
     }
     setBlockAttribute({ indent: Math.max(0, Math.min(4, indent + amount)) })
+  }
+  const insertColumns = (count: 2 | 3) => {
+    editor.chain().focus().insertContent({
+      type: 'columns',
+      content: Array.from({ length: count }, () => ({ type: 'column', content: [{ type: 'paragraph' }] })),
+    }).run()
   }
   const button = (label: string, active: boolean, action: () => void, content: ReactNode, disabled = false) => <button type="button" className={active ? 'is-active' : ''} aria-label={label} title={label} disabled={disabled} onMouseDown={event => event.preventDefault()} onClick={action}>{content}</button>
   const closePalette = (target: HTMLElement) => { const palette = target.closest('details') as HTMLDetailsElement | null; if (palette) palette.open = false }
@@ -267,6 +324,12 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
       <CaliSelect ariaLabel="Line spacing" className="cali-select--toolbar cali-select--line-spacing" leading={<LineSpacingIcon />} value={lineHeight} options={lineSpacingOptions} onChange={nextValue => setBlockAttribute({ lineHeight: nextValue })} />
       {button('Bulleted list', editor.isActive('bulletList'), () => { editor.chain().focus().toggleBulletList().run() }, <ListIcon />)}
       {button('Numbered list', editor.isActive('orderedList'), () => { editor.chain().focus().toggleOrderedList().run() }, <ListIcon ordered />)}
+      {button('Checklist', editor.isActive('taskList'), () => { editor.chain().focus().toggleTaskList().run() }, <ChecklistIcon />)}
+    </div>
+    <div className="reviewer-toolbar-group reviewer-toolbar-structure">
+      <details className="reviewer-structure-menu reviewer-columns-menu"><summary aria-label="Insert columns" title="Insert columns"><ColumnsIcon /></summary><div className="reviewer-structure-options"><p>Columns</p><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { insertColumns(2); closePalette(event.currentTarget) }}><ColumnsIcon /><span><strong>Two columns</strong><small>Compare ideas side by side</small></span></button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { insertColumns(3); closePalette(event.currentTarget) }}><ColumnsIcon /><span><strong>Three columns</strong><small>Organize compact study notes</small></span></button></div></details>
+      <details className={`reviewer-structure-menu${editor.isActive('table') ? ' is-active' : ''}`}><summary aria-label="Table tools" title="Table tools"><TableIcon /></summary><div className="reviewer-structure-options reviewer-table-options"><p>Insert table</p><div className="reviewer-table-presets"><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run(); closePalette(event.currentTarget) }}>2 × 2</button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); closePalette(event.currentTarget) }}>3 × 3</button></div>{editor.isActive('table') && <><p>Edit current table</p><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().addRowAfter().run(); closePalette(event.currentTarget) }}><span><strong>Add row below</strong><small>Extend the current table</small></span></button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().addColumnAfter().run(); closePalette(event.currentTarget) }}><span><strong>Add column right</strong><small>Extend the current table</small></span></button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().deleteRow().run(); closePalette(event.currentTarget) }}><span><strong>Delete row</strong></span></button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().deleteColumn().run(); closePalette(event.currentTarget) }}><span><strong>Delete column</strong></span></button><button type="button" className="is-danger" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().deleteTable().run(); closePalette(event.currentTarget) }}><span><strong>Delete table</strong></span></button></>}</div></details>
+      {button('Clear formatting', false, () => { editor.chain().focus().unsetAllMarks().clearNodes().run() }, <ClearFormattingIcon />)}
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-page-color">
       <details className={`reviewer-swatch-palette${activePageColor ? ' is-active' : ''}`}><summary aria-label="Reviewer page color" title="Reviewer page color"><PageColorIcon /></summary><div className="reviewer-swatch-grid" role="group" aria-label="Reviewer page colors">{pageSwatches.map(([name, value]) => <button key={value} type="button" className={`reviewer-swatch${activePageColor === value ? ' is-selected' : ''}`} aria-label={`${name} page`} title={name} style={{ '--swatch-color': value } as CSSProperties} onMouseDown={event => event.preventDefault()} onClick={event => { setPageColor(value); closePalette(event.currentTarget) }}><span /></button>)}<button type="button" className="reviewer-swatch-none" onMouseDown={event => event.preventDefault()} onClick={event => { setPageColor(null); closePalette(event.currentTarget) }}>Default page</button></div></details>
