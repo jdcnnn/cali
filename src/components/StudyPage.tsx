@@ -268,7 +268,6 @@ function ChecklistIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="c
 function ColumnsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 4v16" /></svg> }
 function TableIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 9v11M15 9v11" /></svg> }
 function ClearFormattingIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 17 7-7 6 6-4 4H7Z" /><path d="m14 7 3-3 4 4-3 3M3 21h18" /></svg> }
-function FontSizeStepIcon({ increase = false }: { increase?: boolean }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m3.5 18 4.2-12h2.1L14 18M5.2 13h7.1" /><path d={increase ? 'M18.5 18V6m-3 3 3-3 3 3' : 'M18.5 6v12m-3-3 3 3 3-3'} /></svg> }
 
 type CaliSelectOption = { value: string; label: string; detail?: string; triggerLabel?: string }
 
@@ -412,9 +411,7 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
     <div className="reviewer-toolbar" aria-label="Reviewer formatting">
     <div className="reviewer-toolbar-group reviewer-toolbar-style"><CaliSelect ariaLabel="Text style" className="cali-select--toolbar cali-select--text-style" value={blockType} options={textStyleOptions} onChange={nextValue => { if (nextValue === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (nextValue === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }} /></div>
     <div className="reviewer-toolbar-group reviewer-font-size">
-      {button('Decrease font size', false, () => setFontSize(fontSize - 1), <FontSizeStepIcon />, fontSize <= 8)}
       <input
-        key={`font-size-${fontSize}`}
         type="number"
         min="8"
         max="72"
@@ -434,7 +431,6 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
           else event.currentTarget.value = String(fontSize)
         }}
       />
-      {button('Increase font size', false, () => setFontSize(fontSize + 1), <FontSizeStepIcon increase />, fontSize >= 72)}
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-format">
       {button('Bold', editor.isActive('bold'), () => { editor.chain().focus().toggleBold().run() }, <strong>B</strong>)}
