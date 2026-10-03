@@ -202,7 +202,15 @@ button:disabled { cursor: not-allowed; }
 .workspace-sidebar .header-link { width: 100%; min-height: 46px; padding: 0 13px; font-size: 13px; }
 .workspace-content { min-width: 0; padding: 54px clamp(26px, 5vw, 82px) 76px; }
 .workspace-content--reviewer-color { background: var(--reviewer-workspace-color); transition: background-color .2s ease; }
-.workspace-content--reviewer-color .workspace-mobile-header { background: color-mix(in srgb, var(--reviewer-workspace-color) 88%, #fff); }
+.workspace-content--reviewer-dark-foreground { --reviewer-workspace-ink: #12384d; --reviewer-workspace-accent: #0879a8; --reviewer-workspace-border: color-mix(in srgb, var(--reviewer-workspace-color) 58%, #627f8e); --reviewer-workspace-control: color-mix(in srgb, var(--reviewer-workspace-color) 35%, #fff); --reviewer-workspace-header: color-mix(in srgb, var(--reviewer-workspace-color) 88%, #fff); }
+.workspace-content--reviewer-light-foreground { --reviewer-workspace-ink: #f5fbff; --reviewer-workspace-accent: #8bdcf7; --reviewer-workspace-border: color-mix(in srgb, var(--reviewer-workspace-color) 60%, #b9d9e7); --reviewer-workspace-control: color-mix(in srgb, var(--reviewer-workspace-color) 78%, #fff); --reviewer-workspace-header: color-mix(in srgb, var(--reviewer-workspace-color) 90%, #000); }
+.workspace-content--reviewer-color .workspace-mobile-header { border-color: var(--reviewer-workspace-border); background: var(--reviewer-workspace-header); }
+.workspace-content--reviewer-color .workspace-menu-button { border-color: var(--reviewer-workspace-border); background: var(--reviewer-workspace-control); }
+.workspace-content--reviewer-color .workspace-menu-button span { background: var(--reviewer-workspace-ink); }
+.workspace-content--reviewer-dark-foreground .workspace-mobile-header .cali-wordmark-color { opacity: 1; }
+.workspace-content--reviewer-dark-foreground .workspace-mobile-header .cali-wordmark-inverse { opacity: 0; }
+.workspace-content--reviewer-light-foreground .workspace-mobile-header .cali-wordmark-color { opacity: 0; }
+.workspace-content--reviewer-light-foreground .workspace-mobile-header .cali-wordmark-inverse { opacity: 1; }
 .workspace-welcome, .workspace-section-page { max-width: 1120px; padding: clamp(34px, 4vw, 60px); border: 1px solid var(--color-cali-border); border-radius: 26px; background: var(--color-cali-pale); }
 .workspace-overline { margin: 0; color: var(--color-cali-accent); font-size: 11px; font-weight: 800; letter-spacing: .15em; }
 .workspace-welcome h1, .workspace-section-page h1 { max-width: 850px; margin: 24px 0 0; font-family: Fredoka, sans-serif; font-size: clamp(42px, 5vw, 70px); font-weight: 500; letter-spacing: -.045em; line-height: 1.07; overflow-wrap: anywhere; }
