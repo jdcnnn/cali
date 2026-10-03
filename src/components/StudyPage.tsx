@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { useEditor, EditorContent, Extension, Node as TiptapNode } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
@@ -156,7 +157,7 @@ function LineSpacingIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke=
 function SelectChevronIcon() { return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg> }
 function ChecklistIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="5" rx="1" /><path d="m4.5 6.5 1 1 2-2M11 6.5h10" /><rect x="3" y="15" width="5" height="5" rx="1" /><path d="M11 17.5h10" /></svg> }
 function ColumnsIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 4v16" /></svg> }
-function InsertContentIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 8v8M8 12h8" /></svg> }
+function TableIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M9 9v11M15 9v11" /></svg> }
 function ClearFormattingIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 17 7-7 6 6-4 4H7Z" /><path d="m14 7 3-3 4 4-3 3M3 21h18" /></svg> }
 
 type CaliSelectOption = { value: string; label: string; detail?: string; triggerLabel?: string }
@@ -301,9 +302,27 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
     <div className="reviewer-toolbar" aria-label="Reviewer formatting">
     <div className="reviewer-toolbar-group reviewer-toolbar-style"><CaliSelect ariaLabel="Text style" className="cali-select--toolbar cali-select--text-style" value={blockType} options={textStyleOptions} onChange={nextValue => { if (nextValue === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (nextValue === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }} /></div>
     <div className="reviewer-toolbar-group reviewer-font-size">
-      {button('Decrease font size', false, () => setFontSize(fontSize - 1), <span aria-hidden="true">−</span>, fontSize <= 8)}
-      <input key={`font-size-${fontSize}`} type="number" min="8" max="72" defaultValue={fontSize} aria-label="Font size" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); setFontSize(event.currentTarget.value ? Number(event.currentTarget.value) : fontSize); event.currentTarget.blur() } }} onBlur={event => setFontSize(event.currentTarget.value ? Number(event.currentTarget.value) : fontSize)} />
-      {button('Increase font size', false, () => setFontSize(fontSize + 1), <span aria-hidden="true">+</span>, fontSize >= 72)}
+      <input
+        key={`font-size-${fontSize}`}
+        type="number"
+        min="8"
+        max="72"
+        inputMode="numeric"
+        defaultValue={fontSize}
+        aria-label="Font size in pixels"
+        title="Font size"
+        onFocus={event => event.currentTarget.select()}
+        onChange={event => {
+          const nextSize = Number(event.currentTarget.value)
+          if (Number.isFinite(nextSize) && nextSize >= 8 && nextSize <= 72) setFontSize(nextSize)
+        }}
+        onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur() } }}
+        onBlur={event => {
+          const nextSize = Number(event.currentTarget.value)
+          if (Number.isFinite(nextSize) && nextSize >= 8 && nextSize <= 72) setFontSize(nextSize)
+          else event.currentTarget.value = String(fontSize)
+        }}
+      />
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-format">
       {button('Bold', editor.isActive('bold'), () => { editor.chain().focus().toggleBold().run() }, <strong>B</strong>)}
@@ -328,17 +347,8 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
       {button('Checklist', editor.isActive('taskList'), () => { editor.chain().focus().toggleTaskList().run() }, <ChecklistIcon />)}
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-structure">
-      <details className={`reviewer-structure-menu${editor.isActive('table') ? ' is-active' : ''}`}>
-        <summary aria-label="Insert content" title="Insert content"><InsertContentIcon /></summary>
-        <div className="reviewer-structure-options reviewer-table-options">
-          <p className="reviewer-columns-label">Columns</p>
-          <button type="button" className="reviewer-column-option" onMouseDown={event => event.preventDefault()} onClick={event => { insertColumns(2); closePalette(event.currentTarget) }}><ColumnsIcon /><span><strong>Two columns</strong><small>Compare ideas side by side</small></span></button>
-          <button type="button" className="reviewer-column-option" onMouseDown={event => event.preventDefault()} onClick={event => { insertColumns(3); closePalette(event.currentTarget) }}><ColumnsIcon /><span><strong>Three columns</strong><small>Organize compact study notes</small></span></button>
-          <p>Insert table</p>
-          <div className="reviewer-table-presets"><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run(); closePalette(event.currentTarget) }}>2 × 2</button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); closePalette(event.currentTarget) }}>3 × 3</button></div>
-          {editor.isActive('table') && <><p>Edit current table</p><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().addRowAfter().run(); closePalette(event.currentTarget) }}><span><strong>Add row below</strong><small>Extend the current table</small></span></button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().addColumnAfter().run(); closePalette(event.currentTarget) }}><span><strong>Add column right</strong><small>Extend the current table</small></span></button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().deleteRow().run(); closePalette(event.currentTarget) }}><span><strong>Delete row</strong></span></button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().deleteColumn().run(); closePalette(event.currentTarget) }}><span><strong>Delete column</strong></span></button><button type="button" className="is-danger" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().deleteTable().run(); closePalette(event.currentTarget) }}><span><strong>Delete table</strong></span></button></>}
-        </div>
-      </details>
+      <details className="reviewer-structure-menu reviewer-columns-menu"><summary aria-label="Insert columns" title="Insert columns"><ColumnsIcon /></summary><div className="reviewer-structure-options"><p>Columns</p><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { insertColumns(2); closePalette(event.currentTarget) }}><ColumnsIcon /><span><strong>Two columns</strong><small>Compare ideas side by side</small></span></button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { insertColumns(3); closePalette(event.currentTarget) }}><ColumnsIcon /><span><strong>Three columns</strong><small>Organize compact study notes</small></span></button></div></details>
+      <details className={`reviewer-structure-menu${editor.isActive('table') ? ' is-active' : ''}`}><summary aria-label="Insert table" title="Insert table"><TableIcon /></summary><div className="reviewer-structure-options reviewer-table-options"><p>Insert table</p><div className="reviewer-table-presets"><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: true }).run(); closePalette(event.currentTarget) }}>2 × 2</button><button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); closePalette(event.currentTarget) }}>3 × 3</button></div></div></details>
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-page-color">
       <details className={`reviewer-swatch-palette${activePageColor ? ' is-active' : ''}`}><summary aria-label="Reviewer page color" title="Reviewer page color"><PageColorIcon /></summary><div className="reviewer-swatch-grid" role="group" aria-label="Reviewer page colors">{pageSwatches.map(([name, value]) => <button key={value} type="button" className={`reviewer-swatch${activePageColor === value ? ' is-selected' : ''}`} aria-label={`${name} page`} title={name} style={{ '--swatch-color': value } as CSSProperties} onMouseDown={event => event.preventDefault()} onClick={event => { setPageColor(value); closePalette(event.currentTarget) }}><span /></button>)}<button type="button" className="reviewer-swatch-none" onMouseDown={event => event.preventDefault()} onClick={event => { setPageColor(null); closePalette(event.currentTarget) }}>Default page</button></div></details>
@@ -349,6 +359,31 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
     </div>
     </div>
   </details>
+}
+
+function TableContextMenu({ editor }: { editor: Editor | null }) {
+  if (!editor) return null
+  const run = (action: () => void) => action()
+  return <BubbleMenu
+    editor={editor}
+    pluginKey="reviewer-table-menu"
+    updateDelay={0}
+    resizeDelay={60}
+    shouldShow={({ editor: activeEditor }) => activeEditor.isEditable && activeEditor.isActive('table')}
+    options={{ placement: 'top', offset: 9, flip: true, shift: { padding: 12 } }}
+    className="reviewer-table-context"
+    role="toolbar"
+    aria-label="Selected table cell actions"
+  >
+    <span className="reviewer-table-context-label">Table</span>
+    <button type="button" title="Add row below" aria-label="Add row below" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().addRowAfter().run() })}>Row <strong>+</strong></button>
+    <button type="button" title="Delete selected row" aria-label="Delete selected row" disabled={!editor.can().deleteRow()} onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteRow().run() })}>Row <strong>−</strong></button>
+    <span className="reviewer-table-context-divider" aria-hidden="true" />
+    <button type="button" title="Add column to the right" aria-label="Add column to the right" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().addColumnAfter().run() })}>Column <strong>+</strong></button>
+    <button type="button" title="Delete selected column" aria-label="Delete selected column" disabled={!editor.can().deleteColumn()} onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteColumn().run() })}>Column <strong>−</strong></button>
+    <span className="reviewer-table-context-divider" aria-hidden="true" />
+    <button type="button" className="is-danger" title="Delete table" aria-label="Delete table" onMouseDown={event => event.preventDefault()} onClick={() => run(() => { editor.chain().focus().deleteTable().run() })}>Delete table</button>
+  </BubbleMenu>
 }
 
 function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChange }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onSaved: (reviewer: Reviewer) => void; onClose: () => void; onPageColorChange: (pageColor: string) => void }) {
@@ -387,6 +422,7 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
     </header>
     <div className="reviewer-edit-subject"><span className="reviewer-field-label">Subject</span><CaliSelect ariaLabel="Reviewer subject" className="cali-select--subject" value={subjectId} options={subjectOptions} onChange={nextValue => { setSubjectId(nextValue); markDirty() }} /></div>
     <Toolbar editor={editor} onPageColorChange={color => { setPageColor(color); onPageColorChange(color) }} />
+    <TableContextMenu editor={editor} />
     <DocumentView content={reviewer.content} editable onEditor={setEditor} pageColorOverride={pageColor} />
   </section>
 }
