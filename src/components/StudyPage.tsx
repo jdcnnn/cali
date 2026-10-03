@@ -160,11 +160,11 @@ function CaliSelect({ value, options, onChange, ariaLabel, className = '', leadi
   </div>
 }
 
-function DocumentView({ content, editable = false, onEditor }: { content: JSONContent; editable?: boolean; onEditor?: (editor: Editor) => void }) {
+function DocumentView({ content, editable = false, onEditor, pageColorOverride }: { content: JSONContent; editable?: boolean; onEditor?: (editor: Editor) => void; pageColorOverride?: string }) {
   const editor = useEditor({ extensions: editorExtensions, content, editable, immediatelyRender: false })
   useEffect(() => { if (editor) onEditor?.(editor) }, [editor, onEditor])
   useEffect(() => { if (editor && !editable && JSON.stringify(editor.getJSON()) !== JSON.stringify(content)) editor.commands.setContent(content) }, [content, editable, editor])
-  const pageColor = String(editor?.state.doc.attrs.pageColor ?? content.attrs?.pageColor ?? '')
+  const pageColor = pageColorOverride ?? String(editor?.state.doc.attrs.pageColor ?? content.attrs?.pageColor ?? '')
   return <EditorContent editor={editor} className={`${editable ? 'reviewer-editor-content' : 'reviewer-document'}${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties} />
 }
 
@@ -282,6 +282,7 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
 function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChange }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onSaved: (reviewer: Reviewer) => void; onClose: () => void; onPageColorChange: (pageColor: string) => void }) {
   const [title, setTitle] = useState(reviewer.title)
   const [subjectId, setSubjectId] = useState(reviewer.subject_id ?? '')
+  const [pageColor, setPageColor] = useState(String(reviewer.content.attrs?.pageColor ?? ''))
   const [editor, setEditor] = useState<Editor | null>(null)
   const [status, setStatus] = useState<'saved' | 'dirty' | 'saving' | 'error'>('saved')
   const revision = useRef(reviewer.revision)
@@ -302,7 +303,6 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
   useEffect(() => { if (status !== 'dirty') return; const timer = window.setTimeout(() => { void save() }, 1200); return () => window.clearTimeout(timer) }, [save, status])
   useEffect(() => { if (!editor) return; editor.on('update', markDirty); return () => { editor.off('update', markDirty) } }, [editor, markDirty])
   const finish = async () => { if (await save()) onClose() }
-  const pageColor = String(editor?.state.doc.attrs.pageColor ?? reviewer.content.attrs?.pageColor ?? '')
   const subjectOptions: CaliSelectOption[] = [{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title, triggerLabel: `${subject.subject_code} — ${subject.title}` }))]
   return <section className={`reviewer-edit-shell${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties}>
     <header>
@@ -314,8 +314,8 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
       <div className="reviewer-edit-actions"><button type="button" className="button-primary" disabled={status === 'saving' || !title.trim()} onClick={() => { void finish() }}>Done</button></div>
     </header>
     <div className="reviewer-edit-subject"><span className="reviewer-field-label">Subject</span><CaliSelect ariaLabel="Reviewer subject" className="cali-select--subject" value={subjectId} options={subjectOptions} onChange={nextValue => { setSubjectId(nextValue); markDirty() }} /></div>
-    <Toolbar editor={editor} onPageColorChange={onPageColorChange} />
-    <DocumentView content={reviewer.content} editable onEditor={setEditor} />
+    <Toolbar editor={editor} onPageColorChange={color => { setPageColor(color); onPageColorChange(color) }} />
+    <DocumentView content={reviewer.content} editable onEditor={setEditor} pageColorOverride={pageColor} />
   </section>
 }
 
@@ -346,7 +346,6 @@ export function StudyPage({ studentId }: { studentId: string }) {
   const [pageColorOverride, setPageColorOverride] = useState<{ reviewerId: string; color: string } | null>(null)
   const createRef = useRef<HTMLDialogElement>(null)
   const selected = reviewers.find(reviewer => reviewer.id === params.get('reviewer')) ?? null
-  const selectedId = selected?.id ?? ''
   const editing = params.get('edit') === '1'
   const selectedStoredPageColor = String(selected?.content.attrs?.pageColor ?? '')
   const selectedPageColor = selected && pageColorOverride?.reviewerId === selected.id ? pageColorOverride.color : selectedStoredPageColor
@@ -363,17 +362,6 @@ export function StudyPage({ studentId }: { studentId: string }) {
   useEffect(() => { void load() }, [load])
   useEffect(() => { if (params.get('new') === 'manual') createRef.current?.showModal(); else createRef.current?.close() }, [params])
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 4500); return () => window.clearTimeout(timer) }, [notice])
-  useEffect(() => {
-    const workspace = document.querySelector<HTMLElement>('.workspace-content')
-    if (!workspace || !selectedId || !selectedPageColor) return
-    const contrastClass = selectedUsesLightForeground ? 'workspace-content--reviewer-light-foreground' : 'workspace-content--reviewer-dark-foreground'
-    workspace.classList.add('workspace-content--reviewer-color', contrastClass)
-    workspace.style.setProperty('--reviewer-workspace-color', selectedPageColor)
-    return () => {
-      workspace.classList.remove('workspace-content--reviewer-color', contrastClass)
-      workspace.style.removeProperty('--reviewer-workspace-color')
-    }
-  }, [selectedId, selectedPageColor, selectedUsesLightForeground])
   const visible = useMemo(() => reviewers.filter(reviewer => reviewerMatches(reviewer, query, subjectFilter)), [query, reviewers, subjectFilter])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
   const subjectOptions = useMemo<CaliSelectOption[]>(() => [{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title, triggerLabel: `${subject.subject_code} — ${subject.title}` }))], [subjects])
