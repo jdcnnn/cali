@@ -145,7 +145,7 @@
 .reviewer-document .tiptap :is(th, td) > :first-child, .reviewer-editor-content .tiptap :is(th, td) > :first-child { margin-top: 0; }
 .reviewer-document .tiptap :is(th, td) > :last-child, .reviewer-editor-content .tiptap :is(th, td) > :last-child { margin-bottom: 0; }
 .reviewer-editor-content .tiptap .selectedCell::after { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: color-mix(in srgb, var(--color-cali-accent) 16%, transparent); content: ''; }
-.reviewer-editor-content .tiptap .column-resize-handle { position: absolute; z-index: 3; top: 0; right: -2px; bottom: -1px; width: 4px; pointer-events: none; background: var(--color-cali-accent); }
+.reviewer-editor-content .tiptap .column-resize-handle { position: absolute; z-index: 3; top: 0; right: -1px; bottom: -1px; width: 1px; pointer-events: none; background: currentColor; opacity: .28; }
 .reviewer-editor-content .tiptap.resize-cursor { cursor: col-resize; }
 .reviewer-editor-content .tiptap.is-table-row-resize-ready, .reviewer-editor-content .tiptap.is-resizing-table-row { cursor: row-resize; }
 .reviewer-editor-content .tiptap.is-resizing-table-row { user-select: none; }
