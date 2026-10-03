@@ -54,13 +54,17 @@
 .reviewer-preview-line--list { position: relative; padding-left: 14px; }
 .reviewer-preview-line--list::before { position: absolute; top: .58em; left: 2px; width: 4px; height: 4px; border-radius: 50%; background: currentColor; content: ''; }
 .reviewer-preview-line--list.is-checked { opacity: .62; text-decoration: line-through; }
-.reviewer-preview-line--table { justify-self: start; padding: 4px 8px; border-radius: 7px; background: var(--color-cali-pale); color: var(--color-cali-action-text); font-size: 9px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.reviewer-preview-table { display: grid; grid-template-columns: repeat(var(--preview-columns), minmax(0, 1fr)); overflow: hidden; border: 1px solid color-mix(in srgb, var(--color-cali-border) 88%, transparent); border-radius: 7px; background: color-mix(in srgb, var(--color-cali-surface) 78%, transparent); }
+.reviewer-preview-table > span { min-width: 0; min-height: 22px; padding: 4px 6px; overflow: hidden; border-right: 1px solid color-mix(in srgb, var(--color-cali-border) 78%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--color-cali-border) 78%, transparent); color: var(--color-cali-slate); font-size: 8px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.reviewer-preview-table > span.is-header { background: var(--color-cali-pale); color: var(--color-cali-ink); font-weight: 800; }
 .reviewer-preview-line--empty { color: var(--color-cali-slate); font-style: italic; }
 .reviewer-preview-card.has-page-color .reviewer-preview-content { border-color: var(--reviewer-border); }
 .reviewer-preview-card.has-page-color .reviewer-preview-content::after { background: linear-gradient(transparent, var(--reviewer-page-color)); }
 .reviewer-preview-card.has-page-color .reviewer-preview-line { color: var(--reviewer-muted); }
 .reviewer-preview-card.has-page-color .reviewer-preview-line--heading { color: var(--reviewer-ink); }
-.reviewer-preview-card.has-page-color .reviewer-preview-line--table { background: var(--reviewer-control-surface); color: var(--reviewer-accent); }
+.reviewer-preview-card.has-page-color .reviewer-preview-table { border-color: var(--reviewer-border); background: color-mix(in srgb, var(--reviewer-page-color) 88%, var(--reviewer-ink)); }
+.reviewer-preview-card.has-page-color .reviewer-preview-table > span { border-color: var(--reviewer-border); color: var(--reviewer-muted); }
+.reviewer-preview-card.has-page-color .reviewer-preview-table > span.is-header { background: var(--reviewer-control-surface); color: var(--reviewer-ink); }
 .reviewer-empty-list { grid-column: 1 / -1; padding: 55px 20px; text-align: center; }
 .reviewer-empty-list strong { display: block; font: 500 25px 'Fredoka', sans-serif; }
 .reviewer-empty-list p { max-width: 430px; margin: 9px auto 18px; color: var(--color-cali-slate); font-size: 13px; line-height: 1.55; }
@@ -135,7 +139,7 @@
 .reviewer-document .tiptap [data-reviewer-column] > :first-child, .reviewer-editor-content .tiptap [data-reviewer-column] > :first-child { margin-top: 0; }
 .reviewer-document .tiptap [data-reviewer-column] > :last-child, .reviewer-editor-content .tiptap [data-reviewer-column] > :last-child { margin-bottom: 0; }
 .reviewer-document .tiptap .tableWrapper, .reviewer-editor-content .tiptap .tableWrapper { margin: 1.15em 0; overflow-x: auto; overscroll-behavior-inline: contain; border: 1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius: 12px; background: color-mix(in srgb, currentColor 2.5%, transparent); scrollbar-color: color-mix(in srgb, currentColor 25%, transparent) transparent; }
-.reviewer-document .tiptap table, .reviewer-editor-content .tiptap table { width: 100%; min-width: 440px; border-collapse: collapse; table-layout: fixed; }
+.reviewer-document .tiptap table, .reviewer-editor-content .tiptap table { width: 100% !important; min-width: 440px; border-collapse: collapse; table-layout: fixed; }
 .reviewer-document .tiptap :is(th, td), .reviewer-editor-content .tiptap :is(th, td) { position: relative; min-width: 100px; padding: 10px 12px; border: 1px solid color-mix(in srgb, currentColor 18%, transparent); vertical-align: top; }
 .reviewer-document .tiptap th, .reviewer-editor-content .tiptap th { background: color-mix(in srgb, currentColor 8%, transparent); font-weight: 800; text-align: left; }
 .reviewer-document .tiptap :is(th, td) > :first-child, .reviewer-editor-content .tiptap :is(th, td) > :first-child { margin-top: 0; }

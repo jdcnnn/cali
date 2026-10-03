@@ -21,7 +21,9 @@ import './study.css'
 import './skeleton.css'
 
 type Notice = { kind: 'error' | 'success'; text: string } | null
-type ReviewerPreviewBlock = { kind: 'heading' | 'text' | 'list' | 'table'; text: string; checked?: boolean }
+type ReviewerPreviewBlock =
+  | { kind: 'heading' | 'text' | 'list'; text: string; checked?: boolean }
+  | { kind: 'table'; rows: string[][] }
 
 function reviewerNodeText(node: JSONContent): string {
   if (node.text) return node.text
@@ -30,7 +32,7 @@ function reviewerNodeText(node: JSONContent): string {
 
 function reviewerPreviewBlocks(content: JSONContent): ReviewerPreviewBlock[] {
   const blocks: ReviewerPreviewBlock[] = []
-  const add = (block: ReviewerPreviewBlock) => {
+  const add = (block: Exclude<ReviewerPreviewBlock, { kind: 'table' }>) => {
     const text = block.text.replace(/\s+/g, ' ').trim()
     if (text && blocks.length < 5) blocks.push({ ...block, text })
   }
@@ -43,11 +45,8 @@ function reviewerPreviewBlocks(content: JSONContent): ReviewerPreviewBlock[] {
       return
     }
     if (node.type === 'table') {
-      const rows = node.content ?? []
-      const columnCount = rows[0]?.content?.length ?? 0
-      add({ kind: 'table', text: `${rows.length} rows × ${columnCount} columns` })
-      const firstRow = rows[0]?.content?.map(reviewerNodeText).filter(Boolean).join(' · ')
-      if (firstRow) add({ kind: 'text', text: firstRow })
+      const rows = (node.content ?? []).slice(0, 3).map(row => (row.content ?? []).slice(0, 3).map(cell => reviewerNodeText(cell)))
+      if (rows.length && rows[0]?.length && blocks.length < 5) blocks.push({ kind: 'table', rows })
       return
     }
     for (const child of node.content ?? []) visit(child)
@@ -686,7 +685,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
           style={pageColor ? { '--reviewer-preview-page-color': pageColor } as CSSProperties : undefined}
           aria-label={`Open ${reviewer.title}`}
           onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}
-        ><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><span className="reviewer-preview-content" aria-hidden="true">{previewBlocks.length ? previewBlocks.map((block, index) => <span key={`${block.kind}-${index}`} className={`reviewer-preview-line reviewer-preview-line--${block.kind}${block.checked ? ' is-checked' : ''}`}>{block.text}</span>) : <span className="reviewer-preview-line reviewer-preview-line--empty">This reviewer is ready for your notes.</span>}</span></button>
+        ><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><span className="reviewer-preview-content" aria-hidden="true">{previewBlocks.length ? previewBlocks.map((block, index) => block.kind === 'table' ? <span key={`table-${index}`} className="reviewer-preview-table" style={{ '--preview-columns': block.rows[0]?.length ?? 1 } as CSSProperties}>{block.rows.flatMap((row, rowIndex) => row.map((cell, cellIndex) => <span key={`${rowIndex}-${cellIndex}`} className={rowIndex === 0 ? 'is-header' : ''}>{cell || '\u00a0'}</span>))}</span> : <span key={`${block.kind}-${index}`} className={`reviewer-preview-line reviewer-preview-line--${block.kind}${block.checked ? ' is-checked' : ''}`}>{block.text}</span>) : <span className="reviewer-preview-line reviewer-preview-line--empty">This reviewer is ready for your notes.</span>}</span></button>
       }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div>
     </section>
     <dialog ref={createRef} className="study-dialog study-create-dialog" onCancel={event => { event.preventDefault(); navigate({ new: null }) }}><form onSubmit={createReviewer} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Start with a blank page</h2><p>Give it a clear title. You can change the subject anytime.</p></div><button type="button" className="study-dialog-close" onClick={() => navigate({ new: null })}><CloseIcon /></button></header><div className="study-form-grid"><label className="study-field study-field--wide"><span>Title <small>{newTitle.length}/160</small></span><input autoFocus required maxLength={160} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Example: Midterm reviewer" /></label><div className="study-field study-field--wide"><span>Subject</span><CaliSelect ariaLabel="New reviewer subject" className="cali-select--form" value={newSubject} options={subjectOptions} onChange={setNewSubject} /></div></div><footer><button type="button" className="study-secondary" onClick={() => navigate({ new: null })}>Cancel</button><button type="submit" className="button-primary" disabled={creating || !newTitle.trim()}>{creating ? 'Creating…' : 'Create reviewer'}</button></footer></form></dialog>
