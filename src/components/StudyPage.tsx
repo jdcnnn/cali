@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useEditor, EditorContent, Extension, Node as TiptapNode } from '@tiptap/react'
+import { useEditor, useEditorState, EditorContent, Extension, Node as TiptapNode } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Color } from '@tiptap/extension-color'
@@ -324,8 +324,40 @@ function DocumentView({ content, editable = false, onEditor, pageColorOverride }
   return <EditorContent editor={editor} className={`${editable ? 'reviewer-editor-content' : 'reviewer-document'}${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties} />
 }
 
+function FontSizeInput({ value, onChange }: { value: number; onChange: (size: number) => void }) {
+  const [inputValue, setInputValue] = useState(String(value))
+  const focused = useRef(false)
+  useEffect(() => { if (!focused.current) setInputValue(String(value)) }, [value])
+  const apply = (rawValue: string) => {
+    const nextSize = Number(rawValue)
+    if (Number.isFinite(nextSize) && nextSize >= 8 && nextSize <= 72) onChange(nextSize)
+  }
+  return <input
+    type="number"
+    min="8"
+    max="72"
+    inputMode="numeric"
+    value={inputValue}
+    aria-label="Font size in pixels"
+    title="Font size"
+    onFocus={event => { focused.current = true; event.currentTarget.select() }}
+    onChange={event => { setInputValue(event.currentTarget.value); apply(event.currentTarget.value) }}
+    onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur() } }}
+    onBlur={() => {
+      focused.current = false
+      const nextSize = Number(inputValue)
+      if (Number.isFinite(nextSize) && nextSize >= 8 && nextSize <= 72) onChange(nextSize)
+      else setInputValue(String(value))
+    }}
+  />
+}
+
 function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageColorChange?: (pageColor: string) => void }) {
   const [toolbarOpen, setToolbarOpen] = useState(() => typeof window === 'undefined' || window.matchMedia('(min-width: 761px)').matches)
+  const selectedFontSize = useEditorState({
+    editor,
+    selector: ({ editor: activeEditor }) => Number(activeEditor?.getAttributes('textStyle').fontSize ?? 16),
+  })
   useEffect(() => {
     const desktopQuery = window.matchMedia('(min-width: 761px)')
     const syncToolbar = () => setToolbarOpen(desktopQuery.matches)
@@ -339,7 +371,7 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
   const blockAttributes = editor.getAttributes(blockName)
   const indent = Number(blockAttributes.indent ?? 0)
   const lineHeight = String(blockAttributes.lineHeight ?? '1.75')
-  const fontSize = Number(editor.getAttributes('textStyle').fontSize ?? 16)
+  const fontSize = Number(selectedFontSize ?? 16)
   const setFontSize = (size: number) => {
     if (!Number.isFinite(size)) return
     const nextSize = Math.max(8, Math.min(72, Math.round(size)))
@@ -411,26 +443,7 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
     <div className="reviewer-toolbar" aria-label="Reviewer formatting">
     <div className="reviewer-toolbar-group reviewer-toolbar-style"><CaliSelect ariaLabel="Text style" className="cali-select--toolbar cali-select--text-style" value={blockType} options={textStyleOptions} onChange={nextValue => { if (nextValue === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (nextValue === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }} /></div>
     <div className="reviewer-toolbar-group reviewer-font-size">
-      <input
-        type="number"
-        min="8"
-        max="72"
-        inputMode="numeric"
-        defaultValue={fontSize}
-        aria-label="Font size in pixels"
-        title="Font size"
-        onFocus={event => event.currentTarget.select()}
-        onChange={event => {
-          const nextSize = Number(event.currentTarget.value)
-          if (Number.isFinite(nextSize) && nextSize >= 8 && nextSize <= 72) setFontSize(nextSize)
-        }}
-        onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur() } }}
-        onBlur={event => {
-          const nextSize = Number(event.currentTarget.value)
-          if (Number.isFinite(nextSize) && nextSize >= 8 && nextSize <= 72) setFontSize(nextSize)
-          else event.currentTarget.value = String(fontSize)
-        }}
-      />
+      <FontSizeInput value={fontSize} onChange={setFontSize} />
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-format">
       {button('Bold', editor.isActive('bold'), () => { editor.chain().focus().toggleBold().run() }, <strong>B</strong>)}
