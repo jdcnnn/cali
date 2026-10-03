@@ -110,6 +110,55 @@ function TextColorIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="c
 function MarkerIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14 4 6 6-9 9H5v-6Z" /><path d="m11 7 6 6M4 21h16" /></svg> }
 function ItalicIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M10 5h8M6 19h8M14 5 10 19" /></svg> }
 function PageColorIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6Z" /><path d="M15 3v5h5M9 16h7" /></svg> }
+function LineSpacingIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 6h11M8 12h11M8 18h11M4 5v14M2 7l2-2 2 2M2 17l2 2 2-2" /></svg> }
+function SelectChevronIcon() { return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg> }
+
+type CaliSelectOption = { value: string; label: string; detail?: string; triggerLabel?: string }
+
+function CaliSelect({ value, options, onChange, ariaLabel, className = '', leading }: { value: string; options: CaliSelectOption[]; onChange: (value: string) => void; ariaLabel: string; className?: string; leading?: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const selected = options.find(option => option.value === value) ?? options[0]
+  const selectedIndex = Math.max(0, options.findIndex(option => option.value === value))
+  useEffect(() => {
+    if (!open) return
+    const closeOutside = (event: PointerEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false) }
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); triggerRef.current?.focus() } }
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => { document.removeEventListener('pointerdown', closeOutside); document.removeEventListener('keydown', closeOnEscape) }
+  }, [open])
+  const openAndFocus = (index: number) => {
+    setOpen(true)
+    window.requestAnimationFrame(() => optionRefs.current[index]?.focus())
+  }
+  return <div ref={rootRef} className={`cali-select${open ? ' is-open' : ''}${className ? ` ${className}` : ''}`}>
+    <button ref={triggerRef} type="button" className="cali-select-trigger" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(current => !current)} onKeyDown={event => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); openAndFocus(event.key === 'ArrowDown' ? selectedIndex : Math.max(0, selectedIndex - 1)) }
+    }}>
+      {leading && <span className="cali-select-leading">{leading}</span>}
+      <span className="cali-select-value">{selected?.triggerLabel ?? selected?.label}</span>
+      <SelectChevronIcon />
+    </button>
+    {open && <div className="cali-select-options" role="listbox" aria-label={ariaLabel}>
+      {options.map((option, index) => <button
+        ref={element => { optionRefs.current[index] = element }}
+        key={option.value || 'default'}
+        type="button"
+        role="option"
+        aria-selected={option.value === value}
+        className={option.value === value ? 'is-selected' : ''}
+        onClick={() => { onChange(option.value); setOpen(false); triggerRef.current?.focus() }}
+        onKeyDown={event => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); const change = event.key === 'ArrowDown' ? 1 : -1; optionRefs.current[(index + change + options.length) % options.length]?.focus() }
+          if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); optionRefs.current[event.key === 'Home' ? 0 : options.length - 1]?.focus() }
+        }}
+      ><span><strong>{option.label}</strong>{option.detail && <small>{option.detail}</small>}</span><span className="cali-select-check" aria-hidden="true">✓</span></button>)}
+    </div>}
+  </div>
+}
 
 function DocumentView({ content, editable = false, onEditor }: { content: JSONContent; editable?: boolean; onEditor?: (editor: Editor) => void }) {
   const editor = useEditor({ extensions: editorExtensions, content, editable, immediatelyRender: false })
@@ -166,6 +215,14 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
   const activeFontColor = String(editor.getAttributes('textStyle').color ?? '').toUpperCase()
   const activeMarkerColor = String(editor.getAttributes('highlight').color ?? '').toUpperCase()
   const activePageColor = String(editor.state.doc.attrs.pageColor ?? '').toUpperCase()
+  const textStyleOptions: CaliSelectOption[] = [{ value: 'p', label: 'Normal text' }, { value: 'h2', label: 'Heading' }, { value: 'h3', label: 'Subheading' }]
+  const lineSpacingOptions: CaliSelectOption[] = [
+    { value: '1', label: 'Single', detail: '1.0', triggerLabel: '1.0' },
+    { value: '1.15', label: 'Standard', detail: '1.15', triggerLabel: '1.15' },
+    { value: '1.5', label: 'Relaxed', detail: '1.5', triggerLabel: '1.5' },
+    { value: '1.75', label: 'Comfortable', detail: '1.75', triggerLabel: '1.75' },
+    { value: '2', label: 'Double', detail: '2.0', triggerLabel: '2.0' },
+  ]
   const pageSwatches = [
     ...markerSwatches.slice(0, 16),
     ['Cali ink', '#12384D'], ['Deep ocean', '#0B4F6C'], ['Navy', '#172B4D'], ['Teal', '#145A5A'],
@@ -185,7 +242,7 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
   >
     <summary><span><strong aria-hidden="true">Aa</strong> Formatting tools</span><small><span className="is-collapsed">Tap to expand</span><span className="is-expanded">Tap to collapse</span></small></summary>
     <div className="reviewer-toolbar" aria-label="Reviewer formatting">
-    <div className="reviewer-toolbar-group reviewer-toolbar-style"><select aria-label="Text style" value={blockType} onChange={event => { if (event.target.value === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (event.target.value === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }}><option value="p">Normal text</option><option value="h2">Heading</option><option value="h3">Subheading</option></select></div>
+    <div className="reviewer-toolbar-group reviewer-toolbar-style"><CaliSelect ariaLabel="Text style" className="cali-select--toolbar cali-select--text-style" value={blockType} options={textStyleOptions} onChange={nextValue => { if (nextValue === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (nextValue === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }} /></div>
     <div className="reviewer-toolbar-group reviewer-font-size">
       {button('Decrease font size', false, () => setFontSize(fontSize - 1), <span aria-hidden="true">−</span>, fontSize <= 8)}
       <input key={`font-size-${fontSize}`} type="number" min="8" max="72" defaultValue={fontSize} aria-label="Font size" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); setFontSize(event.currentTarget.value ? Number(event.currentTarget.value) : fontSize); event.currentTarget.blur() } }} onBlur={event => setFontSize(event.currentTarget.value ? Number(event.currentTarget.value) : fontSize)} />
@@ -207,7 +264,7 @@ function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageC
       {button('Increase indent', false, () => adjustIndent(1), <IndentIcon />)}
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-paragraph">
-      <label className="reviewer-line-height" title="Line spacing"><span aria-hidden="true">↕</span><select aria-label="Line spacing" value={lineHeight} onChange={event => setBlockAttribute({ lineHeight: event.target.value })}><option value="1">1.0</option><option value="1.15">1.15</option><option value="1.5">1.5</option><option value="1.75">1.75</option><option value="2">2.0</option></select></label>
+      <CaliSelect ariaLabel="Line spacing" className="cali-select--toolbar cali-select--line-spacing" leading={<LineSpacingIcon />} value={lineHeight} options={lineSpacingOptions} onChange={nextValue => setBlockAttribute({ lineHeight: nextValue })} />
       {button('Bulleted list', editor.isActive('bulletList'), () => { editor.chain().focus().toggleBulletList().run() }, <ListIcon />)}
       {button('Numbered list', editor.isActive('orderedList'), () => { editor.chain().focus().toggleOrderedList().run() }, <ListIcon ordered />)}
     </div>
@@ -246,6 +303,7 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
   useEffect(() => { if (!editor) return; editor.on('update', markDirty); return () => { editor.off('update', markDirty) } }, [editor, markDirty])
   const finish = async () => { if (await save()) onClose() }
   const pageColor = String(editor?.state.doc.attrs.pageColor ?? reviewer.content.attrs?.pageColor ?? '')
+  const subjectOptions: CaliSelectOption[] = [{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title, triggerLabel: `${subject.subject_code} — ${subject.title}` }))]
   return <section className={`reviewer-edit-shell${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties}>
     <header>
       <div className="reviewer-edit-heading">
@@ -255,7 +313,7 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
       </div>
       <div className="reviewer-edit-actions"><button type="button" className="button-primary" disabled={status === 'saving' || !title.trim()} onClick={() => { void finish() }}>Done</button></div>
     </header>
-    <div className="reviewer-edit-subject"><label>Subject <select value={subjectId} onChange={event => { setSubjectId(event.target.value); markDirty() }}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div>
+    <div className="reviewer-edit-subject"><span className="reviewer-field-label">Subject</span><CaliSelect ariaLabel="Reviewer subject" className="cali-select--subject" value={subjectId} options={subjectOptions} onChange={nextValue => { setSubjectId(nextValue); markDirty() }} /></div>
     <Toolbar editor={editor} onPageColorChange={onPageColorChange} />
     <DocumentView content={reviewer.content} editable onEditor={setEditor} />
   </section>
@@ -318,6 +376,8 @@ export function StudyPage({ studentId }: { studentId: string }) {
   }, [selectedId, selectedPageColor, selectedUsesLightForeground])
   const visible = useMemo(() => reviewers.filter(reviewer => reviewerMatches(reviewer, query, subjectFilter)), [query, reviewers, subjectFilter])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
+  const subjectOptions = useMemo<CaliSelectOption[]>(() => [{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title, triggerLabel: `${subject.subject_code} — ${subject.title}` }))], [subjects])
+  const subjectFilterOptions = useMemo<CaliSelectOption[]>(() => [{ value: '', label: 'All subjects' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title }))], [subjects])
   const navigate = (changes: Record<string, string | null>) => { const next = new URLSearchParams(params); for (const [key, value] of Object.entries(changes)) { if (value === null) next.delete(key); else next.set(key, value) } setParams(next) }
   const createReviewer = async (event: FormEvent) => {
     event.preventDefault(); if (!supabase || !newTitle.trim()) return; setCreating(true)
@@ -366,7 +426,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
     {noticeBanner}
     <section className="reviewer-library" aria-label="Reviewer library">
       <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>Your reviewers</h2></div></div>
-      <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers" aria-label="Search reviewers" /></label><select value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)} aria-label="Filter by subject"><option value="">All subjects</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code}</option>)}</select></div>
+      <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers" aria-label="Search reviewers" /></label><CaliSelect ariaLabel="Filter by subject" className="cali-select--filter" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /></div>
       <div className="reviewer-list">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(reviewer => {
         const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null
         const pageColor = String(reviewer.content.attrs?.pageColor ?? '')
@@ -381,6 +441,6 @@ export function StudyPage({ studentId }: { studentId: string }) {
         ><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><p>{reviewer.plain_text || 'This reviewer is ready for your notes.'}</p></button>
       }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div>
     </section>
-    <dialog ref={createRef} className="study-dialog study-create-dialog" onCancel={event => { event.preventDefault(); navigate({ new: null }) }}><form onSubmit={createReviewer} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Start with a blank page</h2><p>Give it a clear title. You can change the subject anytime.</p></div><button type="button" className="study-dialog-close" onClick={() => navigate({ new: null })}><CloseIcon /></button></header><div className="study-form-grid"><label className="study-field study-field--wide"><span>Title <small>{newTitle.length}/160</small></span><input autoFocus required maxLength={160} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Example: Midterm reviewer" /></label><label className="study-field study-field--wide"><span>Subject</span><select value={newSubject} onChange={event => setNewSubject(event.target.value)}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><footer><button type="button" className="study-secondary" onClick={() => navigate({ new: null })}>Cancel</button><button type="submit" className="button-primary" disabled={creating || !newTitle.trim()}>{creating ? 'Creating…' : 'Create reviewer'}</button></footer></form></dialog>
+    <dialog ref={createRef} className="study-dialog study-create-dialog" onCancel={event => { event.preventDefault(); navigate({ new: null }) }}><form onSubmit={createReviewer} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Start with a blank page</h2><p>Give it a clear title. You can change the subject anytime.</p></div><button type="button" className="study-dialog-close" onClick={() => navigate({ new: null })}><CloseIcon /></button></header><div className="study-form-grid"><label className="study-field study-field--wide"><span>Title <small>{newTitle.length}/160</small></span><input autoFocus required maxLength={160} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Example: Midterm reviewer" /></label><div className="study-field study-field--wide"><span>Subject</span><CaliSelect ariaLabel="New reviewer subject" className="cali-select--form" value={newSubject} options={subjectOptions} onChange={setNewSubject} /></div></div><footer><button type="button" className="study-secondary" onClick={() => navigate({ new: null })}>Cancel</button><button type="submit" className="button-primary" disabled={creating || !newTitle.trim()}>{creating ? 'Creating…' : 'Create reviewer'}</button></footer></form></dialog>
   </section>
 }
