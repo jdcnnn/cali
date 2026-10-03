@@ -18,6 +18,7 @@ type Notice = { kind: 'error' | 'success'; text: string } | null
 
 const BlockLayout = Extension.create({
   name: 'blockLayout',
+  priority: 1000,
   addGlobalAttributes() {
     return [{
       types: ['paragraph', 'heading'],
@@ -34,6 +35,24 @@ const BlockLayout = Extension.create({
         },
       },
     }]
+  },
+  addKeyboardShortcuts() {
+    const adjustIndent = (amount: number) => {
+      if (this.editor.isActive('listItem')) {
+        if (amount > 0) this.editor.commands.sinkListItem('listItem')
+        else this.editor.commands.liftListItem('listItem')
+        return true
+      }
+      const blockName = this.editor.isActive('heading') ? 'heading' : this.editor.isActive('paragraph') ? 'paragraph' : null
+      if (!blockName) return false
+      const currentIndent = Number(this.editor.getAttributes(blockName).indent ?? 0)
+      this.editor.commands.updateAttributes(blockName, { indent: Math.max(0, Math.min(4, currentIndent + amount)) })
+      return true
+    }
+    return {
+      Tab: () => adjustIndent(1),
+      'Shift-Tab': () => adjustIndent(-1),
+    }
   },
 })
 
@@ -53,7 +72,14 @@ const FontSize = Extension.create({
   },
 })
 
-const editorExtensions = [StarterKit.configure({ heading: { levels: [2, 3] } }), TextStyle, Color, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ['heading', 'paragraph'] }), Underline, BlockLayout, FontSize]
+const PageStyle = Extension.create({
+  name: 'pageStyle',
+  addGlobalAttributes() {
+    return [{ types: ['doc'], attributes: { pageColor: { default: null } } }]
+  },
+})
+
+const editorExtensions = [StarterKit.configure({ heading: { levels: [2, 3] }, italic: { HTMLAttributes: { class: 'reviewer-italic' } } }), TextStyle, Color, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ['heading', 'paragraph'] }), Underline, BlockLayout, FontSize, PageStyle]
 
 function CloseIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg> }
 function SearchIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg> }
@@ -68,12 +94,14 @@ function UndoIcon({ redo = false }: { redo?: boolean }) { return <svg viewBox="0
 function TextColorIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="m6 17 6-13 6 13M8 13h8" /><path d="M5 21h14" /></svg> }
 function MarkerIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14 4 6 6-9 9H5v-6Z" /><path d="m11 7 6 6M4 21h16" /></svg> }
 function ItalicIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M10 5h8M6 19h8M14 5 10 19" /></svg> }
+function PageColorIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6Z" /><path d="M15 3v5h5M9 16h7" /></svg> }
 
 function DocumentView({ content, editable = false, onEditor }: { content: JSONContent; editable?: boolean; onEditor?: (editor: Editor) => void }) {
   const editor = useEditor({ extensions: editorExtensions, content, editable, immediatelyRender: false })
   useEffect(() => { if (editor) onEditor?.(editor) }, [editor, onEditor])
   useEffect(() => { if (editor && !editable && JSON.stringify(editor.getJSON()) !== JSON.stringify(content)) editor.commands.setContent(content) }, [content, editable, editor])
-  return <EditorContent editor={editor} className={editable ? 'reviewer-editor-content' : 'reviewer-document'} />
+  const pageColor = String(editor?.state.doc.attrs.pageColor ?? content.attrs?.pageColor ?? '')
+  return <EditorContent editor={editor} className={`${editable ? 'reviewer-editor-content' : 'reviewer-document'}${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties} />
 }
 
 function Toolbar({ editor }: { editor: Editor | null }) {
@@ -100,8 +128,26 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   }
   const button = (label: string, active: boolean, action: () => void, content: ReactNode, disabled = false) => <button type="button" className={active ? 'is-active' : ''} aria-label={label} title={label} disabled={disabled} onMouseDown={event => event.preventDefault()} onClick={action}>{content}</button>
   const closePalette = (target: HTMLElement) => { const palette = target.closest('details') as HTMLDetailsElement | null; if (palette) palette.open = false }
-  const markerSwatches = [{ name: 'Sun', value: '#FFF0A8' }, { name: 'Sky', value: '#BDEBFA' }, { name: 'Mint', value: '#BFEED8' }, { name: 'Coral', value: '#FFD0C7' }, { name: 'Lavender', value: '#DDD2FA' }]
-  return <div className="reviewer-toolbar" aria-label="Reviewer formatting">
+  const fontSwatches = [
+    ['Cali ink', '#12384D'], ['Ocean', '#107DAC'], ['Primary blue', '#189AD3'], ['Aqua', '#1EBBD7'], ['Teal', '#23837C'], ['Mint', '#3D8F68'],
+    ['Fern', '#63823F'], ['Gold', '#9A7308'], ['Orange', '#B8611E'], ['Coral', '#B85249'], ['Rose', '#A84F70'], ['Violet', '#735AA7'],
+    ['Black', '#111827'], ['Charcoal', '#374151'], ['Slate', '#6B7280'], ['Gray', '#9CA3AF'], ['Red', '#DC2626'], ['Tangerine', '#EA580C'],
+    ['Yellow', '#CA8A04'], ['Green', '#16A34A'], ['Cyan', '#0891B2'], ['Royal blue', '#2563EB'], ['Purple', '#7C3AED'], ['Pink', '#DB2777'],
+  ]
+  const markerSwatches = [
+    ['Soft yellow', '#FFF0A8'], ['Lemon', '#FDE68A'], ['Soft sky', '#BDEBFA'], ['Blue', '#BFDBFE'], ['Soft aqua', '#B8F1F2'], ['Soft mint', '#BFEED8'],
+    ['Green', '#BBF7D0'], ['Lime', '#D9F99D'], ['Soft coral', '#FFD0C7'], ['Peach', '#FED7AA'], ['Pink', '#FBCFE8'], ['Soft rose', '#FECDD3'],
+    ['Lavender', '#DDD2FA'], ['Purple', '#E9D5FF'], ['Cool gray', '#E2E8F0'], ['Warm gray', '#E7E5E4'], ['Bright yellow', '#FDE047'], ['Bright cyan', '#67E8F9'],
+    ['Bright green', '#86EFAC'], ['Bright orange', '#FDBA74'], ['Bright pink', '#F9A8D4'], ['Bright violet', '#C4B5FD'], ['Cali sky', '#71C7EC'], ['Cali aqua', '#1EBBD7'],
+  ]
+  const activeFontColor = String(editor.getAttributes('textStyle').color ?? '').toUpperCase()
+  const activeMarkerColor = String(editor.getAttributes('highlight').color ?? '').toUpperCase()
+  const activePageColor = String(editor.state.doc.attrs.pageColor ?? '').toUpperCase()
+  const pageSwatches = markerSwatches.slice(0, 16)
+  const setPageColor = (pageColor: string | null) => { editor.view.dispatch(editor.state.tr.setDocAttribute('pageColor', pageColor)) }
+  return <details className="reviewer-toolbar-shell">
+    <summary><span><strong aria-hidden="true">Aa</strong> Formatting tools</span><small><span className="is-collapsed">Tap to expand</span><span className="is-expanded">Tap to collapse</span></small></summary>
+    <div className="reviewer-toolbar" aria-label="Reviewer formatting">
     <div className="reviewer-toolbar-group reviewer-toolbar-style"><select aria-label="Text style" value={blockType} onChange={event => { if (event.target.value === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (event.target.value === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }}><option value="p">Normal text</option><option value="h2">Heading</option><option value="h3">Subheading</option></select></div>
     <div className="reviewer-toolbar-group reviewer-font-size">
       {button('Decrease font size', false, () => setFontSize(fontSize - 1), <span aria-hidden="true">−</span>, fontSize <= 8)}
@@ -112,8 +158,8 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       {button('Bold', editor.isActive('bold'), () => { editor.chain().focus().toggleBold().run() }, <strong>B</strong>)}
       {button('Italic', editor.isActive('italic'), () => { editor.chain().focus().toggleItalic().run() }, <ItalicIcon />)}
       {button('Underline', editor.isActive('underline'), () => { editor.chain().focus().toggleUnderline().run() }, <u>U</u>)}
-      <label className="reviewer-color-control" title="Font color"><TextColorIcon /><input type="color" aria-label="Font color" defaultValue="#12384d" onChange={event => editor.chain().focus().setColor(event.target.value).run()} /></label>
-      <details className={`reviewer-marker-palette${editor.isActive('highlight') ? ' is-active' : ''}`}><summary aria-label="Marker color" title="Marker color"><MarkerIcon /></summary><div className="reviewer-marker-swatches" role="group" aria-label="Marker colors">{markerSwatches.map(swatch => <button key={swatch.value} type="button" className="reviewer-marker-swatch" aria-label={`${swatch.name} marker`} title={swatch.name} style={{ '--marker-color': swatch.value } as CSSProperties} onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().setHighlight({ color: swatch.value }).run(); closePalette(event.currentTarget) }}><span /></button>)}<button type="button" className="reviewer-marker-none" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().unsetHighlight().run(); closePalette(event.currentTarget) }}>None</button></div></details>
+      <details className={`reviewer-swatch-palette${activeFontColor ? ' is-active' : ''}`}><summary aria-label="Font color" title="Font color"><TextColorIcon /></summary><div className="reviewer-swatch-grid" role="group" aria-label="Font colors">{fontSwatches.map(([name, value]) => <button key={value} type="button" className={`reviewer-swatch${activeFontColor === value ? ' is-selected' : ''}`} aria-label={`${name} text`} title={name} style={{ '--swatch-color': value } as CSSProperties} onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().setColor(value).run(); closePalette(event.currentTarget) }}><span /></button>)}<button type="button" className="reviewer-swatch-none" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().unsetColor().run(); closePalette(event.currentTarget) }}>Default</button></div></details>
+      <details className={`reviewer-swatch-palette${editor.isActive('highlight') ? ' is-active' : ''}`}><summary aria-label="Marker color" title="Marker color"><MarkerIcon /></summary><div className="reviewer-swatch-grid" role="group" aria-label="Marker colors">{markerSwatches.map(([name, value]) => <button key={value} type="button" className={`reviewer-swatch${activeMarkerColor === value ? ' is-selected' : ''}`} aria-label={`${name} marker`} title={name} style={{ '--swatch-color': value } as CSSProperties} onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().setHighlight({ color: value }).run(); closePalette(event.currentTarget) }}><span /></button>)}<button type="button" className="reviewer-swatch-none" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().unsetHighlight().run(); closePalette(event.currentTarget) }}>None</button></div></details>
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-alignment">
       {button('Align left', editor.isActive({ textAlign: 'left' }), () => { editor.chain().focus().setTextAlign('left').run() }, <AlignIcon direction="left" />)}
@@ -128,11 +174,15 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       {button('Bulleted list', editor.isActive('bulletList'), () => { editor.chain().focus().toggleBulletList().run() }, <ListIcon />)}
       {button('Numbered list', editor.isActive('orderedList'), () => { editor.chain().focus().toggleOrderedList().run() }, <ListIcon ordered />)}
     </div>
+    <div className="reviewer-toolbar-group reviewer-toolbar-page-color">
+      <details className={`reviewer-swatch-palette${activePageColor ? ' is-active' : ''}`}><summary aria-label="Reviewer page color" title="Reviewer page color"><PageColorIcon /></summary><div className="reviewer-swatch-grid" role="group" aria-label="Reviewer page colors">{pageSwatches.map(([name, value]) => <button key={value} type="button" className={`reviewer-swatch${activePageColor === value ? ' is-selected' : ''}`} aria-label={`${name} page`} title={name} style={{ '--swatch-color': value } as CSSProperties} onMouseDown={event => event.preventDefault()} onClick={event => { setPageColor(value); closePalette(event.currentTarget) }}><span /></button>)}<button type="button" className="reviewer-swatch-none" onMouseDown={event => event.preventDefault()} onClick={event => { setPageColor(null); closePalette(event.currentTarget) }}>Default page</button></div></details>
+    </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-history">
       {button('Undo', false, () => { editor.chain().focus().undo().run() }, <UndoIcon />, !editor.can().undo())}
       {button('Redo', false, () => { editor.chain().focus().redo().run() }, <UndoIcon redo />, !editor.can().redo())}
     </div>
-  </div>
+    </div>
+  </details>
 }
 
 function ReviewerEditor({ reviewer, subjects, onSaved, onClose }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onSaved: (reviewer: Reviewer) => void; onClose: () => void }) {
@@ -158,7 +208,8 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose }: { reviewer: Re
   useEffect(() => { if (status !== 'dirty') return; const timer = window.setTimeout(() => { void save() }, 1200); return () => window.clearTimeout(timer) }, [save, status])
   useEffect(() => { if (!editor) return; editor.on('update', markDirty); return () => { editor.off('update', markDirty) } }, [editor, markDirty])
   const finish = async () => { if (await save()) onClose() }
-  return <section className="reviewer-edit-shell"><header><div><p className="workspace-overline">EDIT REVIEWER</p><input value={title} maxLength={160} aria-label="Reviewer title" onChange={event => { setTitle(event.target.value); markDirty() }} /></div><div className="reviewer-edit-actions"><span className={`reviewer-save-state reviewer-save-state--${status}`}>{status === 'saving' ? 'Saving…' : status === 'dirty' ? 'Autosave pending' : status === 'error' ? 'Couldn’t save' : 'Saved'}</span><button type="button" className="button-primary" disabled={status === 'saving' || !title.trim()} onClick={() => { void finish() }}>Done</button></div></header><div className="reviewer-edit-subject"><label>Subject <select value={subjectId} onChange={event => { setSubjectId(event.target.value); markDirty() }}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><Toolbar editor={editor} /><DocumentView content={reviewer.content} editable onEditor={setEditor} /></section>
+  const pageColor = String(editor?.state.doc.attrs.pageColor ?? reviewer.content.attrs?.pageColor ?? '')
+  return <section className={`reviewer-edit-shell${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties}><header><div><p className="workspace-overline">EDIT REVIEWER</p><input value={title} maxLength={160} aria-label="Reviewer title" onChange={event => { setTitle(event.target.value); markDirty() }} /></div><div className="reviewer-edit-actions"><span className={`reviewer-save-state reviewer-save-state--${status}`}>{status === 'saving' ? 'Saving…' : status === 'dirty' ? 'Autosave pending' : status === 'error' ? 'Couldn’t save' : 'Saved'}</span><button type="button" className="button-primary" disabled={status === 'saving' || !title.trim()} onClick={() => { void finish() }}>Done</button></div></header><div className="reviewer-edit-subject"><label>Subject <select value={subjectId} onChange={event => { setSubjectId(event.target.value); markDirty() }}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><Toolbar editor={editor} /><DocumentView content={reviewer.content} editable onEditor={setEditor} /></section>
 }
 
 function ReviewerDeleteDialog({ reviewer, busy, error, onCancel, onConfirm }: { reviewer: Reviewer; busy: boolean; error: string; onCancel: () => void; onConfirm: () => void }) {
@@ -223,19 +274,20 @@ export function StudyPage({ studentId }: { studentId: string }) {
 
   if (selected) {
     const selectedSubject = selected.subject_id ? subjectMap.get(selected.subject_id) : null
+    const selectedPageColor = String(selected.content.attrs?.pageColor ?? '')
     return <section className="study-page study-page--reviewer">
       <nav className="reviewer-page-nav" aria-label="Reviewer navigation">
         <button type="button" className="reviewer-back" onClick={() => navigate({ reviewer: null, edit: null })}><BackIcon /> Back to library</button>
+        {!editing && <div className="reviewer-reader-actions">
+          <button type="button" className="reviewer-icon-action" aria-label="Share reviewer — coming with Cali Community" title="Sharing will be available with Cali Community" disabled><ShareIcon /></button>
+          <button type="button" className="reviewer-icon-action" aria-label="Edit reviewer" title="Edit reviewer" onClick={() => navigate({ edit: '1' })}><EditIcon /></button>
+          <details><summary aria-label="More reviewer actions" title="More actions"><MoreIcon /></summary><div><button type="button" onClick={() => { void duplicate(selected) }}>Duplicate</button><button type="button" className="is-danger" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; setDeleteError(''); setDeleteTarget(selected) }}>Delete permanently</button></div></details>
+        </div>}
       </nav>
       {noticeBanner}
-      {editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} /> : <article className="reviewer-reading">
+      {editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} /> : <article className={`reviewer-reading${selectedPageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': selectedPageColor || 'var(--color-cali-surface)' } as CSSProperties}>
         <header>
           <div><p className="workspace-overline">{selectedSubject?.subject_code ?? 'GENERAL REVIEWER'}</p><h1>{selected.title}</h1><p>Updated {formatReviewerDate(selected.updated_at)}</p></div>
-          <div className="reviewer-reader-actions">
-            <button type="button" className="reviewer-icon-action" aria-label="Edit reviewer" title="Edit reviewer" onClick={() => navigate({ edit: '1' })}><EditIcon /></button>
-            <button type="button" className="reviewer-icon-action" aria-label="Share reviewer — coming with Cali Community" title="Sharing will be available with Cali Community" disabled><ShareIcon /></button>
-            <details><summary aria-label="More reviewer actions" title="More actions"><MoreIcon /></summary><div><button type="button" onClick={() => { void duplicate(selected) }}>Duplicate</button><button type="button" className="is-danger" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; setDeleteError(''); setDeleteTarget(selected) }}>Delete permanently</button></div></details>
-          </div>
         </header>
         <DocumentView content={selected.content} />
       </article>}
@@ -250,7 +302,18 @@ export function StudyPage({ studentId }: { studentId: string }) {
     <section className="reviewer-library" aria-label="Reviewer library">
       <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>Your reviewers</h2></div></div>
       <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers" aria-label="Search reviewers" /></label><select value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)} aria-label="Filter by subject"><option value="">All subjects</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code}</option>)}</select></div>
-      <div className="reviewer-list">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(reviewer => { const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null; return <button type="button" key={reviewer.id} className="reviewer-preview-card" aria-label={`Open ${reviewer.title}`} onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><p>{reviewer.plain_text || 'This reviewer is ready for your notes.'}</p></button> }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div>
+      <div className="reviewer-list">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(reviewer => {
+        const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null
+        const pageColor = String(reviewer.content.attrs?.pageColor ?? '')
+        return <button
+          type="button"
+          key={reviewer.id}
+          className={`reviewer-preview-card${pageColor ? ' has-page-color' : ''}`}
+          style={pageColor ? { '--reviewer-preview-page-color': pageColor } as CSSProperties : undefined}
+          aria-label={`Open ${reviewer.title}`}
+          onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}
+        ><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><p>{reviewer.plain_text || 'This reviewer is ready for your notes.'}</p></button>
+      }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div>
     </section>
     <dialog ref={createRef} className="study-dialog study-create-dialog" onCancel={event => { event.preventDefault(); navigate({ new: null }) }}><form onSubmit={createReviewer} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Start with a blank page</h2><p>Give it a clear title. You can change the subject anytime.</p></div><button type="button" className="study-dialog-close" onClick={() => navigate({ new: null })}><CloseIcon /></button></header><div className="study-form-grid"><label className="study-field study-field--wide"><span>Title <small>{newTitle.length}/160</small></span><input autoFocus required maxLength={160} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Example: Midterm reviewer" /></label><label className="study-field study-field--wide"><span>Subject</span><select value={newSubject} onChange={event => setNewSubject(event.target.value)}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><footer><button type="button" className="study-secondary" onClick={() => navigate({ new: null })}>Cancel</button><button type="submit" className="button-primary" disabled={creating || !newTitle.trim()}>{creating ? 'Creating…' : 'Create reviewer'}</button></footer></form></dialog>
   </section>
