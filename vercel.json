@@ -1,7 +1,4 @@
 {
-  "functions": {
-    "api/study/*.ts": { "maxDuration": 120 }
-  },
   "headers": [
     {
       "source": "/",
