@@ -190,10 +190,6 @@
 :root[data-theme="dark"] .study-form-error { border-color: #704345; background: #34292b; color: #ffaaa2; }
 :root[data-theme="dark"] .study-confirm-icon { background: #3c292b; color: #ffaaa2; }
 
-@media (min-width: 761px) {
-  .reviewer-toolbar-shell:not([open]) > .reviewer-toolbar { display: flex; }
-}
-
 @media (max-width: 980px) {
   .study-heading { margin-top: 25px; }
   .reviewer-list, .reviewer-list-skeleton { grid-template-columns: repeat(2, minmax(0, 1fr)); }

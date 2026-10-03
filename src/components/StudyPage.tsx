@@ -105,6 +105,14 @@ function DocumentView({ content, editable = false, onEditor }: { content: JSONCo
 }
 
 function Toolbar({ editor }: { editor: Editor | null }) {
+  const [toolbarOpen, setToolbarOpen] = useState(() => typeof window === 'undefined' || window.matchMedia('(min-width: 761px)').matches)
+  useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 761px)')
+    const syncToolbar = () => setToolbarOpen(desktopQuery.matches)
+    syncToolbar()
+    desktopQuery.addEventListener('change', syncToolbar)
+    return () => desktopQuery.removeEventListener('change', syncToolbar)
+  }, [])
   if (!editor) return <div className="reviewer-toolbar" aria-hidden="true" />
   const blockType = editor.isActive('heading', { level: 2 }) ? 'h2' : editor.isActive('heading', { level: 3 }) ? 'h3' : 'p'
   const blockName = blockType === 'p' ? 'paragraph' : 'heading'
@@ -145,7 +153,14 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   const activePageColor = String(editor.state.doc.attrs.pageColor ?? '').toUpperCase()
   const pageSwatches = markerSwatches.slice(0, 16)
   const setPageColor = (pageColor: string | null) => { editor.view.dispatch(editor.state.tr.setDocAttribute('pageColor', pageColor)) }
-  return <details className="reviewer-toolbar-shell">
+  return <details
+    className="reviewer-toolbar-shell"
+    open={toolbarOpen}
+    onToggle={event => {
+      const nextOpen = window.matchMedia('(min-width: 761px)').matches || event.currentTarget.open
+      if (nextOpen !== toolbarOpen) setToolbarOpen(nextOpen)
+    }}
+  >
     <summary><span><strong aria-hidden="true">Aa</strong> Formatting tools</span><small><span className="is-collapsed">Tap to expand</span><span className="is-expanded">Tap to collapse</span></small></summary>
     <div className="reviewer-toolbar" aria-label="Reviewer formatting">
     <div className="reviewer-toolbar-group reviewer-toolbar-style"><select aria-label="Text style" value={blockType} onChange={event => { if (event.target.value === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (event.target.value === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }}><option value="p">Normal text</option><option value="h2">Heading</option><option value="h3">Subheading</option></select></div>
