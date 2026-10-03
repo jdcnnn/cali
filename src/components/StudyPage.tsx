@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -37,7 +37,23 @@ const BlockLayout = Extension.create({
   },
 })
 
-const editorExtensions = [StarterKit.configure({ heading: { levels: [2, 3] } }), TextStyle, Color, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ['heading', 'paragraph'] }), Underline, BlockLayout]
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [{
+      types: ['textStyle'],
+      attributes: {
+        fontSize: {
+          default: null,
+          parseHTML: element => element.style.fontSize?.replace('px', '') || null,
+          renderHTML: attributes => attributes.fontSize ? { style: `font-size: ${attributes.fontSize}px` } : {},
+        },
+      },
+    }]
+  },
+})
+
+const editorExtensions = [StarterKit.configure({ heading: { levels: [2, 3] } }), TextStyle, Color, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ['heading', 'paragraph'] }), Underline, BlockLayout, FontSize]
 
 function CloseIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg> }
 function SearchIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg> }
@@ -51,6 +67,7 @@ function ListIcon({ ordered = false }: { ordered?: boolean }) { return <svg view
 function UndoIcon({ redo = false }: { redo?: boolean }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={redo ? 'm16 7 4 4-4 4' : 'm8 7-4 4 4 4'} /><path d={redo ? 'M20 11h-9a6 6 0 0 0-6 6' : 'M4 11h9a6 6 0 0 1 6 6'} /></svg> }
 function TextColorIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="m6 17 6-13 6 13M8 13h8" /><path d="M5 21h14" /></svg> }
 function MarkerIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14 4 6 6-9 9H5v-6Z" /><path d="m11 7 6 6M4 21h16" /></svg> }
+function ItalicIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M10 5h8M6 19h8M14 5 10 19" /></svg> }
 
 function DocumentView({ content, editable = false, onEditor }: { content: JSONContent; editable?: boolean; onEditor?: (editor: Editor) => void }) {
   const editor = useEditor({ extensions: editorExtensions, content, editable, immediatelyRender: false })
@@ -66,6 +83,14 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   const blockAttributes = editor.getAttributes(blockName)
   const indent = Number(blockAttributes.indent ?? 0)
   const lineHeight = String(blockAttributes.lineHeight ?? '1.75')
+  const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32]
+  const fontSize = Number(editor.getAttributes('textStyle').fontSize ?? 16)
+  const setFontSize = (size: number) => { editor.chain().focus().setMark('textStyle', { fontSize: String(size) }).run() }
+  const stepFontSize = (direction: number) => {
+    const currentIndex = fontSizes.findIndex(size => size >= fontSize)
+    const index = currentIndex === -1 ? fontSizes.length - 1 : currentIndex
+    setFontSize(fontSizes[Math.max(0, Math.min(fontSizes.length - 1, index + direction))])
+  }
   const setBlockAttribute = (attributes: Record<string, unknown>) => { editor.chain().focus().updateAttributes(blockName, attributes).run() }
   const adjustIndent = (amount: number) => {
     if (editor.isActive('bulletList') || editor.isActive('orderedList')) {
@@ -75,15 +100,22 @@ function Toolbar({ editor }: { editor: Editor | null }) {
     }
     setBlockAttribute({ indent: Math.max(0, Math.min(4, indent + amount)) })
   }
-  const button = (label: string, active: boolean, action: () => void, content: ReactNode, disabled = false) => <button type="button" className={active ? 'is-active' : ''} aria-label={label} title={label} disabled={disabled} onClick={action}>{content}</button>
+  const button = (label: string, active: boolean, action: () => void, content: ReactNode, disabled = false) => <button type="button" className={active ? 'is-active' : ''} aria-label={label} title={label} disabled={disabled} onMouseDown={event => event.preventDefault()} onClick={action}>{content}</button>
+  const closePalette = (target: HTMLElement) => { const palette = target.closest('details') as HTMLDetailsElement | null; if (palette) palette.open = false }
+  const markerSwatches = [{ name: 'Sun', value: '#FFF0A8' }, { name: 'Sky', value: '#BDEBFA' }, { name: 'Mint', value: '#BFEED8' }, { name: 'Coral', value: '#FFD0C7' }, { name: 'Lavender', value: '#DDD2FA' }]
   return <div className="reviewer-toolbar" aria-label="Reviewer formatting">
     <div className="reviewer-toolbar-group reviewer-toolbar-style"><select aria-label="Text style" value={blockType} onChange={event => { if (event.target.value === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (event.target.value === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }}><option value="p">Normal text</option><option value="h2">Heading</option><option value="h3">Subheading</option></select></div>
+    <div className="reviewer-toolbar-group reviewer-font-size">
+      {button('Decrease font size', false, () => stepFontSize(-1), <span aria-hidden="true">−</span>, fontSize <= fontSizes[0])}
+      <select aria-label="Font size" value={fontSizes.includes(fontSize) ? fontSize : 16} onChange={event => setFontSize(Number(event.target.value))}>{fontSizes.map(size => <option key={size} value={size}>{size}</option>)}</select>
+      {button('Increase font size', false, () => stepFontSize(1), <span aria-hidden="true">+</span>, fontSize >= fontSizes[fontSizes.length - 1])}
+    </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-format">
       {button('Bold', editor.isActive('bold'), () => { editor.chain().focus().toggleBold().run() }, <strong>B</strong>)}
-      {button('Italic', editor.isActive('italic'), () => { editor.chain().focus().toggleItalic().run() }, <em>I</em>)}
+      {button('Italic', editor.isActive('italic'), () => { editor.chain().focus().toggleItalic().run() }, <ItalicIcon />)}
       {button('Underline', editor.isActive('underline'), () => { editor.chain().focus().toggleUnderline().run() }, <u>U</u>)}
       <label className="reviewer-color-control" title="Font color"><TextColorIcon /><input type="color" aria-label="Font color" defaultValue="#12384d" onChange={event => editor.chain().focus().setColor(event.target.value).run()} /></label>
-      <label className={`reviewer-color-control${editor.isActive('highlight') ? ' is-active' : ''}`} title="Marker color"><MarkerIcon /><input type="color" aria-label="Marker color" defaultValue="#fff0a8" onChange={event => editor.chain().focus().setHighlight({ color: event.target.value }).run()} /></label>
+      <details className={`reviewer-marker-palette${editor.isActive('highlight') ? ' is-active' : ''}`}><summary aria-label="Marker color" title="Marker color"><MarkerIcon /></summary><div className="reviewer-marker-swatches" role="group" aria-label="Marker colors">{markerSwatches.map(swatch => <button key={swatch.value} type="button" className="reviewer-marker-swatch" aria-label={`${swatch.name} marker`} title={swatch.name} style={{ '--marker-color': swatch.value } as CSSProperties} onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().setHighlight({ color: swatch.value }).run(); closePalette(event.currentTarget) }}><span /></button>)}<button type="button" className="reviewer-marker-none" onMouseDown={event => event.preventDefault()} onClick={event => { editor.chain().focus().unsetHighlight().run(); closePalette(event.currentTarget) }}>None</button></div></details>
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-alignment">
       {button('Align left', editor.isActive({ textAlign: 'left' }), () => { editor.chain().focus().setTextAlign('left').run() }, <AlignIcon direction="left" />)}
@@ -131,6 +163,16 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose }: { reviewer: Re
   return <section className="reviewer-edit-shell"><header><div><p className="workspace-overline">EDIT REVIEWER</p><input value={title} maxLength={160} aria-label="Reviewer title" onChange={event => { setTitle(event.target.value); markDirty() }} /></div><div className="reviewer-edit-actions"><span className={`reviewer-save-state reviewer-save-state--${status}`}>{status === 'saving' ? 'Saving…' : status === 'dirty' ? 'Autosave pending' : status === 'error' ? 'Couldn’t save' : 'Saved'}</span><button type="button" className="button-primary" disabled={status === 'saving' || !title.trim()} onClick={() => { void finish() }}>Done</button></div></header><div className="reviewer-edit-subject"><label>Subject <select value={subjectId} onChange={event => { setSubjectId(event.target.value); markDirty() }}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><Toolbar editor={editor} /><DocumentView content={reviewer.content} editable onEditor={setEditor} /></section>
 }
 
+function ReviewerDeleteDialog({ reviewer, busy, error, onCancel, onConfirm }: { reviewer: Reviewer; busy: boolean; error: string; onCancel: () => void; onConfirm: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (dialog && !dialog.open) dialog.showModal()
+    return () => { if (dialog?.open) dialog.close() }
+  }, [])
+  return <dialog ref={dialogRef} className="study-confirm-dialog" aria-labelledby="reviewer-delete-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><div className="study-confirm-icon" aria-hidden="true">!</div><p className="workspace-overline">DELETE REVIEWER</p><h2 id="reviewer-delete-title">Delete “{reviewer.title}”?</h2><p>This permanently removes the reviewer and all of its content. This cannot be undone.</p>{error && <p className="study-form-error" role="alert">{error}</p>}<footer><button type="button" className="study-secondary" autoFocus onClick={onCancel} disabled={busy}>Keep reviewer</button><button type="button" className="study-danger" onClick={onConfirm} disabled={busy}>{busy ? 'Deleting…' : 'Delete reviewer'}</button></footer></div></dialog>
+}
+
 export function StudyPage({ studentId }: { studentId: string }) {
   const [params, setParams] = useSearchParams()
   const [reviewers, setReviewers] = useState<Reviewer[]>([])
@@ -142,6 +184,9 @@ export function StudyPage({ studentId }: { studentId: string }) {
   const [creating, setCreating] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Reviewer | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const createRef = useRef<HTMLDialogElement>(null)
   const selected = reviewers.find(reviewer => reviewer.id === params.get('reviewer')) ?? null
   const editing = params.get('edit') === '1'
@@ -156,6 +201,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void load() }, [load])
   useEffect(() => { if (params.get('new') === 'manual') createRef.current?.showModal(); else createRef.current?.close() }, [params])
+  useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 4500); return () => window.clearTimeout(timer) }, [notice])
   const visible = useMemo(() => reviewers.filter(reviewer => reviewerMatches(reviewer, query, subjectFilter)), [query, reviewers, subjectFilter])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
   const navigate = (changes: Record<string, string | null>) => { const next = new URLSearchParams(params); for (const [key, value] of Object.entries(changes)) { if (value === null) next.delete(key); else next.set(key, value) } setParams(next) }
@@ -167,7 +213,14 @@ export function StudyPage({ studentId }: { studentId: string }) {
   }
   const updateReviewer = (changed: Reviewer) => setReviewers(current => [changed, ...current.filter(item => item.id !== changed.id)])
   const duplicate = async (reviewer: Reviewer) => { if (!supabase) return; const { data, error } = await supabase.rpc('cali_duplicate_own_reviewer', { p_id: reviewer.id }).single(); if (error || !data) setNotice({ kind: 'error', text: 'Could not duplicate this reviewer.' }); else { const copy = data as Reviewer; setReviewers(current => [copy, ...current]); navigate({ reviewer: copy.id, edit: null }); setNotice({ kind: 'success', text: 'Reviewer duplicated.' }) } }
-  const remove = async (reviewer: Reviewer) => { if (!supabase || !window.confirm(`Permanently delete “${reviewer.title}”? This cannot be undone.`)) return; const { error } = await supabase.from('reviewers').delete().eq('id', reviewer.id); if (error) setNotice({ kind: 'error', text: 'Could not delete this reviewer.' }); else { setReviewers(current => current.filter(item => item.id !== reviewer.id)); navigate({ reviewer: null, edit: null }); setNotice({ kind: 'success', text: 'Reviewer deleted.' }) } }
+  const remove = async () => {
+    if (!supabase || !deleteTarget) return
+    setDeleting(true); setDeleteError('')
+    const { error } = await supabase.from('reviewers').delete().eq('id', deleteTarget.id)
+    setDeleting(false)
+    if (error) { setDeleteError('Cali could not delete this reviewer. Please try again.'); return }
+    setReviewers(current => current.filter(item => item.id !== deleteTarget.id)); setDeleteTarget(null); navigate({ reviewer: null, edit: null }); setNotice({ kind: 'success', text: 'Reviewer deleted.' })
+  }
   const noticeBanner = notice && <div className={`study-notice study-notice--${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}><span>{notice.text}</span><button type="button" aria-label="Dismiss" onClick={() => setNotice(null)}><CloseIcon /></button></div>
 
   if (selected) {
@@ -183,11 +236,12 @@ export function StudyPage({ studentId }: { studentId: string }) {
           <div className="reviewer-reader-actions">
             <button type="button" className="reviewer-icon-action" aria-label="Edit reviewer" title="Edit reviewer" onClick={() => navigate({ edit: '1' })}><EditIcon /></button>
             <button type="button" className="reviewer-icon-action" aria-label="Share reviewer — coming with Cali Community" title="Sharing will be available with Cali Community" disabled><ShareIcon /></button>
-            <details><summary aria-label="More reviewer actions" title="More actions"><MoreIcon /></summary><div><button type="button" onClick={() => { void duplicate(selected) }}>Duplicate</button><button type="button" className="is-danger" onClick={() => { void remove(selected) }}>Delete permanently</button></div></details>
+            <details><summary aria-label="More reviewer actions" title="More actions"><MoreIcon /></summary><div><button type="button" onClick={() => { void duplicate(selected) }}>Duplicate</button><button type="button" className="is-danger" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; setDeleteError(''); setDeleteTarget(selected) }}>Delete permanently</button></div></details>
           </div>
         </header>
         <DocumentView content={selected.content} />
       </article>}
+      {deleteTarget && <ReviewerDeleteDialog reviewer={deleteTarget} busy={deleting} error={deleteError} onCancel={() => { if (!deleting) setDeleteTarget(null) }} onConfirm={() => { void remove() }} />}
     </section>
   }
 
@@ -198,7 +252,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
     <section className="reviewer-library" aria-label="Reviewer library">
       <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>Your reviewers</h2></div></div>
       <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers" aria-label="Search reviewers" /></label><select value={subjectFilter} onChange={event => setSubjectFilter(event.target.value)} aria-label="Filter by subject"><option value="">All subjects</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code}</option>)}</select></div>
-      <div className="reviewer-list">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(reviewer => { const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null; return <button type="button" key={reviewer.id} className="reviewer-preview-card" onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}><span className="reviewer-list-top"><strong>{reviewer.title}</strong><span aria-hidden="true">→</span></span><span className="reviewer-preview-meta">{subject?.subject_code ?? 'General'} · {formatReviewerDate(reviewer.updated_at)}</span><p>{reviewer.plain_text || 'This reviewer is ready for your notes.'}</p><span className="reviewer-preview-open">Open reviewer</span></button> }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div>
+      <div className="reviewer-list">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(reviewer => { const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null; return <button type="button" key={reviewer.id} className="reviewer-preview-card" aria-label={`Open ${reviewer.title}`} onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><p>{reviewer.plain_text || 'This reviewer is ready for your notes.'}</p></button> }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No matches' : 'Your first reviewer starts here'}</strong><p>{reviewers.length ? 'Try another search or subject.' : 'Create a blank reviewer and shape it around the way you study.'}</p>{!reviewers.length && <button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Create reviewer</button>}</div>}</div>
     </section>
     <dialog ref={createRef} className="study-dialog study-create-dialog" onCancel={event => { event.preventDefault(); navigate({ new: null }) }}><form onSubmit={createReviewer} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Start with a blank page</h2><p>Give it a clear title. You can change the subject anytime.</p></div><button type="button" className="study-dialog-close" onClick={() => navigate({ new: null })}><CloseIcon /></button></header><div className="study-form-grid"><label className="study-field study-field--wide"><span>Title <small>{newTitle.length}/160</small></span><input autoFocus required maxLength={160} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Example: Midterm reviewer" /></label><label className="study-field study-field--wide"><span>Subject</span><select value={newSubject} onChange={event => setNewSubject(event.target.value)}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><footer><button type="button" className="study-secondary" onClick={() => navigate({ new: null })}>Cancel</button><button type="submit" className="button-primary" disabled={creating || !newTitle.trim()}>{creating ? 'Creating…' : 'Create reviewer'}</button></footer></form></dialog>
   </section>
