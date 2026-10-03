@@ -90,7 +90,7 @@ button:disabled { cursor: not-allowed; }
 .signout-confirm-dialog .signout-dialog-actions button { min-height: 48px; }
 .eyebrow, .section-number { display: inline-flex; align-items: center; gap: 9px; color: #107DAC; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
 .eyebrow-mark { width: 7px; height: 7px; border-radius: 50%; background: var(--color-cali-aqua); }
-em { color: var(--color-cali-accent); font-style: normal; }
+.onboarding-page h1 em { color: var(--color-cali-accent); font-style: normal; }
 .action-link { display: inline-flex; align-items: center; justify-content: space-between; gap: 35px; text-decoration: none; }
 .action-link svg { width: 20px; height: 20px; }
 

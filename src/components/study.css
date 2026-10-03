@@ -79,7 +79,13 @@
 .reviewer-document .tiptap h2, .reviewer-editor-content .tiptap h2 { margin: 1.8em 0 .55em; font-size: 30px; }
 .reviewer-document .tiptap h3, .reviewer-editor-content .tiptap h3 { margin: 1.5em 0 .45em; font-size: 22px; }
 .reviewer-document .tiptap p, .reviewer-editor-content .tiptap p { margin: .7em 0; }
-.reviewer-document .tiptap :is(ul, ol), .reviewer-editor-content .tiptap :is(ul, ol) { padding-left: 1.5em; }
+.reviewer-document .tiptap em, .reviewer-editor-content .tiptap em { color: inherit; font-style: italic; }
+.reviewer-document .tiptap :is(ul, ol), .reviewer-editor-content .tiptap :is(ul, ol) { margin: .8em 0; padding-left: 1.7em; }
+.reviewer-document .tiptap ul, .reviewer-editor-content .tiptap ul { list-style: disc outside; }
+.reviewer-document .tiptap ol, .reviewer-editor-content .tiptap ol { list-style: decimal outside; }
+.reviewer-document .tiptap ul ul, .reviewer-editor-content .tiptap ul ul { list-style-type: circle; }
+.reviewer-document .tiptap :is(ul, ol) li, .reviewer-editor-content .tiptap :is(ul, ol) li { display: list-item; margin: .25em 0; padding-left: .2em; }
+.reviewer-document .tiptap :is(ul, ol) li > p, .reviewer-editor-content .tiptap :is(ul, ol) li > p { margin: 0; }
 .reviewer-document .tiptap blockquote, .reviewer-editor-content .tiptap blockquote { margin: 1.2em 0; padding: 4px 0 4px 16px; border-left: 3px solid var(--color-cali-accent); color: var(--color-cali-slate); }
 .reviewer-document .tiptap pre, .reviewer-editor-content .tiptap pre { padding: 13px 15px; overflow-x: auto; border-radius: 10px; background: var(--color-cali-ink); color: var(--color-cali-surface); }
 .reviewer-document .tiptap a, .reviewer-editor-content .tiptap a { color: var(--color-cali-action-text); text-decoration: underline; }
@@ -117,7 +123,8 @@
 .reviewer-toolbar select { border-color: var(--color-cali-border); background: var(--color-cali-surface); }
 .reviewer-toolbar-style select { min-width: 120px; }
 .reviewer-font-size { gap: 2px; }
-.reviewer-font-size select { width: 54px; padding-inline: 7px; text-align: center; }
+.reviewer-font-size input { width: 52px; height: 36px; padding: 0 4px; border: 1px solid var(--color-cali-border); border-radius: 8px; outline: 0; background: var(--color-cali-surface); color: var(--color-cali-ink); font: 700 11px 'DM Sans', sans-serif; text-align: center; }
+.reviewer-font-size input:focus { border-color: var(--color-cali-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-cali-accent) 14%, transparent); }
 .reviewer-font-size button { font-size: 18px; font-weight: 600; }
 .reviewer-font-size button span { transform: translateY(-1px); }
 .reviewer-color-control { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid transparent; border-radius: 8px; color: var(--color-cali-ink); cursor: pointer; }

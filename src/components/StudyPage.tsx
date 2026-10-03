@@ -83,13 +83,11 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   const blockAttributes = editor.getAttributes(blockName)
   const indent = Number(blockAttributes.indent ?? 0)
   const lineHeight = String(blockAttributes.lineHeight ?? '1.75')
-  const fontSizes = [12, 14, 16, 18, 20, 24, 28, 32]
   const fontSize = Number(editor.getAttributes('textStyle').fontSize ?? 16)
-  const setFontSize = (size: number) => { editor.chain().focus().setMark('textStyle', { fontSize: String(size) }).run() }
-  const stepFontSize = (direction: number) => {
-    const currentIndex = fontSizes.findIndex(size => size >= fontSize)
-    const index = currentIndex === -1 ? fontSizes.length - 1 : currentIndex
-    setFontSize(fontSizes[Math.max(0, Math.min(fontSizes.length - 1, index + direction))])
+  const setFontSize = (size: number) => {
+    if (!Number.isFinite(size)) return
+    const nextSize = Math.max(8, Math.min(72, Math.round(size)))
+    editor.chain().focus().setMark('textStyle', { fontSize: String(nextSize) }).run()
   }
   const setBlockAttribute = (attributes: Record<string, unknown>) => { editor.chain().focus().updateAttributes(blockName, attributes).run() }
   const adjustIndent = (amount: number) => {
@@ -106,9 +104,9 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   return <div className="reviewer-toolbar" aria-label="Reviewer formatting">
     <div className="reviewer-toolbar-group reviewer-toolbar-style"><select aria-label="Text style" value={blockType} onChange={event => { if (event.target.value === 'h2') editor.chain().focus().setHeading({ level: 2 }).run(); else if (event.target.value === 'h3') editor.chain().focus().setHeading({ level: 3 }).run(); else editor.chain().focus().setParagraph().run() }}><option value="p">Normal text</option><option value="h2">Heading</option><option value="h3">Subheading</option></select></div>
     <div className="reviewer-toolbar-group reviewer-font-size">
-      {button('Decrease font size', false, () => stepFontSize(-1), <span aria-hidden="true">−</span>, fontSize <= fontSizes[0])}
-      <select aria-label="Font size" value={fontSizes.includes(fontSize) ? fontSize : 16} onChange={event => setFontSize(Number(event.target.value))}>{fontSizes.map(size => <option key={size} value={size}>{size}</option>)}</select>
-      {button('Increase font size', false, () => stepFontSize(1), <span aria-hidden="true">+</span>, fontSize >= fontSizes[fontSizes.length - 1])}
+      {button('Decrease font size', false, () => setFontSize(fontSize - 1), <span aria-hidden="true">−</span>, fontSize <= 8)}
+      <input key={`font-size-${fontSize}`} type="number" min="8" max="72" defaultValue={fontSize} aria-label="Font size" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); setFontSize(event.currentTarget.value ? Number(event.currentTarget.value) : fontSize); event.currentTarget.blur() } }} onBlur={event => setFontSize(event.currentTarget.value ? Number(event.currentTarget.value) : fontSize)} />
+      {button('Increase font size', false, () => setFontSize(fontSize + 1), <span aria-hidden="true">+</span>, fontSize >= 72)}
     </div>
     <div className="reviewer-toolbar-group reviewer-toolbar-format">
       {button('Bold', editor.isActive('bold'), () => { editor.chain().focus().toggleBold().run() }, <strong>B</strong>)}
