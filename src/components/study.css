@@ -377,6 +377,8 @@
   .reviewer-swatch-grid, .reviewer-swatch-palette:last-child .reviewer-swatch-grid { position: fixed; z-index: 130; inset: auto 12px max(12px, env(safe-area-inset-bottom)) 12px; grid-template-columns: repeat(6, minmax(0, 1fr)); width: auto; max-width: none; max-height: min(330px, 48dvh); padding: 13px; border-radius: 16px; box-shadow: 0 18px 48px rgba(7, 31, 45, .3); }
   .reviewer-toolbar .reviewer-swatch { width: 100%; min-width: 0; height: 40px; }
   .reviewer-toolbar .reviewer-swatch-none { height: 40px; }
+  .reviewer-toolbar .cali-select-options, .reviewer-toolbar .cali-select--line-spacing .cali-select-options { position: fixed; z-index: 135; inset: auto 12px max(12px, env(safe-area-inset-bottom)) 12px; width: auto; max-width: none; max-height: min(330px, 48dvh); padding: 8px; border-radius: 16px; box-shadow: 0 18px 48px rgba(7, 31, 45, .3); }
+  .reviewer-toolbar .cali-select-options > button { min-height: 48px; padding: 10px 12px; }
   .reviewer-columns-menu { display: none; }
   .reviewer-structure-options { position: fixed; top: auto; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); left: 14px; width: auto; max-width: none; max-height: min(420px, 58dvh); border-radius: 16px; }
   .reviewer-table-context { width: min(230px, calc(100vw - 20px)); padding: 6px; border-radius: 11px; }
