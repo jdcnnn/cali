@@ -104,7 +104,7 @@ function DocumentView({ content, editable = false, onEditor }: { content: JSONCo
   return <EditorContent editor={editor} className={`${editable ? 'reviewer-editor-content' : 'reviewer-document'}${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties} />
 }
 
-function Toolbar({ editor }: { editor: Editor | null }) {
+function Toolbar({ editor, onPageColorChange }: { editor: Editor | null; onPageColorChange?: (pageColor: string) => void }) {
   const [toolbarOpen, setToolbarOpen] = useState(() => typeof window === 'undefined' || window.matchMedia('(min-width: 761px)').matches)
   useEffect(() => {
     const desktopQuery = window.matchMedia('(min-width: 761px)')
@@ -152,7 +152,10 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   const activeMarkerColor = String(editor.getAttributes('highlight').color ?? '').toUpperCase()
   const activePageColor = String(editor.state.doc.attrs.pageColor ?? '').toUpperCase()
   const pageSwatches = markerSwatches.slice(0, 16)
-  const setPageColor = (pageColor: string | null) => { editor.view.dispatch(editor.state.tr.setDocAttribute('pageColor', pageColor)) }
+  const setPageColor = (pageColor: string | null) => {
+    editor.view.dispatch(editor.state.tr.setDocAttribute('pageColor', pageColor))
+    onPageColorChange?.(pageColor ?? '')
+  }
   return <details
     className="reviewer-toolbar-shell"
     open={toolbarOpen}
@@ -200,7 +203,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   </details>
 }
 
-function ReviewerEditor({ reviewer, subjects, onSaved, onClose }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onSaved: (reviewer: Reviewer) => void; onClose: () => void }) {
+function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChange }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onSaved: (reviewer: Reviewer) => void; onClose: () => void; onPageColorChange: (pageColor: string) => void }) {
   const [title, setTitle] = useState(reviewer.title)
   const [subjectId, setSubjectId] = useState(reviewer.subject_id ?? '')
   const [editor, setEditor] = useState<Editor | null>(null)
@@ -224,7 +227,7 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose }: { reviewer: Re
   useEffect(() => { if (!editor) return; editor.on('update', markDirty); return () => { editor.off('update', markDirty) } }, [editor, markDirty])
   const finish = async () => { if (await save()) onClose() }
   const pageColor = String(editor?.state.doc.attrs.pageColor ?? reviewer.content.attrs?.pageColor ?? '')
-  return <section className={`reviewer-edit-shell${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties}><header><div><p className="workspace-overline">EDIT REVIEWER</p><input value={title} maxLength={160} aria-label="Reviewer title" onChange={event => { setTitle(event.target.value); markDirty() }} /></div><div className="reviewer-edit-actions"><span className={`reviewer-save-state reviewer-save-state--${status}`}>{status === 'saving' ? 'Saving…' : status === 'dirty' ? 'Autosave pending' : status === 'error' ? 'Couldn’t save' : 'Saved'}</span><button type="button" className="button-primary" disabled={status === 'saving' || !title.trim()} onClick={() => { void finish() }}>Done</button></div></header><div className="reviewer-edit-subject"><label>Subject <select value={subjectId} onChange={event => { setSubjectId(event.target.value); markDirty() }}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><Toolbar editor={editor} /><DocumentView content={reviewer.content} editable onEditor={setEditor} /></section>
+  return <section className={`reviewer-edit-shell${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties}><header><div><p className="workspace-overline">EDIT REVIEWER</p><input value={title} maxLength={160} aria-label="Reviewer title" onChange={event => { setTitle(event.target.value); markDirty() }} /></div><div className="reviewer-edit-actions"><span className={`reviewer-save-state reviewer-save-state--${status}`}>{status === 'saving' ? 'Saving…' : status === 'dirty' ? 'Autosave pending' : status === 'error' ? 'Couldn’t save' : 'Saved'}</span><button type="button" className="button-primary" disabled={status === 'saving' || !title.trim()} onClick={() => { void finish() }}>Done</button></div></header><div className="reviewer-edit-subject"><label>Subject <select value={subjectId} onChange={event => { setSubjectId(event.target.value); markDirty() }}><option value="">General</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} — {subject.title}</option>)}</select></label></div><Toolbar editor={editor} onPageColorChange={onPageColorChange} /><DocumentView content={reviewer.content} editable onEditor={setEditor} /></section>
 }
 
 function ReviewerDeleteDialog({ reviewer, busy, error, onCancel, onConfirm }: { reviewer: Reviewer; busy: boolean; error: string; onCancel: () => void; onConfirm: () => void }) {
@@ -251,9 +254,13 @@ export function StudyPage({ studentId }: { studentId: string }) {
   const [deleteTarget, setDeleteTarget] = useState<Reviewer | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [pageColorOverride, setPageColorOverride] = useState<{ reviewerId: string; color: string } | null>(null)
   const createRef = useRef<HTMLDialogElement>(null)
   const selected = reviewers.find(reviewer => reviewer.id === params.get('reviewer')) ?? null
+  const selectedId = selected?.id ?? ''
   const editing = params.get('edit') === '1'
+  const selectedStoredPageColor = String(selected?.content.attrs?.pageColor ?? '')
+  const selectedPageColor = selected && pageColorOverride?.reviewerId === selected.id ? pageColorOverride.color : selectedStoredPageColor
   const load = useCallback(async () => {
     if (!supabase) return
     setLoading(true)
@@ -266,6 +273,16 @@ export function StudyPage({ studentId }: { studentId: string }) {
   useEffect(() => { void load() }, [load])
   useEffect(() => { if (params.get('new') === 'manual') createRef.current?.showModal(); else createRef.current?.close() }, [params])
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 4500); return () => window.clearTimeout(timer) }, [notice])
+  useEffect(() => {
+    const workspace = document.querySelector<HTMLElement>('.workspace-content')
+    if (!workspace || !selectedId || !selectedPageColor) return
+    workspace.classList.add('workspace-content--reviewer-color')
+    workspace.style.setProperty('--reviewer-workspace-color', selectedPageColor)
+    return () => {
+      workspace.classList.remove('workspace-content--reviewer-color')
+      workspace.style.removeProperty('--reviewer-workspace-color')
+    }
+  }, [selectedId, selectedPageColor])
   const visible = useMemo(() => reviewers.filter(reviewer => reviewerMatches(reviewer, query, subjectFilter)), [query, reviewers, subjectFilter])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
   const navigate = (changes: Record<string, string | null>) => { const next = new URLSearchParams(params); for (const [key, value] of Object.entries(changes)) { if (value === null) next.delete(key); else next.set(key, value) } setParams(next) }
@@ -289,8 +306,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
 
   if (selected) {
     const selectedSubject = selected.subject_id ? subjectMap.get(selected.subject_id) : null
-    const selectedPageColor = String(selected.content.attrs?.pageColor ?? '')
-    return <section className="study-page study-page--reviewer">
+    return <section className={`study-page study-page--reviewer${selectedPageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': selectedPageColor || 'var(--color-cali-surface)' } as CSSProperties}>
       <nav className="reviewer-page-nav" aria-label="Reviewer navigation">
         <button type="button" className="reviewer-back" onClick={() => navigate({ reviewer: null, edit: null })}><BackIcon /> Back to library</button>
         {!editing && <div className="reviewer-reader-actions">
@@ -300,7 +316,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
         </div>}
       </nav>
       {noticeBanner}
-      {editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} /> : <article className={`reviewer-reading${selectedPageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': selectedPageColor || 'var(--color-cali-surface)' } as CSSProperties}>
+      {editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} onPageColorChange={color => setPageColorOverride({ reviewerId: selected.id, color })} /> : <article className={`reviewer-reading${selectedPageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': selectedPageColor || 'var(--color-cali-surface)' } as CSSProperties}>
         <header>
           <div><p className="workspace-overline">{selectedSubject?.subject_code ?? 'GENERAL REVIEWER'}</p><h1>{selected.title}</h1><p>Updated {formatReviewerDate(selected.updated_at)}</p></div>
         </header>

@@ -55,6 +55,7 @@
 .reviewer-list-skeleton span { height: 220px; border-radius: 17px; background: var(--color-cali-pale); animation: skeleton-pulse 1.4s ease-in-out infinite; }
 
 .study-page--reviewer { max-width: 1240px; margin-inline: auto; }
+.study-page--reviewer.has-page-color { color: #12384d; }
 .reviewer-page-nav { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 52px; margin-bottom: 20px; padding-inline: 4px; }
 .reviewer-back { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px 9px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--color-cali-action-text); font: 800 13px 'DM Sans', sans-serif; }
 .reviewer-back:hover { background: var(--color-cali-pale); }
@@ -116,11 +117,14 @@
 .reviewer-save-state { min-width: 74px; color: var(--color-cali-slate); font-size: 11px; font-weight: 750; text-align: right; }
 .reviewer-save-state--error { color: #b43d32; }
 .reviewer-edit-subject { padding: 13px clamp(8px, 3vw, 34px); border-block: 1px solid var(--color-cali-border); background: color-mix(in srgb, var(--color-cali-canvas) 82%, transparent); }
+.reviewer-edit-shell.has-page-color .reviewer-edit-subject { background: color-mix(in srgb, var(--reviewer-page-color) 88%, #fff); }
 .reviewer-edit-subject label { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--color-cali-slate); font-size: 12px; font-weight: 800; }
 .reviewer-edit-subject select { width: min(100%, 500px); min-width: 0; height: 40px; margin: 0; padding: 6px 10px; overflow: hidden; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-surface); color: var(--color-cali-ink); font-size: 12px; text-overflow: ellipsis; }
 .reviewer-toolbar-shell { background: var(--color-cali-canvas); }
 .reviewer-toolbar-shell > summary { display: none; }
 .reviewer-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-height: 58px; padding: 10px 16px; border-bottom: 1px solid var(--color-cali-border); background: var(--color-cali-canvas); }
+.reviewer-edit-shell.has-page-color .reviewer-toolbar-shell,
+.reviewer-edit-shell.has-page-color .reviewer-toolbar { background: var(--reviewer-page-color); color: #12384d; }
 .reviewer-toolbar-group { display: flex; align-items: center; gap: 3px; min-height: 36px; }
 .reviewer-toolbar-group + .reviewer-toolbar-group { margin-left: 2px; padding-left: 9px; border-left: 1px solid var(--color-cali-border); }
 .reviewer-toolbar button, .reviewer-toolbar select { flex: none; height: 36px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--color-cali-ink); font: 700 11px 'DM Sans', sans-serif; }
@@ -132,6 +136,12 @@
 .reviewer-toolbar button:hover, .reviewer-toolbar button.is-active { border-color: var(--color-cali-border); background: var(--color-cali-pale); color: var(--color-cali-action-text); }
 .reviewer-toolbar button:disabled { cursor: not-allowed; opacity: .3; }
 .reviewer-toolbar select { border-color: var(--color-cali-border); background: var(--color-cali-surface); }
+.reviewer-edit-shell.has-page-color .reviewer-toolbar :is(button, select, input),
+.reviewer-edit-shell.has-page-color .reviewer-swatch-palette > summary,
+.reviewer-edit-shell.has-page-color .reviewer-line-height { border-color: color-mix(in srgb, var(--reviewer-page-color) 58%, #7993a0); background: color-mix(in srgb, var(--reviewer-page-color) 38%, #fff); color: #12384d; }
+.reviewer-edit-shell.has-page-color .reviewer-toolbar :is(button, select, input):hover,
+.reviewer-edit-shell.has-page-color .reviewer-toolbar button.is-active,
+.reviewer-edit-shell.has-page-color .reviewer-swatch-palette[open] > summary { background: color-mix(in srgb, var(--reviewer-page-color) 68%, #fff); color: #0b719e; }
 .reviewer-toolbar-style select { min-width: 120px; }
 .reviewer-font-size { gap: 2px; }
 .reviewer-font-size input { width: 52px; height: 36px; padding: 0 4px; border: 1px solid var(--color-cali-border); border-radius: 8px; outline: 0; background: var(--color-cali-surface); color: var(--color-cali-ink); font: 700 11px 'DM Sans', sans-serif; text-align: center; }
