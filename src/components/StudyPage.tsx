@@ -21,6 +21,7 @@ import './study.css'
 import './skeleton.css'
 
 type Notice = { kind: 'error' | 'success'; text: string } | null
+type ReviewerSaveState = 'saved' | 'dirty' | 'saving' | 'error'
 type ReviewerPreviewBlock =
   | { kind: 'heading' | 'text' | 'list'; text: string; checked?: boolean }
   | { kind: 'table'; rows: string[][] }
@@ -545,12 +546,12 @@ function TableContextMenu({ editor }: { editor: Editor | null }) {
   </div>, document.body)
 }
 
-function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChange }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onSaved: (reviewer: Reviewer) => void; onClose: () => void; onPageColorChange: (pageColor: string) => void }) {
+function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChange, onSaveStateChange, onSaveReady }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onSaved: (reviewer: Reviewer) => void; onClose: () => void; onPageColorChange: (pageColor: string) => void; onSaveStateChange: (status: ReviewerSaveState) => void; onSaveReady: (save: (() => Promise<boolean>) | null) => void }) {
   const [title, setTitle] = useState(reviewer.title)
   const [subjectId, setSubjectId] = useState(reviewer.subject_id ?? '')
   const [pageColor, setPageColor] = useState(String(reviewer.content.attrs?.pageColor ?? ''))
   const [editor, setEditor] = useState<Editor | null>(null)
-  const [status, setStatus] = useState<'saved' | 'dirty' | 'saving' | 'error'>('saved')
+  const [status, setStatus] = useState<ReviewerSaveState>('saved')
   const revision = useRef(reviewer.revision)
   const changeVersion = useRef(0)
   const markDirty = useCallback(() => { changeVersion.current += 1; setStatus(current => current === 'saving' ? current : 'dirty') }, [])
@@ -559,13 +560,20 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
     if (!supabase || !editor || !title.trim() || status === 'saving') return false
     const savingVersion = changeVersion.current
     setStatus('saving')
-    const { data, error } = await supabase.rpc('cali_update_own_reviewer', { p_id: reviewer.id, p_expected_revision: revision.current, p_title: title.trim(), p_subject_id: subjectId || null, p_content: editor.getJSON(), p_plain_text: editor.getText() }).single()
-    if (error || !data) { setStatus('error'); return false }
-    const changed = data as Reviewer
-    revision.current = changed.revision
-    const fullySaved = changeVersion.current === savingVersion
-    setStatus(fullySaved ? 'saved' : 'dirty'); onSaved(changed); return fullySaved
+    try {
+      const { data, error } = await supabase.rpc('cali_update_own_reviewer', { p_id: reviewer.id, p_expected_revision: revision.current, p_title: title.trim(), p_subject_id: subjectId || null, p_content: editor.getJSON(), p_plain_text: editor.getText() }).single()
+      if (error || !data) { setStatus('error'); return false }
+      const changed = data as Reviewer
+      revision.current = changed.revision
+      const fullySaved = changeVersion.current === savingVersion
+      setStatus(fullySaved ? 'saved' : 'dirty'); onSaved(changed); return fullySaved
+    } catch {
+      setStatus('error')
+      return false
+    }
   }, [editor, onSaved, reviewer.id, status, subjectId, title])
+  useEffect(() => { onSaveStateChange(status) }, [onSaveStateChange, status])
+  useEffect(() => { onSaveReady(save); return () => onSaveReady(null) }, [onSaveReady, save])
   useEffect(() => { if (status !== 'dirty') return; const timer = window.setTimeout(() => { void save() }, 1200); return () => window.clearTimeout(timer) }, [save, status])
   useEffect(() => { if (!editor) return; editor.on('update', markDirty); return () => { editor.off('update', markDirty) } }, [editor, markDirty])
   const finish = async () => { if (await save()) onClose() }
@@ -575,7 +583,7 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
       <div className="reviewer-edit-heading">
         <p className="workspace-overline">EDIT REVIEWER</p>
         <input value={title} maxLength={160} aria-label="Reviewer title" onChange={event => { setTitle(event.target.value); markDirty() }} />
-        <span className={`reviewer-save-state reviewer-save-state--${status}`} role="status" aria-live="polite">{status === 'saving' ? 'Saving…' : status === 'dirty' ? 'Autosave pending' : status === 'error' ? 'Couldn’t save' : 'Saved'}</span>
+        <div className="reviewer-save-feedback"><span className={`reviewer-save-state reviewer-save-state--${status}`} role="status" aria-live="polite">{status === 'saving' ? 'Saving…' : status === 'dirty' ? 'Autosave pending' : status === 'error' ? 'Couldn’t save' : 'Saved'}</span>{status === 'error' && <button type="button" className="reviewer-save-now" disabled={!title.trim()} onClick={() => { void save() }}>Save now</button>}</div>
       </div>
       <div className="reviewer-edit-actions"><button type="button" className="button-primary" disabled={status === 'saving' || !title.trim()} onClick={() => { void finish() }}>Done</button></div>
     </header>
@@ -584,6 +592,21 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
     <TableContextMenu editor={editor} />
     <DocumentView content={reviewer.content} editable onEditor={setEditor} pageColorOverride={pageColor} />
   </section>
+}
+
+function ReviewerUnsavedDialog({ status, busy, error, onKeepEditing, onSaveAndLeave, onLeave }: { status: ReviewerSaveState; busy: boolean; error: string; onKeepEditing: () => void; onSaveAndLeave: () => void; onLeave: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (dialog && !dialog.open) dialog.showModal()
+    return () => { if (dialog?.open) dialog.close() }
+  }, [])
+  const detail = status === 'error'
+    ? 'Cali could not save your latest changes. Try saving again, keep editing, or leave without saving.'
+    : status === 'saving'
+      ? 'Cali is still saving your latest changes. Wait for it to finish before leaving safely.'
+      : 'Your latest changes have not been saved yet. Save them before returning to your library.'
+  return <dialog ref={dialogRef} className="study-confirm-dialog study-unsaved-dialog" aria-labelledby="reviewer-unsaved-title" onCancel={event => { event.preventDefault(); if (!busy) onKeepEditing() }}><div><div className="study-unsaved-icon" aria-hidden="true">!</div><p className="workspace-overline">UNSAVED CHANGES</p><h2 id="reviewer-unsaved-title">You have unsaved changes</h2><p>{detail}</p>{error && <p className="study-form-error" role="alert">{error}</p>}<footer className="study-unsaved-actions"><button type="button" className="button-primary" onClick={onSaveAndLeave} disabled={busy || status === 'saving'}>{busy || status === 'saving' ? 'Saving…' : 'Save and leave'}</button><button type="button" className="study-secondary" autoFocus onClick={onKeepEditing} disabled={busy}>Keep editing</button><button type="button" className="study-leave-button" onClick={onLeave} disabled={busy}>Leave without saving</button></footer></div></dialog>
 }
 
 function ReviewerDeleteDialog({ reviewer, busy, error, onCancel, onConfirm }: { reviewer: Reviewer; busy: boolean; error: string; onCancel: () => void; onConfirm: () => void }) {
@@ -611,7 +634,12 @@ export function StudyPage({ studentId }: { studentId: string }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [pageColorOverride, setPageColorOverride] = useState<{ reviewerId: string; color: string } | null>(null)
+  const [reviewerSaveState, setReviewerSaveState] = useState<ReviewerSaveState>('saved')
+  const [showUnsavedExit, setShowUnsavedExit] = useState(false)
+  const [exitSaving, setExitSaving] = useState(false)
+  const [exitSaveError, setExitSaveError] = useState('')
   const createRef = useRef<HTMLDialogElement>(null)
+  const saveReviewerRef = useRef<(() => Promise<boolean>) | null>(null)
   const selected = reviewers.find(reviewer => reviewer.id === params.get('reviewer')) ?? null
   const editing = params.get('edit') === '1'
   const selectedStoredPageColor = String(selected?.content.attrs?.pageColor ?? '')
@@ -634,6 +662,26 @@ export function StudyPage({ studentId }: { studentId: string }) {
   const subjectOptions = useMemo<CaliSelectOption[]>(() => [{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title, triggerLabel: `${subject.subject_code} — ${subject.title}` }))], [subjects])
   const subjectFilterOptions = useMemo<CaliSelectOption[]>(() => [{ value: '', label: 'All subjects' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title }))], [subjects])
   const navigate = (changes: Record<string, string | null>) => { const next = new URLSearchParams(params); for (const [key, value] of Object.entries(changes)) { if (value === null) next.delete(key); else next.set(key, value) } setParams(next) }
+  const registerReviewerSave = useCallback((save: (() => Promise<boolean>) | null) => { saveReviewerRef.current = save }, [])
+  const requestLibraryExit = () => {
+    if (editing && reviewerSaveState !== 'saved') { setExitSaveError(''); setShowUnsavedExit(true); return }
+    navigate({ reviewer: null, edit: null })
+  }
+  const saveAndLeave = async () => {
+    const save = saveReviewerRef.current
+    if (!save) { setExitSaveError('The editor is not ready to save yet. Keep editing and try again.'); return }
+    setExitSaving(true); setExitSaveError('')
+    try {
+      const saved = await save()
+      if (!saved) { setExitSaveError('Your changes still could not be saved. Check your connection and try again.'); return }
+      setShowUnsavedExit(false); setReviewerSaveState('saved'); navigate({ reviewer: null, edit: null })
+    } catch {
+      setExitSaveError('Your changes still could not be saved. Check your connection and try again.')
+    } finally {
+      setExitSaving(false)
+    }
+  }
+  const leaveWithoutSaving = () => { setShowUnsavedExit(false); setReviewerSaveState('saved'); navigate({ reviewer: null, edit: null }) }
   const createReviewer = async (event: FormEvent) => {
     event.preventDefault(); if (!supabase || !newTitle.trim()) return; setCreating(true)
     const { data, error } = await supabase.rpc('cali_create_own_reviewer', { p_title: newTitle.trim(), p_subject_id: newSubject || null, p_content: EMPTY_REVIEWER_DOCUMENT, p_plain_text: '' }).single(); setCreating(false)
@@ -657,7 +705,7 @@ export function StudyPage({ studentId }: { studentId: string }) {
     const contrastClass = selectedUsesLightForeground ? ' uses-light-foreground' : ' uses-dark-foreground'
     return <section className={`study-page study-page--reviewer${selectedPageColor ? ` has-page-color${contrastClass}` : ''}`} style={{ '--reviewer-page-color': selectedPageColor || 'var(--color-cali-surface)' } as CSSProperties}>
       <nav className="reviewer-page-nav" aria-label="Reviewer navigation">
-        <button type="button" className="reviewer-back" onClick={() => navigate({ reviewer: null, edit: null })}><BackIcon /> Back to library</button>
+        <button type="button" className="reviewer-back" onClick={requestLibraryExit}><BackIcon /> Back to library</button>
         {!editing && <div className="reviewer-reader-actions">
           <button type="button" className="reviewer-icon-action" aria-label="Share reviewer — coming with Cali Community" title="Sharing will be available with Cali Community" disabled><ShareIcon /></button>
           <button type="button" className="reviewer-icon-action" aria-label="Edit reviewer" title="Edit reviewer" onClick={() => navigate({ edit: '1' })}><EditIcon /></button>
@@ -665,12 +713,13 @@ export function StudyPage({ studentId }: { studentId: string }) {
         </div>}
       </nav>
       {noticeBanner}
-      {editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} onPageColorChange={color => setPageColorOverride({ reviewerId: selected.id, color })} /> : <article className={`reviewer-reading${selectedPageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': selectedPageColor || 'var(--color-cali-surface)' } as CSSProperties}>
+      {editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} onPageColorChange={color => setPageColorOverride({ reviewerId: selected.id, color })} onSaveStateChange={setReviewerSaveState} onSaveReady={registerReviewerSave} /> : <article className={`reviewer-reading${selectedPageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': selectedPageColor || 'var(--color-cali-surface)' } as CSSProperties}>
         <header>
           <div><p className="workspace-overline">{selectedSubject?.subject_code ?? 'GENERAL REVIEWER'}</p><h1>{selected.title}</h1><p>Updated {formatReviewerDate(selected.updated_at)}</p></div>
         </header>
         <DocumentView content={selected.content} />
       </article>}
+      {showUnsavedExit && <ReviewerUnsavedDialog status={reviewerSaveState} busy={exitSaving} error={exitSaveError} onKeepEditing={() => { if (!exitSaving) { setShowUnsavedExit(false); setExitSaveError('') } }} onSaveAndLeave={() => { void saveAndLeave() }} onLeave={leaveWithoutSaving} />}
       {deleteTarget && <ReviewerDeleteDialog reviewer={deleteTarget} busy={deleting} error={deleteError} onCancel={() => { if (!deleting) setDeleteTarget(null) }} onConfirm={() => { void remove() }} />}
     </section>
   }
