@@ -1,9 +1,75 @@
-.calendar-color-picker { min-width: 0; margin: 17px 0 0; padding: 0; border: 0; }
-.calendar-color-picker legend { padding: 0; color: var(--color-cali-ink); font-size: 12px; font-weight: 800; }
-.calendar-color-picker > div { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
-.calendar-color-picker button { display: grid; justify-items: center; gap: 5px; min-width: 0; padding: 8px 3px 7px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--color-cali-slate); }
-.calendar-color-picker button:hover, .calendar-color-picker button.is-selected { border-color: color-mix(in srgb, var(--picker-color) 60%, var(--color-cali-border)); background: color-mix(in srgb, var(--picker-color) 9%, var(--color-cali-surface)); color: var(--color-cali-ink); }
-.calendar-color-picker button.is-selected { box-shadow: inset 0 0 0 1px var(--picker-color); }
-.calendar-color-picker button > span { width: 22px; height: 22px; border: 2px solid color-mix(in srgb, var(--picker-color) 70%, var(--color-cali-surface)); border-radius: 50%; background: var(--picker-color); }
-.calendar-color-picker small { max-width: 100%; overflow: hidden; font-size: 9px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 480px) { .calendar-color-picker > div { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; } .calendar-color-picker button { padding-inline: 1px; } .calendar-color-picker small { font-size: 8px; } }
+.calendar-color-picker {
+    min-width: 0;
+    margin: 17px 0 0;
+    padding: 0;
+    border: 0;
+}
+
+.calendar-color-picker legend {
+    padding: 0;
+    color: var(--color-cali-ink);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.calendar-color-picker>div {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 9px;
+}
+
+.calendar-color-picker button {
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 8px 3px 7px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--color-cali-slate);
+}
+
+.calendar-color-picker button:hover,
+.calendar-color-picker button.is-selected {
+    border-color: color-mix(in srgb, var(--picker-color) 60%, var(--color-cali-border));
+    background: color-mix(in srgb, var(--picker-color) 9%, var(--color-cali-surface));
+    color: var(--color-cali-ink);
+}
+
+.calendar-color-picker button.is-selected {
+    box-shadow: inset 0 0 0 1px var(--picker-color);
+}
+
+.calendar-color-picker button>span {
+    width: 22px;
+    height: 22px;
+    border: 2px solid color-mix(in srgb, var(--picker-color) 70%, var(--color-cali-surface));
+    border-radius: 50%;
+    background: var(--picker-color);
+}
+
+.calendar-color-picker small {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 9px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .calendar-color-picker>div {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 5px;
+    }
+
+    .calendar-color-picker button {
+        padding-inline: 1px;
+    }
+
+    .calendar-color-picker small {
+        font-size: 8px;
+    }
+}

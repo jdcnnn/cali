@@ -7,6 +7,7 @@ import { getImportedScheduleIssues, parseRtuSchedule } from '../lib/rtuScheduleP
 import type { ImportedMeetingDraft, ImportedScheduleDraft, ImportedSubjectDraft, ScheduleDayCode } from '../lib/rtuScheduleParser'
 import { preloadScheduleOcr, runScheduleOcr } from '../lib/scheduleOcr'
 import { CalendarColorPicker } from './CalendarColorPicker'
+import { ConfirmationIcon } from './ConfirmationIcon'
 import './schedule-scan.css'
 
 const days: { code: ScheduleDayCode; name: string }[] = [
@@ -389,20 +390,21 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
 
     <dialog ref={confirmationDialogRef} className="schedule-confirm-dialog" aria-label="Schedule scanner confirmation" onCancel={event => { event.preventDefault(); if (stage === 'saving') return; if (confirmStop) setConfirmStop(false); else if (pendingRemoval) setPendingRemoval(null); else if (confirming) setConfirming(false) }} onMouseDown={event => { if (stage === 'saving' || event.target !== event.currentTarget) return; if (confirmStop) setConfirmStop(false); else if (pendingRemoval) setPendingRemoval(null); else if (confirming) setConfirming(false) }}>
       {pendingRemoval && <div className="schedule-remove-dialog" role="alertdialog" aria-modal="true" aria-labelledby="schedule-remove-title" aria-describedby="schedule-remove-description">
-        <span className="schedule-remove-icon" aria-hidden="true">−</span>
+        <ConfirmationIcon kind="error" />
         <h3 id="schedule-remove-title">{pendingRemoval.kind === 'subject' ? `Remove ${pendingRemoval.label}?` : 'Remove this meeting?'}</h3>
         <p id="schedule-remove-description">{pendingRemoval.kind === 'subject' ? 'This subject and all of its meetings will be removed from the scanned schedule.' : `This meeting will be removed from ${pendingRemoval.label}.`}</p>
         <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setPendingRemoval(null)}>Keep it</button><button type="button" className="schedule-danger" onClick={confirmRemoval}>{pendingRemoval.kind === 'subject' ? 'Remove subject' : 'Remove meeting'}</button></div>
       </div>}
 
       {confirming && <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-confirm-title" aria-describedby="schedule-confirm-description">
+        <ConfirmationIcon kind={stage === 'saving' ? 'loading' : currentSubjectCount ? 'warning' : 'confirmation'} />
         <h3 id="schedule-confirm-title">{currentSubjectCount ? 'Replace your saved schedule?' : 'Save this schedule?'}</h3>
         <p id="schedule-confirm-description">{currentSubjectCount ? `Cali will remove your ${currentSubjectCount} saved ${currentSubjectCount === 1 ? 'subject' : 'subjects'} and replace them with the reviewed details.` : 'Cali will add the reviewed subjects and meetings to your schedule.'}</p>
         <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirming(false)} disabled={busy}>Go back</button><button type="button" className="schedule-scan-primary" onClick={() => { void replaceSchedule() }} disabled={busy}>{stage === 'saving' ? 'Saving…' : currentSubjectCount ? 'Replace schedule' : 'Save schedule'}</button></div>
       </div>}
 
       {confirmStop && <div className="schedule-scan-confirm" role="alertdialog" aria-modal="true" aria-labelledby="schedule-stop-title" aria-describedby="schedule-stop-description">
-        <span className="schedule-confirm-icon" aria-hidden="true">!</span>
+        <ConfirmationIcon kind="warning" />
         <h3 id="schedule-stop-title">Stop scanning?</h3>
         <p id="schedule-stop-description">The current scan will be cancelled. Your selected image and any unfinished results will be discarded.</p>
         <div><button type="button" className="schedule-secondary" autoFocus onClick={() => setConfirmStop(false)}>Keep scanning</button><button type="button" className="schedule-danger" onClick={stopScanning}>Stop scanning</button></div>

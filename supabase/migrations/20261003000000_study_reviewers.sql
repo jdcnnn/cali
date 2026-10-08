@@ -144,7 +144,7 @@ begin
   returning * into changed;
   if changed.id is null then
     if exists (select 1 from public.reviewers where id = p_id and user_id = account_id) then
-      raise exception 'This reviewer changed in another tab' using errcode = '40001';
+      raise exception 'This reviewer changed in another tab' using errcode = 'P0001';
     end if;
     raise exception 'Reviewer not found' using errcode = 'P0002';
   end if;

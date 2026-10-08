@@ -21,6 +21,7 @@ import {
 } from '../lib/tasks'
 import type { Task, TaskDraft, TaskPriority, TaskStatus, TaskStep, TaskSubject } from '../lib/tasks'
 import { CaliDatePicker, CaliTimePicker } from './CaliDateTimePicker'
+import { ConfirmationIcon, type ConfirmationIconKind } from './ConfirmationIcon'
 import { ReminderField } from './ReminderField'
 import { reminderLabel } from '../lib/reminders'
 import { enablePushNotifications } from '../lib/pushNotifications'
@@ -76,7 +77,7 @@ function PlannerTaskRow({ task, subject, steps, now, suggestion = false, busy, o
           <span className={overdue ? 'task-due--overdue' : ''}>{overdue ? 'Overdue · ' : ''}{formatTaskDue(task, now)}</span>
         </span>
       </button>
-      {completed ? <p className="planner-checklist-done">✓ Completed{task.completed_at ? ` · ${new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(task.completed_at))}` : ''}</p> : next ? <div className="planner-next-action"><span aria-hidden="true" /> <strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></div> : progress.total ? <p className="planner-checklist-done">✓ All steps complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}><span aria-hidden="true">+</span> Add steps</button>}
+      {completed ? <p className="planner-checklist-done">✓ Completed{task.completed_at ? ` · ${new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(task.completed_at))}` : ''}</p> : next ? <div className="planner-next-action"><strong>Next:</strong> {next.title}<small>{progress.completed}/{progress.total}</small></div> : progress.total ? <p className="planner-checklist-done">✓ All steps complete · {progress.total}/{progress.total}</p> : <button type="button" className="planner-add-steps" onClick={onEdit}><span aria-hidden="true">+</span> Add steps</button>}
     </div>
     <div className="planner-task-actions">
       {suggestion && <button type="button" className="task-plan-button" onClick={onPlanToday} disabled={busy}>Add to today</button>}
@@ -202,14 +203,14 @@ function TaskDetailDialog({ task, subject, steps, now, busy, onClose, onEdit, on
   </dialog>
 }
 
-function TaskConfirmationDialog({ eyebrow, title, description, confirmLabel, busyLabel, busy, danger = true, error = '', onCancel, onConfirm }: { eyebrow: string; title: string; description: string; confirmLabel: string; busyLabel: string; busy: boolean; danger?: boolean; error?: string; onCancel: () => void; onConfirm: () => void }) {
+function TaskConfirmationDialog({ eyebrow, title, description, confirmLabel, busyLabel, busy, danger = true, kind, error = '', onCancel, onConfirm }: { eyebrow: string; title: string; description: string; confirmLabel: string; busyLabel: string; busy: boolean; danger?: boolean; kind?: ConfirmationIconKind; error?: string; onCancel: () => void; onConfirm: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const dialog = dialogRef.current
     if (dialog && !dialog.open) dialog.showModal()
     return () => { if (dialog?.open) dialog.close() }
   }, [])
-  return <dialog ref={dialogRef} className="task-confirm-dialog" aria-labelledby="task-confirm-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><div className={`task-confirm-icon${danger ? '' : ' task-confirm-icon--positive'}`} aria-hidden="true">{danger ? '!' : '✓'}</div><p className="workspace-overline">{eyebrow}</p><h2 id="task-confirm-title">{title}</h2><p>{description}</p>{error && <p className="task-form-error" role="alert">{error}</p>}<footer><button type="button" className="task-secondary" autoFocus onClick={onCancel} disabled={busy}>Cancel</button><button type="button" className={danger ? 'task-danger' : 'button-primary'} onClick={onConfirm} disabled={busy}>{busy ? busyLabel : confirmLabel}</button></footer></div></dialog>
+  return <dialog ref={dialogRef} className="task-confirm-dialog" aria-labelledby="task-confirm-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><ConfirmationIcon kind={busy ? 'loading' : kind ?? (danger ? 'error' : 'success')} /><p className="workspace-overline">{eyebrow}</p><h2 id="task-confirm-title">{title}</h2><p>{description}</p>{error && <p className="task-form-error" role="alert">{error}</p>}<footer><button type="button" className="task-secondary" autoFocus onClick={onCancel} disabled={busy}>Cancel</button><button type="button" className={danger ? 'task-danger' : 'button-primary'} onClick={onConfirm} disabled={busy}>{busy ? busyLabel : confirmLabel}</button></footer></div></dialog>
 }
 
 function TasksSkeleton() {
@@ -455,7 +456,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
     </>}
     {viewing && <TaskDetailDialog task={viewing} subject={viewing.schedule_subject_id ? subjectMap.get(viewing.schedule_subject_id) : undefined} steps={steps} now={now} busy={busy} onClose={() => setViewing(null)} onEdit={() => { const task = viewing; setViewing(null); openEditor(task) }} onComplete={() => { const task = viewing; setViewing(null); requestComplete(task) }} onReopen={() => { const task = viewing; setViewing(null); void moveTask(task, 'in_progress', allColumns.in_progress.length) }} onToggleStep={step => { void toggleStep(viewing, step) }} />}
     {editor && <TaskEditor editor={editor} subjects={subjects} busy={busy} error={formError} onChange={draft => setEditor(previous => previous ? { ...previous, draft } : previous)} onSave={saveTask} onRequestClose={requestEditorClose} />}
-    {discardOpen && <TaskConfirmationDialog eyebrow="UNSAVED CHANGES" title="Discard your changes?" description="The task details you entered will not be saved." confirmLabel="Discard changes" busyLabel="Discarding..." busy={false} onCancel={() => setDiscardOpen(false)} onConfirm={() => { setDiscardOpen(false); setEditor(null) }} />}
+    {discardOpen && <TaskConfirmationDialog eyebrow="UNSAVED CHANGES" title="Discard your changes?" description="The task details you entered will not be saved." confirmLabel="Discard changes" busyLabel="Discarding..." busy={false} kind="warning" onCancel={() => setDiscardOpen(false)} onConfirm={() => { setDiscardOpen(false); setEditor(null) }} />}
     {deleting && <TaskConfirmationDialog eyebrow="DELETE TASK" title={`Delete “${deleting.title}”?`} description="This permanently removes the task, its steps, and its notes. This cannot be undone." confirmLabel="Delete task" busyLabel="Deleting..." busy={busy} error={deleteError} onCancel={() => { if (!busy) setDeleting(null) }} onConfirm={() => { void confirmDelete() }} />}
     {completing && <TaskConfirmationDialog eyebrow="MARK TASK DONE" title={`Complete “${completing.title}”?`} description={taskStepProgress(completing.id, steps).total > taskStepProgress(completing.id, steps).completed ? `This task still has ${taskStepProgress(completing.id, steps).total - taskStepProgress(completing.id, steps).completed} unfinished steps. It will leave your active lists, but its details and steps will remain saved.` : 'This task will leave your active lists, but its details and steps will remain saved.'} confirmLabel="Mark done" busyLabel="Completing..." busy={busy} danger={false} onCancel={() => setCompleting(null)} onConfirm={() => { const task = completing; setCompleting(null); void moveTask(task, 'done', 0) }} />}
   </div>

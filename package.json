@@ -6,9 +6,10 @@
   "scripts": {
     "icons": "node scripts/generate-icons.mjs",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node --env-file-if-exists=.env scripts/check-deployment-env.mjs && tsc -b && vite build && node --env-file-if-exists=.env scripts/check-client-bundle.mjs",
     "lint": "oxlint",
     "test": "vitest run",
+    "verify:study-ai": "node --env-file=.env scripts/verify-study-ai.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,11 +22,11 @@
     "@tiptap/extension-task-list": "^3.31.3",
     "@tiptap/extension-text-align": "^3.28.0",
     "@tiptap/extension-text-style": "^3.28.0",
-    "@tiptap/extension-underline": "^3.28.0",
     "@tiptap/react": "^3.28.0",
     "@tiptap/starter-kit": "^3.28.0",
     "docx": "^9.7.1",
     "dompurify": "^3.4.12",
+    "pdfjs-dist": "^5.4.296",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^7.18.4"

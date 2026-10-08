@@ -19,6 +19,7 @@ type PushSubscriptionRow = {
 }
 
 const corsHeaders = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+const emptyHeaders = { 'Cache-Control': 'no-store' }
 const required = (name: string) => {
   const value = Deno.env.get(name)
   if (!value) throw new Error(`${name} is not configured`)
@@ -55,13 +56,15 @@ Deno.serve(async request => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
     }
 
-    webpush.setVapidDetails(required('VAPID_SUBJECT'), required('VAPID_PUBLIC_KEY'), required('VAPID_PRIVATE_KEY'))
     const admin = createClient(required('SUPABASE_URL'), required('SUPABASE_SERVICE_ROLE_KEY'), {
       auth: { persistSession: false, autoRefreshToken: false },
     })
     const { data, error } = await admin.rpc('cali_claim_due_reminders', { p_limit: 50 })
     if (error) throw error
     const reminders = (data ?? []) as QueueItem[]
+    if (reminders.length === 0) return new Response(null, { status: 204, headers: emptyHeaders })
+
+    webpush.setVapidDetails(required('VAPID_SUBJECT'), required('VAPID_PUBLIC_KEY'), required('VAPID_PRIVATE_KEY'))
     let sent = 0
     let missed = 0
     let retrying = 0
@@ -173,7 +176,14 @@ Deno.serve(async request => {
 
     return new Response(JSON.stringify({ ok: true, claimed: reminders.length, sent, missed, retrying }), { headers: corsHeaders })
   } catch (cause) {
-    console.error(cause)
+    const failure = cause as { name?: unknown; message?: unknown; code?: unknown; statusCode?: unknown }
+    console.error(JSON.stringify({
+      event: 'reminder_dispatch_failed',
+      name: String(failure?.name ?? 'Error').slice(0, 80),
+      message: String(failure?.message ?? 'Unknown failure').slice(0, 300),
+      code: String(failure?.code ?? '').slice(0, 40),
+      status: Number(failure?.statusCode) || undefined,
+    }))
     return new Response(JSON.stringify({ error: cause instanceof Error ? cause.message : 'Reminder dispatch failed' }), { status: 500, headers: corsHeaders })
   }
 })

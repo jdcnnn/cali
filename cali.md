@@ -72,6 +72,8 @@ The scanner accepts images up to 12 MB and 20 megapixels and reduces the longest
 
 **Implemented startup optimization (2026-10-02):** Opening the scanner preloads one deduplicated Cali-owned module worker while preserving file selection. Image preparation overlaps any remaining PaddleOCR initialization, and the initialized worker is reused across scans before a five-minute idle release. Cancellation or failure terminates it so retry starts from a healthy state. Vite resolves ONNX Runtime to the standard SIMD WASM-only entry; the existing PP-OCRv5 models, thresholds, 2048-pixel processing limit, and deterministic parser are unchanged. Stage timing is retained for diagnostics but is not exposed in the student interface.
 
+**Canonical deployed assets (2026-10-03):** The scanner worker loads both PP-OCRv5 archives from `/ocr/v1/models/` and the standard threaded SIMD ONNX Runtime module and WASM binary from `/ocr/v1/runtime/`. Byte-identical copies of the two model archives under `/ocr/models/` were removed, and Vercel rewrites legacy model URLs to the canonical versioned files. The older `/ocr/runtime/` JSEP module and binary remain because they serve already-open legacy JavaScript and are not duplicates of the active WASM-only runtime. The service worker caches only requested `/ocr/v1/` assets. This reduces the production output by about 12.1 MiB without changing model contents, worker paths, preprocessing, recognition settings, parsing, or scanner behavior.
+
 ### Schedule fields
 
 Each class meeting has:
@@ -104,7 +106,7 @@ The database enforces lowercase 3–30-character unique usernames, nonblank prog
 
 Each student opts in separately on each device. The scheduler finds due class meetings, tasks, and events, the Edge Function sends the encrypted pushes, and the database records attempts with unique idempotency keys so late or repeated scheduler runs cannot duplicate a notification. The service worker displays the notification and handles notification clicks. The notification body and item-specific action deep-link to the exact schedule meeting, task, or calendar event. Edits rebuild pending queue work; deletion and task completion cancel it. No OneSignal, Firebase application SDK, SMS/email provider, paid queue, or Apple Developer account is required.
 
-Saving a reminder on an unsubscribed device directly invokes the native browser notification permission flow. Declining permission or a Push registration failure does not discard the saved reminder. Profile provides per-device Enable/Disable controls and banner instructions for Android, Windows, and macOS. The notification requests high urgency, vibration, persistent interaction, a Cali icon, and an Android-compatible monochrome badge, but the operating system remains responsible for banners and sound.
+Saving a reminder on an unsubscribed device directly invokes the native browser notification permission flow. Declining permission or a Push registration failure does not discard the saved reminder. Profile provides per-device Enable/Disable controls plus organized setup, platform banner, and troubleshooting instructions for Android, Windows, and macOS. Notifications use high urgency, persistent interaction, a Cali icon, and an Android-compatible monochrome badge, while the browser and operating system remain responsible for background delivery and banner presentation.
 
 **Agreed cross-platform direction:** CALI remains a responsive website and will also be installable as a Home Screen web app on iOS and Android. On iPhone and iPad, students who want closed-tab lock-screen reminders must add CALI to the Home Screen and grant notification permission. Core features remain accessible in the browser without installation. The app must explain the iOS Home Screen step clearly.
 
@@ -130,7 +132,21 @@ Migration `20260927000000_create_tasks.sql` adds the base table and atomic creat
 
 ## 6. Study direction
 
-Students can create study content manually or generate it from materials they supply. To generate a reviewer, flashcard set, or quiz, the student can provide a PDF, `.docx`, or notes/text directly in that creation flow. A student can also generate flashcards or a quiz from an existing reviewer. AI-generated structures and extracted text require validation before storage.
+**Implemented Study workspace (updated 2026-10-06):** Study provides private reviewer, flashcard, and quiz libraries. Reviewers support create, search, subject filtering, reading, duplication, editing, and confirmed deletion. A reviewer may be linked to one of the student's schedule subjects. Its Tiptap editor supports headings, inline formatting, text color and highlighting, lists and checklists, tables, columns, alignment, undo/redo, page colors, focus mode, and optional browser spellcheck.
+
+Reviewer edits autosave after 1.2 seconds, Done saves before closing, a failed save exposes Save now, and leaving with unsaved work offers Save and leave. These controls use the same callback. Only one `cali_update_own_reviewer` request can be in flight: concurrent triggers receive the existing promise. Each successful response updates `revision.current`; edits made while that request is running stay dirty and are saved next. Stale revisions raise `P0001`, not the retryable Postgres transaction code `40001`, and the client does not retry a conflict automatically.
+
+Flashcards are manually authored with Front and Back fields. Sets support sequential or shuffled study, persisted progress, resuming, and mastery after two consecutive successful recalls. Their overview presents actual card and mastery counts, while the completion view reports Remembered and Still learning counts instead of a percentage. Starting a new completed-session review preserves mastery; replacing unfinished session responses requires confirmation.
+
+Quizzes support multiple-choice and true/false questions, a selected correct answer, and an optional explanation. Choice deletion, clearing the editor's correct-answer selection, and changing question type are immediate editor actions. A type change resets that question's choices and correct answer. Major actions—question deletion, discarding unsaved work, attempt restart, and quiz deletion—require confirmation. Save can retain incomplete questions as drafts, but the confirmation identifies every missing requirement and only complete questions enter an attempt.
+
+Quiz attempts show feedback after each answered item, including Correct or Incorrect status, the correct answer, and the authored explanation when present. Skip item moves an unanswered question behind untouched questions and returns skipped items after the final untouched question; an attempt cannot finish until those items are answered. Question and choice shuffling operate on the saved attempt snapshot so resumes and historical reviews keep the same order. Completed attempts are immutable and appear as score counts and recent history. Restarting marks an unfinished attempt abandoned before creating another; deleting the quiz cascades to its attempts.
+
+Study previews use equal compact dimensions for flashcards and quizzes, consistent subject/date placement, clamped content, and no redundant “From subject” label. Reviewer previews no longer use colored top bars. Flashcard and quiz detail/editor pages use responsive desktop and mobile structures with reduced card/button scale, clear content hierarchy, and reviewer-style three-dot Edit/Delete actions. Reference-reviewer panels include **Use other reviewers**, allowing the source reviewer to change without inventing or copying extra metadata.
+
+Migration `20261003000000_study_reviewers.sql` adds private reviewer storage and revision-checked operations. `20261005000000_flashcards_and_quizzes.sql` adds compact private flashcard and quiz documents, resumable activity, immutable completed quiz attempts, owner RLS, and account-deletion coverage. The `20261006000000`–`20261006050000` migrations add atomic manual saves, content-only revisions, repaired two-recall mastery semantics, safe table-specific trigger branches, and owned reference-reviewer switching. Document import and AI-assisted reviewer generation are not currently active.
+
+The planned AI flow is limited to generating a reviewer from a supplied PDF, `.docx`, or notes/text. Flashcards and quizzes are manually authored from scratch or with an existing reviewer shown as a reference; they never make a separate AI request.
 
 **Confirmed study-set ownership:** Source content belongs to the study set created from it. CALI does not present or persist an independent study-material library. Extracted text may be retained within the owning study set to support reuse; an existing reviewer is an explicit source for creating flashcards and quizzes. The original uploaded file is still discarded after processing.
 
@@ -156,6 +172,7 @@ Generative AI use is currently planned only for study workflows. Schedule scanni
 | Project layout | One project root with one `package.json` and one `package-lock.json` | Confirmed; React and Node API share the project |
 | Database | Supabase PostgreSQL | Confirmed |
 | Schedule scanning | Browser-only PaddleOCR.js with locally hosted PP-OCRv5 models and deterministic RTU parsing | Implemented |
+| Manual reviewers | Private Supabase rows, revision-checked RPCs, and a Tiptap rich-text editor | Implemented |
 | File storage | Private Supabase Storage for temporary study-file processing | Confirmed; all uploaded files are discarded after processing |
 | Study-set source content | Private extracted text retained with its owning reviewer, flashcard set, or quiz | Confirmed; no independent material library |
 | Study document text extraction | PDF.js (`pdfjs-dist`) for PDF and Mammoth (`mammoth`) for `.docx` | Confirmed; deployment compatibility to test |
@@ -167,11 +184,12 @@ Generative AI use is currently planned only for study workflows. Schedule scanni
 | Hosting | Vercel for the frontend and native Node.js API functions | Confirmed; processing limits to verify with representative files |
 | Validation library | No Zod for the MVP | Confirmed |
 
-### Supporting tools not yet finalized
+### Supporting tools
 
-| Layer | Candidate | Decision still needed |
+| Layer | Choice | Status |
 | --- | --- | --- |
-| Test tooling | Vitest and React Testing Library | Confirm when the test plan is defined |
+| Unit test tooling | Vitest | Implemented for focused logic tests; broader component and end-to-end coverage remains open |
+| Component test tooling | React Testing Library | Candidate; not currently installed |
 | Web Push sender package | `web-push@3.6.7` | Implemented in the Supabase Edge Function |
 
 ### Single-project folder structure
@@ -206,6 +224,8 @@ Implemented packages are recorded in the root `package.json` and `package-lock.j
 | Browser runtime | `react`, `react-dom`, `react-router`, `@supabase/supabase-js` |
 | Build and styles | `typescript`, `vite`, `@vitejs/plugin-react`, `tailwindcss`, `@tailwindcss/vite`, `@types/react`, `@types/react-dom` |
 | Browser schedule OCR | `@paddleocr/paddleocr-js` with locally hosted PP-OCRv5 models |
+| Manual reviewer editor | Tiptap extensions and `dompurify` |
+| Reserved study document work | `docx` is installed; PDF/Word ingestion and generation are not wired into the current UI |
 | Browser reminders | Native Push API, Notifications API, and the existing service worker |
 | Reminder persistence | Supabase Postgres, RLS, constraints, and focused RPCs |
 | Reminder sender | Supabase Edge Function (TypeScript/Deno) with pinned `web-push@3.6.7` |
@@ -233,17 +253,17 @@ The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK 
 - The backend must verify the authenticated user and ownership before privileged operations. Database row-level security and Storage policies should enforce the same boundaries.
 - The Supabase service role key and OpenRouter API key are server-side secrets. Neither belongs in frontend code or committed files.
 - Study-material uploads require type, size, and processing-result checks. Every uploaded file must be deleted after processing or failure, with cleanup for abandoned temporary files.
-- Account deletion is an atomic privacy boundary. Migration `20261002020000_harden_account_deletion.sql` explicitly deletes the current user's reminder deliveries/queue, Push subscriptions, task steps/tasks, calendar events, schedule meetings/subjects, profile, and Supabase Auth account; foreign-key cascades remain as defense in depth. The client then removes the local Push subscription, Auth session, and theme preference. Future user-owned tables and Storage buckets must be added to this deletion contract before release.
+- Account deletion is an atomic privacy boundary. Migration `20261002020000_harden_account_deletion.sql` established explicit deletion of the current user's reminder deliveries/queue, Push subscriptions, task steps/tasks, calendar events, schedule meetings/subjects, profile, and Supabase Auth account. Migration `20261003000000_study_reviewers.sql` adds reviewers and reserved reviewer AI request/draft records; `20261005000000_flashcards_and_quizzes.sql` adds quiz attempts, quizzes, and flashcard sets. Foreign-key cascades remain as defense in depth. The client then removes the local Push subscription, Auth session, and theme preference. Future user-owned tables and Storage buckets must be added to this deletion contract before release.
 
 ### Initial data domains, not a complete schema
 
-Student profile, schedule meetings and their class reminders, push subscriptions, tasks, reviewers, flashcard sets, quizzes, source content owned by those study sets, study activity, and community shares. Original uploaded files and standalone study-material records are not persistent domains. Tables and relationships will be designed when the corresponding module requirements are settled rather than created all at once.
+Student profile, schedule meetings and their class reminders, push subscriptions, tasks, reviewers, flashcard sets, quizzes, flashcard progress, and quiz attempts are implemented domains. Community shares remain planned. Original uploaded files and standalone study-material records are not persistent domains.
 
 ## 9. Design direction
 
 The confirmed font pairing uses **Fredoka** for CALI branding and major headings, and **DM Sans** for navigation, forms, buttons, and body text. Proposed brand colors are primary blue `#1E90FF`, action blue `#0758B8`, deep ink `#172B42`, slate `#526579`, pale blue `#EAF4FF`, canvas `#F6FAFE`, border `#D7E5F3`, and white `#FFFFFF`.
 
-The design should prioritize readable academic information and quick access to work. Final component and page specifications remain to be planned.
+The design prioritizes readable academic information and quick access to work. Study uses compact equal-size previews, restrained borders, deliberate whitespace, responsive one- and two-column layouts, and count-based progress summaries rather than decorative or unsupported analytics. Major actions across the application share Cali-branded confirmation/default, warning, loading, success, error, and blue information states. Their inline SVG icons inherit the intended state color, copy stays scoped to the action, and minor reversible editor actions do not create unnecessary confirmation friction. Final release-level component and accessibility review remains planned.
 
 ## 10. Development status and sequence
 
@@ -256,7 +276,7 @@ The design should prioritize readable academic information and quick access to w
 | 5. Class, task, and event reminders | **Complete** | Per-item presets/custom lead times, native browser permission, device subscriptions, Web Push delivery, enabled cron scheduling, retries/idempotency, service-worker display/deep links, banner instructions, and device-level enable/disable controls. |
 | 6. Tasks | **Complete** | Focused responsive Today, Upcoming, and Completed planning, guided checklist steps, planned work dates, secure ownership policies, and dashboard integration. |
 | 7. Calendar | **Complete** | Independent Cali-branded monthly calendar for class meetings, task deadlines, and Events, with a responsive selected-day detail panel, preview modals, selected-date creation, notification targeting, Event editing/deletion, a three-way create menu, and ten theme-aware named colors. Weekly browsing remains in Schedules. |
-| 8. Study | **Planned** | Manual creation followed by PDF, `.docx`, or text generation of reviewers, flashcards, and quizzes; flashcards and quizzes can also use an existing reviewer. |
+| 8. Study | **In progress** | Private reviewers, flashcards, quizzes, mastery, and attempt history are implemented. PDF, `.docx`, or text import and AI-assisted reviewer generation remain planned. |
 | 9. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
 | 10. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |
 | 11. Release review | **Planned** | Key journey, authorization, data handling, accessibility, performance, and deployment verification. |
@@ -269,6 +289,6 @@ Each remaining phase should receive its own user flow, data contract, validation
 2. Finalize broader component and end-to-end test tooling.
 3. Decide whether any code from the previously mentioned GitHub project should be brought into the new standalone project. The current planning workspace is separate from the requested project folder.
 
-## 11. Documentation process
+## 12. Documentation process
 
 This file is the living project overview. As modules are planned, add detailed requirements and architecture documents that link back to the decisions here. Record each decision with its status, rationale, and date. Do not treat older attached context as an instruction to change code or architecture when it conflicts with the team's newer decisions.

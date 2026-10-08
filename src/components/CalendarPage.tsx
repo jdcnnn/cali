@@ -8,6 +8,7 @@ import { localDateKey } from '../lib/tasks'
 import type { Task, TaskPriority } from '../lib/tasks'
 import { CalendarColorPicker } from './CalendarColorPicker'
 import { CaliDatePicker, CaliTimePicker } from './CaliDateTimePicker'
+import { ConfirmationIcon } from './ConfirmationIcon'
 import { ReminderField } from './ReminderField'
 import { reminderLabel } from '../lib/reminders'
 import { enablePushNotifications } from '../lib/pushNotifications'
@@ -142,9 +143,9 @@ function EventEditorDialog({ studentId, initialDate, existingEvent, onClose, onS
     }
   }
 
-  return <dialog ref={dialogRef} className="calendar-event-dialog" aria-labelledby="calendar-event-title" onCancel={event => { event.preventDefault(); if (!busy) onClose() }}>
+  return <dialog ref={dialogRef} className={`calendar-event-dialog${confirmDelete ? ' is-confirmation' : ''}`} aria-labelledby="calendar-event-title" onCancel={event => { event.preventDefault(); if (!busy) onClose() }}>
     {confirmDelete && existingEvent ? <div className="calendar-event-confirm">
-      <span className="calendar-event-confirm-icon" aria-hidden="true">!</span>
+      <ConfirmationIcon kind={busy ? 'loading' : 'error'} />
       <p className="workspace-overline">DELETE EVENT</p>
       <h2 id="calendar-event-title">Delete “{existingEvent.title}”?</h2>
       <p>This permanently removes the event and its reminder. This cannot be undone.</p>

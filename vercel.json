@@ -1,4 +1,12 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "fluid": true,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/study/reviewer-generation.ts": { "maxDuration": 120 }
+  },
   "headers": [
     {
       "source": "/",
@@ -22,7 +30,8 @@
     {
       "source": "/manifest.webmanifest",
       "headers": [
-        { "key": "Content-Type", "value": "application/manifest+json" }
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
       ]
     },
     {
@@ -33,6 +42,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/ocr/models/:path*", "destination": "/ocr/v1/models/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
