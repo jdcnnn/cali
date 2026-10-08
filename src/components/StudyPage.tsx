@@ -671,7 +671,29 @@ function AiGenerationQuotaDialog({ quota, onCancel, onConfirm }: { quota: AiGene
     return Number.isNaN(date.getTime()) ? 'next month' : new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric', timeZone: 'Asia/Manila' }).format(date)
   })()
   const confirmOnce = () => { if (confirmed.current) return; confirmed.current = true; onConfirm() }
-  return <dialog ref={dialogRef} className="study-confirm-dialog" aria-labelledby="ai-quota-title" onCancel={event => { event.preventDefault(); onCancel() }}><div><ConfirmationIcon kind="information" /><p className="workspace-overline">MONTHLY LIMIT</p><h2 id="ai-quota-title">{exhausted ? 'Monthly limit reached' : 'Generate this reviewer?'}</h2><p>You’ve used {quota.used} of {quota.limit} generations this month. {remaining === 1 ? 'You have 1 left.' : `You have ${remaining} left.`}</p><p className="ai-quota-reset">Resets {resetDate}. Unsuccessful attempts don’t count.</p><footer>{exhausted ? <button type="button" className="button-primary" autoFocus onClick={onCancel}>Close</button> : <><button type="button" className="study-secondary" autoFocus onClick={onCancel}>Cancel</button><button type="button" className="button-primary" onClick={confirmOnce}>Generate reviewer</button></>}</footer></div></dialog>
+  const remainingLabel = exhausted
+    ? 'No generations remaining'
+    : `${remaining} ${remaining === 1 ? 'generation' : 'generations'} remaining`
+
+  return <dialog ref={dialogRef} className="study-confirm-dialog ai-quota-dialog" aria-labelledby="ai-quota-title" onCancel={event => { event.preventDefault(); onCancel() }}>
+    <div>
+      <ConfirmationIcon kind="information" />
+      <div className="ai-quota-heading">
+        <p className="workspace-overline">MONTHLY USAGE</p>
+        <h2 id="ai-quota-title">{exhausted ? "You've reached your limit" : 'Generate reviewer?'}</h2>
+      </div>
+      <div className="ai-quota-usage">
+        <strong>{remainingLabel}</strong>
+        <span>{quota.used} of {quota.limit} used this month</span>
+      </div>
+      <p className="ai-quota-reset">{exhausted ? `Available again ${resetDate}.` : `Renews ${resetDate}. Failed attempts don't count.`}</p>
+      <footer>
+        {exhausted
+          ? <button type="button" className="button-primary" autoFocus onClick={onCancel}>Close</button>
+          : <><button type="button" className="study-secondary" autoFocus onClick={onCancel}>Cancel</button><button type="button" className="button-primary" onClick={confirmOnce}>Generate reviewer</button></>}
+      </footer>
+    </div>
+  </dialog>
 }
 
 function recoveredAiSource() { try { return window.localStorage.getItem('cali-ai-reviewer-recovery') ?? '' } catch { return '' } }
@@ -879,8 +901,18 @@ function AiReviewerDialog({ subjects, initialDraft, onClose, onSaved }: { subjec
   }
 
   const discard = async () => {
-    if (!draft || !supabase || busy) { closeSourceDialog(); return }
-    setBusy(true); await supabase.rpc('cali_discard_own_generated_reviewer', { p_request_id: draft.requestId }); setBusy(false); onClose()
+    if (!draft || busy) return
+    if (!supabase) { setError('Cali could not connect to your saved draft. Please try again.'); return }
+    setBusy(true); setError('')
+    try {
+      const { error: discardError } = await supabase.rpc('cali_discard_own_generated_reviewer', { p_request_id: draft.requestId })
+      if (discardError) { setError('Cali could not discard this draft. It is still saved, so you can try again.'); return }
+      onClose()
+    } catch {
+      setError('Cali could not discard this draft. It is still saved, so you can try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return <dialog ref={dialogRef} className={`study-dialog ai-reviewer-dialog${draft ? ' has-draft' : ''}`} onCancel={event => { if (event.target !== event.currentTarget) return; event.preventDefault(); if (!busy) { if (draft) setDraftAction('discard'); else requestSourceClose() } }}>
@@ -890,7 +922,7 @@ function AiReviewerDialog({ subjects, initialDraft, onClose, onSaved }: { subjec
           <section className="ai-generator-section"><div className="ai-section-heading"><strong>Choose your source</strong></div><div className="ai-source-tabs" role="tablist" aria-label="Choose your source"><button type="button" role="tab" aria-selected={sourceType === 'scan'} className={sourceType === 'scan' ? 'is-active' : ''} onClick={() => { setSourceType('scan'); setSourceText(''); setFileName(''); setError('') }}><span><strong>Handwritten notes</strong><small>Choose page photos</small></span></button><button type="button" role="tab" aria-selected={sourceType === 'pdf'} className={sourceType === 'pdf' ? 'is-active' : ''} onClick={() => { setSourceType('pdf'); setSourceText(''); setScanStatus(''); setError('') }}><span><span className="ai-source-option-title"><strong>PDF document</strong><em>Recommended</em></span><small>Upload a digital file</small></span></button></div>
             <div className="ai-source-card" aria-label={sourceType === 'scan' ? 'Handwritten note photos' : 'PDF document'}>
               {sourceType === 'pdf' ? <>
-                <label className="ai-file-picker"><input type="file" accept="application/pdf,.pdf" onChange={event => { void selectPdf(event.target.files?.[0]) }} /><span><strong>{fileName || 'Select a PDF file'}</strong>{!fileName && <small>Text-based PDF · up to 20 MB</small>}</span><span className="ai-file-action">{fileName ? 'Change PDF' : 'Browse'}</span></label>
+                <label className="ai-file-picker"><input type="file" accept="application/pdf,.pdf" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void selectPdf(file) }} /><span><strong>{fileName || 'Select a PDF file'}</strong>{!fileName && <small>Text-based PDF · up to 20 MB</small>}</span><span className="ai-file-action">{fileName ? 'Change PDF' : 'Browse'}</span></label>
                 <p className="ai-source-note">Scanned or image-only PDFs cannot be read.</p>
                 {sourceText && <AiSourceTextEditor sourceType="pdf" value={sourceText} onChange={setSourceText} />}
               </> : <div className="ai-note-scanner">

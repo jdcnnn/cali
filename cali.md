@@ -144,17 +144,17 @@ Quiz attempts show feedback after each answered item, including Correct or Incor
 
 Study previews use equal compact dimensions for flashcards and quizzes, consistent subject/date placement, clamped content, and no redundant “From subject” label. Reviewer previews no longer use colored top bars. Flashcard and quiz detail/editor pages use responsive desktop and mobile structures with reduced card/button scale, clear content hierarchy, and reviewer-style three-dot Edit/Delete actions. Reference-reviewer panels include **Use other reviewers**, allowing the source reviewer to change without inventing or copying extra metadata.
 
-Migration `20261003000000_study_reviewers.sql` adds private reviewer storage and revision-checked operations. `20261005000000_flashcards_and_quizzes.sql` adds compact private flashcard and quiz documents, resumable activity, immutable completed quiz attempts, owner RLS, and account-deletion coverage. The `20261006000000`–`20261006050000` migrations add atomic manual saves, content-only revisions, repaired two-recall mastery semantics, safe table-specific trigger branches, and owned reference-reviewer switching. Document import and AI-assisted reviewer generation are not currently active.
+Migration `20261003000000_study_reviewers.sql` adds private reviewer storage and revision-checked operations. `20261005000000_flashcards_and_quizzes.sql` adds compact private flashcard and quiz documents, resumable activity, immutable completed quiz attempts, owner RLS, and account-deletion coverage. The `20261006000000`–`20261006050000` migrations add atomic manual saves, content-only revisions, repaired two-recall mastery semantics, safe table-specific trigger branches, and owned reference-reviewer switching. Migration `20261007000000_reliable_ai_reviewers.sql` adds idempotent generation requests, successful-only monthly quotas, private revision-checked drafts, expiration, promotion, discard, and account-deletion coverage.
 
-The planned AI flow is limited to generating a reviewer from a supplied PDF, `.docx`, or notes/text. Flashcards and quizzes are manually authored from scratch or with an existing reviewer shown as a reference; they never make a separate AI request.
+AI generation creates reviewer drafts from up to ten notebook-page photos or one digital, text-based PDF. Notebook OCR and PDF text extraction happen in the browser; only the extracted text is sent through the authenticated generation endpoint. Flashcards and quizzes remain manually authored from scratch or with an existing reviewer shown as a reference; they never make a separate AI request.
 
-**Confirmed study-set ownership:** Source content belongs to the study set created from it. CALI does not present or persist an independent study-material library. Extracted text may be retained within the owning study set to support reuse; an existing reviewer is an explicit source for creating flashcards and quizzes. The original uploaded file is still discarded after processing.
+**Confirmed study-set ownership:** CALI does not present or persist an independent study-material library. Reviewers, flashcard sets, and quizzes are independent private records. Extracted generation source text is kept only in the active browser flow for review and retry; it is never stored in the generation-request or draft tables. An existing reviewer is an explicit source for creating flashcards and quizzes. Original notebook photos and PDFs stay on the device.
 
 **Confirmed editing and deletion:** Students can edit and delete their own reviewers, flashcard sets, and quizzes. Editing one changes only that set. Deleting one removes only that set's stored content and associated source data. Flashcard sets and quizzes generated from a reviewer remain independent; later edits or deletion of the reviewer do not change them.
 
-**Confirmed file policy:** CALI discards every uploaded study file after processing. Study PDFs and `.docx` files may be placed in private Supabase Storage only as temporary processing inputs and must be deleted after extraction or on processing failure. A cleanup mechanism must remove abandoned temporary uploads.
+**Confirmed file policy:** CALI does not upload notebook photos or PDFs. Browser-based OCR and PDF.js extract text on the student's device. Scanned/image-only PDFs require the notebook-photo path; OCR for PDFs and `.docx` import are outside the current scope.
 
-Generative AI use is currently planned only for study workflows. Schedule scanning uses local PaddleOCR text detection and deterministic RTU table parsing; it does not send forms to an OCR service or use an LLM. No generative AI use is planned for schedules, task management, reminders, analytics calculations, authentication, or database operations.
+Generative AI is used only to create reviewer drafts in Study. Schedule scanning uses local PaddleOCR text detection and deterministic RTU table parsing; it does not send forms to an OCR service or use an LLM. Schedules, task management, reminders, analytics calculations, authentication, and database operations do not use generative AI.
 
 ## 7. Technology stack
 
@@ -173,15 +173,15 @@ Generative AI use is currently planned only for study workflows. Schedule scanni
 | Database | Supabase PostgreSQL | Confirmed |
 | Schedule scanning | Browser-only PaddleOCR.js with locally hosted PP-OCRv5 models and deterministic RTU parsing | Implemented |
 | Manual reviewers | Private Supabase rows, revision-checked RPCs, and a Tiptap rich-text editor | Implemented |
-| File storage | Private Supabase Storage for temporary study-file processing | Confirmed; all uploaded files are discarded after processing |
-| Study-set source content | Private extracted text retained with its owning reviewer, flashcard set, or quiz | Confirmed; no independent material library |
-| Study document text extraction | PDF.js (`pdfjs-dist`) for PDF and Mammoth (`mammoth`) for `.docx` | Confirmed; deployment compatibility to test |
-| AI provider | OpenRouter | Confirmed; exact models to choose after evaluation |
+| File storage | No server storage for notebook photos or PDFs | Implemented; originals stay on-device |
+| Study-set source content | Independent private reviewer, flashcard-set, and quiz records | Implemented; no material library or persisted generation source |
+| Study document text extraction | PDF.js (`pdfjs-dist`) for digital PDFs and PaddleOCR.js for notebook photos | Implemented and deployed |
+| AI provider | OpenRouter with two explicitly configured free models | Implemented and live-catalog verified |
 | Cross-platform delivery | Responsive website that is also installable as a Home Screen web app | Confirmed direction for iOS and Android |
 | Class, task, and event reminders | Closed-tab, lock-screen notifications | Implemented; iOS needs Home Screen installation and permission |
 | Notification delivery | Web Push, service worker, and backend sender | Implemented and device-verified |
 | Reminder trigger | cron-job.org | Implemented; enabled once per minute in Asia/Manila |
-| Hosting | Vercel for the frontend and native Node.js API functions | Confirmed; processing limits to verify with representative files |
+| Hosting | Vercel for the frontend and native Node.js API functions | Implemented; authenticated production generation still requires a release smoke test |
 | Validation library | No Zod for the MVP | Confirmed |
 
 ### Supporting tools
@@ -276,7 +276,7 @@ The design prioritizes readable academic information and quick access to work. S
 | 5. Class, task, and event reminders | **Complete** | Per-item presets/custom lead times, native browser permission, device subscriptions, Web Push delivery, enabled cron scheduling, retries/idempotency, service-worker display/deep links, banner instructions, and device-level enable/disable controls. |
 | 6. Tasks | **Complete** | Focused responsive Today, Upcoming, and Completed planning, guided checklist steps, planned work dates, secure ownership policies, and dashboard integration. |
 | 7. Calendar | **Complete** | Independent Cali-branded monthly calendar for class meetings, task deadlines, and Events, with a responsive selected-day detail panel, preview modals, selected-date creation, notification targeting, Event editing/deletion, a three-way create menu, and ten theme-aware named colors. Weekly browsing remains in Schedules. |
-| 8. Study | **In progress** | Private reviewers, flashcards, quizzes, mastery, and attempt history are implemented. PDF, `.docx`, or text import and AI-assisted reviewer generation remain planned. |
+| 8. Study | **Complete** | Private reviewers, notebook-photo OCR, digital-PDF extraction, AI-assisted reviewer drafts, flashcards, quizzes, mastery, and attempt history are implemented. OCR for scanned PDFs, `.docx` import, and AI-generated flashcards/quizzes are outside this phase. |
 | 9. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
 | 10. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |
 | 11. Release review | **Planned** | Key journey, authorization, data handling, accessibility, performance, and deployment verification. |
@@ -285,9 +285,8 @@ Each remaining phase should receive its own user flow, data contract, validation
 
 ## 11. Open architecture decisions
 
-1. Select an OpenRouter model or model-selection policy after testing study material examples.
-2. Finalize broader component and end-to-end test tooling.
-3. Decide whether any code from the previously mentioned GitHub project should be brought into the new standalone project. The current planning workspace is separate from the requested project folder.
+1. Finalize broader component and end-to-end test tooling.
+2. Decide whether any code from the previously mentioned GitHub project should be brought into the new standalone project. The current planning workspace is separate from the requested project folder.
 
 ## 12. Documentation process
 
