@@ -5,8 +5,10 @@ import { SiteFooter } from "./SiteFooter";
 import { ThemePicker } from "../theme/ThemePicker";
 import { clearAuthRedirectError, initialAuthRedirectError, startGoogleSignIn } from "../lib/supabase";
 import "./entry.css";
+import { useLoginMode } from "../auth/LoginModeContext";
 
 export function LandingPage() {
+  const { allowPersonalGoogleLogin } = useLoginMode();
   const location = useLocation();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -104,8 +106,8 @@ export function LandingPage() {
       {authError && <dialog ref={authDialogRef} className="signout-dialog auth-error-dialog" aria-labelledby="auth-error-title" aria-describedby="auth-error-description" onCancel={(event) => { event.preventDefault(); dismissAuthError(); }}>
         <div className="signout-dialog-content">
           <p className="signout-dialog-kicker">ACCOUNT ACCESS</p>
-          <h2 id="auth-error-title">{authError.code === 'access_denied' ? 'Use your RTU Google account' : "Google sign-in didn't finish"}</h2>
-          <p id="auth-error-description" className="auth-error-description">{authError.code === 'access_denied' ? 'Cali is available to students with a verified @rtu.edu.ph Google account. Choose that account to continue.' : authError.description || 'Please try signing in again.'}</p>
+          <h2 id="auth-error-title">{authError.code === 'access_denied' ? (allowPersonalGoogleLogin ? 'Use a verified Google account' : 'Use your RTU Google account') : "Google sign-in didn't finish"}</h2>
+          <p id="auth-error-description" className="auth-error-description">{authError.code === 'access_denied' ? (allowPersonalGoogleLogin ? 'Cali is available to verified Google accounts. Choose one to continue.' : 'Cali currently requires a verified @rtu.edu.ph Google account. Choose that account to continue.') : authError.description || 'Please try signing in again.'}</p>
           <div className="signout-dialog-actions">
             <button type="button" className="signout-cancel" onClick={dismissAuthError}>Close</button>
             <button ref={retryButtonRef} type="button" className="button-primary" onClick={() => { void signIn(); }} disabled={busy}>{busy ? 'Connecting...' : 'Choose another account'}</button>
@@ -206,7 +208,7 @@ export function LandingPage() {
               </a>
             </div>
             <p className="entry-auth-note">
-              Use your institutional email to create your Cali account.
+              {allowPersonalGoogleLogin ? 'Use any verified Google account to create your Cali account.' : 'Use your verified @rtu.edu.ph Google account to create your Cali account.'}
             </p>
           </div>
         </section>
@@ -275,8 +277,8 @@ export function LandingPage() {
             <ol className="entry-steps">
               <li>
                 <span aria-hidden="true">STEP 1</span>
-                <h3>Sign in with your institutional email</h3>
-                <p>Choose your @rtu.edu.ph Google account.</p>
+                <h3>Sign in with Google</h3>
+                <p>{allowPersonalGoogleLogin ? 'Choose any verified Google account.' : 'Choose your verified @rtu.edu.ph Google account.'}</p>
               </li>
               <li>
                 <span aria-hidden="true">STEP 2</span>
@@ -319,7 +321,7 @@ export function LandingPage() {
               aria-busy={busy}
             >
               <span>
-                {busy ? "Connecting to Google…" : "Get started with your institutional email"}
+                {busy ? "Connecting to Google…" : allowPersonalGoogleLogin ? "Get started with Google" : "Get started with your RTU email"}
               </span>
             </button>
           </div>

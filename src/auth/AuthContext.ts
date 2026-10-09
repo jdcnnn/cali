@@ -9,14 +9,17 @@ export type Student = {
   full_name: string | null
   avatar_url: string | null
   bio?: string | null
+  is_admin?: boolean
 }
+
+export type AccountType = 'institutional' | 'personal'
 
 export type AuthState =
   | { status: 'loading'; user: null; student: null; message: null }
   | { status: 'signedOut'; user: null; student: null; message: null }
-  | { status: 'ineligible'; user: User; student: null; message: null }
+  | { status: 'ineligible'; user: User; student: null; message: string | null; reason: string | null }
   | { status: 'needsOnboarding'; user: User; student: null; message: null }
-  | { status: 'ready'; user: User; student: Student; message: null }
+  | { status: 'ready'; user: User; student: Student; message: null; isAdmin: boolean; accountType: AccountType }
   | { status: 'error'; user: null; student: null; message: string }
 
 export type AuthContextValue = {

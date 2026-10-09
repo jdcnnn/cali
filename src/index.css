@@ -1138,6 +1138,100 @@ button:disabled {
   padding-top: 26px;
 }
 
+.workspace-admin-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  min-height: 66px;
+  margin-bottom: 9px;
+  padding: 10px 11px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-cali-accent) 34%, var(--color-cali-border));
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--color-cali-pale), color-mix(in srgb, var(--color-cali-surface) 88%, var(--color-cali-pale)));
+  box-shadow: 0 8px 22px #12384D0B;
+  color: var(--color-cali-ink);
+  text-decoration: none;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.workspace-admin-switch::after {
+  position: absolute;
+  top: -24px;
+  right: -18px;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-cali-accent) 9%, transparent);
+  content: '';
+  pointer-events: none;
+}
+
+.workspace-admin-switch:hover {
+  border-color: var(--color-cali-accent);
+  box-shadow: 0 11px 28px #107DAC18;
+  transform: translateY(-1px);
+}
+
+.workspace-admin-switch:focus-visible {
+  outline: 2px solid var(--color-cali-accent);
+  outline-offset: 3px;
+}
+
+.workspace-admin-switch-icon {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  border-radius: 11px;
+  background: var(--color-cali-action);
+  box-shadow: 0 6px 14px #107DAC24;
+  color: #fff;
+}
+
+.workspace-admin-switch-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.workspace-admin-switch-copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.workspace-admin-switch-copy small {
+  color: var(--color-cali-accent);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.workspace-admin-switch-copy strong {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-admin-switch-arrow {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  color: var(--color-cali-action-text);
+  transition: transform .18s ease;
+}
+
+.workspace-admin-switch:hover .workspace-admin-switch-arrow {
+  transform: translateX(2px);
+}
+
 .workspace-sidebar-actions {
   display: grid;
   gap: 4px;

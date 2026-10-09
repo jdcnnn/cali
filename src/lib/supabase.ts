@@ -44,8 +44,17 @@ export async function startGoogleSignIn() {
     provider: 'google',
     options: {
       redirectTo: window.location.origin,
-      queryParams: { hd: 'rtu.edu.ph', prompt: 'select_account' },
+      queryParams: { prompt: 'select_account' },
     },
   })
   if (error) throw error
+}
+
+export type LoginMode = { allowPersonalGoogleLogin: boolean }
+
+export async function getPublicLoginMode(): Promise<LoginMode> {
+  if (!supabase) return { allowPersonalGoogleLogin: false }
+  const { data, error } = await supabase.rpc('cali_public_login_mode')
+  if (error || !data || typeof data !== 'object') return { allowPersonalGoogleLogin: false }
+  return { allowPersonalGoogleLogin: (data as { allowPersonalGoogleLogin?: unknown }).allowPersonalGoogleLogin === true }
 }

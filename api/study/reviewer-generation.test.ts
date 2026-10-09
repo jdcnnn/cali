@@ -1,8 +1,8 @@
 import { Readable } from 'node:stream'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ getUser: vi.fn(), rpc: vi.fn(), maybeSingle: vi.fn(), generate: vi.fn() }))
-vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ auth: { getUser: mocks.getUser }, rpc: (name: string, args: unknown) => name === 'cali_is_eligible_user' ? Promise.resolve({ data: true, error: null }) : mocks.rpc(name, args), from: () => { const query = { select: () => query, eq: () => query, maybeSingle: mocks.maybeSingle }; return query } }) }))
+const mocks = vi.hoisted(() => ({ getUser: vi.fn(), eligible: vi.fn(), rpc: vi.fn(), maybeSingle: vi.fn(), generate: vi.fn() }))
+vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ auth: { getUser: mocks.getUser }, rpc: (name: string, args: unknown) => name === 'cali_is_eligible_user' ? mocks.eligible() : mocks.rpc(name, args), from: () => { const query = { select: () => query, eq: () => query, maybeSingle: mocks.maybeSingle }; return query } }) }))
 vi.mock('../../server/reviewerProvider.js', async importOriginal => ({ ...await importOriginal<typeof import('../../server/reviewerProvider')>(), generateAcademicReviewer: mocks.generate }))
 import handler from './reviewer-generation'
 import { GenerationError } from '../../server/reviewerProvider'
@@ -19,6 +19,7 @@ describe('reviewer generation endpoint', () => {
     vi.clearAllMocks()
     for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENROUTER_API_KEY']) vi.stubEnv(name, name === 'SUPABASE_URL' ? 'https://test.supabase.co' : 'test-key')
     mocks.getUser.mockResolvedValue({ data: { user: { id: 'student-a', email: 'student@rtu.edu.ph', email_confirmed_at: '2026-10-08', identities: [{ provider: 'google' }] } }, error: null })
+    mocks.eligible.mockResolvedValue({ data: true, error: null })
     mocks.maybeSingle.mockResolvedValue({ data: { user_id: 'student-a' }, error: null })
     mocks.rpc.mockImplementation(async name => ({ data: name === 'cali_reserve_reviewer_generation' ? { action: 'reserved' } : null, error: null }))
     mocks.generate.mockResolvedValue({ generated: { title: 'Cells', sections: [{ heading: 'Cells', basis: 'source', blocks: [{ type: 'paragraph', text: 'Cells contain membranes.' }] }] }, model: 'test:free', promptTokens: 10, outputTokens: 5 })
@@ -32,6 +33,19 @@ describe('reviewer generation endpoint', () => {
   it('rejects ineligible accounts before reserving quota', async () => {
     mocks.getUser.mockResolvedValueOnce({ data: { user: { email: 'student@example.com', identities: [], email_confirmed_at: 'today' } }, error: null })
     expect((await invoke()).status).toBe(403)
+    expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+  it('accepts an eligible verified personal Google account', async () => {
+    mocks.getUser.mockResolvedValueOnce({ data: { user: { id: 'student-a', email: 'student@example.com', email_confirmed_at: 'today', identities: [{ provider: 'google' }] } }, error: null })
+    expect((await invoke()).status).toBe(200)
+    expect(mocks.eligible).toHaveBeenCalledOnce()
+  })
+  it('rejects a policy-disabled or suspended Google account through centralized eligibility', async () => {
+    mocks.getUser.mockResolvedValueOnce({ data: { user: { id: 'student-a', email: 'student@example.com', email_confirmed_at: 'today', identities: [{ provider: 'google' }] } }, error: null })
+    mocks.eligible.mockResolvedValueOnce({ data: false, error: null })
+    const result = await invoke()
+    expect(result.status).toBe(403)
+    expect(result.body.error).toContain('not currently eligible')
     expect(mocks.rpc).not.toHaveBeenCalled()
   })
   it('marks blocked requests failed without creating a draft', async () => {

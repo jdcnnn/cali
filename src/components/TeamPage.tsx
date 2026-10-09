@@ -9,6 +9,7 @@ import ramPhoto from '../assets/ram.jpg'
 import carlPhoto from '../assets/carl.jpg'
 import carloPhoto from '../assets/carlo.jpg'
 import './entry.css'
+import { useLoginMode } from '../auth/LoginModeContext'
 
 type TeamMember = {
   id: string
@@ -50,11 +51,12 @@ const teamMembers: TeamMember[] = [
 ]
 
 export function TeamPage() {
+  const { allowPersonalGoogleLogin } = useLoginMode()
   const { state } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => { window.scrollTo(0, 0) }, [])
-  const workspacePath = state.status === 'ready' ? '/dashboard' : state.status === 'needsOnboarding' ? '/onboarding' : null
+  const workspacePath = state.status === 'ready' ? (state.isAdmin ? '/admin' : '/dashboard') : state.status === 'needsOnboarding' ? '/onboarding' : null
 
   async function signIn() {
     if (busy) return
@@ -101,7 +103,7 @@ export function TeamPage() {
         <div>
           <p className="entry-kicker">{workspacePath ? 'YOUR WORKSPACE' : 'GET STARTED'}</p>
           <h2 id="team-cta-title">{workspacePath ? 'Continue where you left off.' : 'Make Cali your academic space.'}</h2>
-          <p>{workspacePath ? 'Your Cali session is active on this device.' : 'Sign in with your institutional email.'}</p>
+          <p>{workspacePath ? 'Your Cali session is active on this device.' : allowPersonalGoogleLogin ? 'Sign in with any verified Google account.' : 'Sign in with your verified @rtu.edu.ph Google account.'}</p>
           {error && <p className="team-cta-error" role="alert">{error}</p>}
         </div>
         {workspacePath

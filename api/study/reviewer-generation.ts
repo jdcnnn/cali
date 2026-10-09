@@ -62,14 +62,14 @@ export default async function handler(request: IncomingMessage, response: Server
   const user = authData.user
   if (authError || !user) { send(response, 401, { error: 'Your session has expired. Sign in and try again.' }); return }
   const hasGoogleIdentity = user.identities?.some(identity => identity.provider === 'google') === true
-  if (!user.email_confirmed_at || !hasGoogleIdentity || !user.email?.toLowerCase().endsWith('@rtu.edu.ph')) { send(response, 403, { error: 'A verified RTU Google account is required.' }); return }
+  if (!user.email_confirmed_at || !hasGoogleIdentity) { send(response, 403, { error: 'A verified Google account is required.' }); return }
 
   const { data: eligible, error: eligibilityError } = await authClient.rpc('cali_is_eligible_user')
-  if (eligibilityError || eligible !== true) { send(response, 403, { error: 'A verified RTU Google identity matching your account is required.' }); return }
+  if (eligibilityError || eligible !== true) { send(response, 403, { error: 'This Google account is not currently eligible to use Cali.' }); return }
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: boundedFetch } })
   const { data: student } = await admin.from('students').select('user_id').eq('user_id', user.id).maybeSingle()
-  if (!student) { send(response, 403, { error: 'Complete your RTU student profile before using AI generation.' }); return }
+  if (!student) { send(response, 403, { error: 'Complete your Cali profile before using AI generation.' }); return }
 
   const { data: reservation, error: reservationError } = await admin.rpc('cali_reserve_reviewer_generation', {
     p_request_id: input.requestId, p_user_id: user.id, p_source_type: input.sourceType, p_detail: input.detail, p_prompt_version: REVIEWER_PROMPT_VERSION,

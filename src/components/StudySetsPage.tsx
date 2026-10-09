@@ -33,7 +33,7 @@ function sameQuizContent(left: Quiz, right: Quiz): boolean {
 
 function saveErrorMessage(error: { message?: string } | null, item: 'flashcard set' | 'quiz'): string {
   if (error?.message?.includes('changed in another tab')) return `This ${item} changed elsewhere. Refresh the page before editing it again.`
-  if (error?.message?.includes('verified RTU Google account')) return 'Your session is no longer authorized. Sign in again, then retry.'
+  if (error?.message?.includes('verified RTU Google account') || error?.message?.includes('eligible')) return 'Your session is no longer authorized. Sign in again, then retry.'
   return `Cali could not save this ${item}. Check your connection and try again.`
 }
 

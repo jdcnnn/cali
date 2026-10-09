@@ -2,11 +2,13 @@ import { Link, useLocation } from 'react-router'
 import { CaliWordmark } from './CaliWordmark'
 import { useAuth } from '../auth/AuthContext'
 import './entry.css'
+import { useLoginMode } from '../auth/LoginModeContext'
 
 export function SiteFooter() {
   const location = useLocation()
   const { state } = useAuth()
-  const workspacePath = state.status === 'ready' ? '/dashboard' : state.status === 'needsOnboarding' ? '/onboarding' : null
+  const { allowPersonalGoogleLogin } = useLoginMode()
+  const workspacePath = state.status === 'ready' ? (state.isAdmin ? '/admin' : '/dashboard') : state.status === 'needsOnboarding' ? '/onboarding' : null
 
   function scrollToTop() {
     window.requestAnimationFrame(() => {
@@ -18,7 +20,7 @@ export function SiteFooter() {
     <div className="entry-container entry-footer-main">
       <div className="entry-footer-brand">
         <CaliWordmark />
-        <p>A workspace for planning classes, managing coursework, creating study sets, and sharing reviewers with fellow RTU students.</p>
+        <p>A workspace for planning classes, managing coursework, creating study sets, and sharing reviewers. {allowPersonalGoogleLogin ? 'Verified Google accounts are welcome.' : 'Access currently requires a verified RTU Google account.'}</p>
       </div>
       <nav className="entry-footer-links" aria-label="Footer navigation">
         <h3>Explore</h3>

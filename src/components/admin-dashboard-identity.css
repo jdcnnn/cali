@@ -1,0 +1,17 @@
+.admin-identity strong {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--color-cali-accent) 18%, var(--color-cali-border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-cali-surface) 82%, transparent);
+  color: var(--color-cali-ink);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  text-shadow: none;
+  white-space: nowrap;
+}

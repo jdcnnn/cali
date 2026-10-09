@@ -4,6 +4,7 @@ import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, use
 import { AuthProvider } from './auth/AuthProvider'
 import { useAuth } from './auth/AuthContext'
 import type { Student } from './auth/AuthContext'
+import { LoginModeProvider, useLoginMode } from './auth/LoginModeContext'
 import { CaliWordmark, ProfileAvatar } from './components/CaliWordmark'
 import { LandingPage } from './components/LandingPage'
 import { OnboardingDropdown } from './components/OnboardingDropdown'
@@ -25,6 +26,7 @@ import type { PushStatus } from './lib/pushNotifications'
 
 const StudyPage = lazy(() => import('./components/StudyPage').then(module => ({ default: module.StudyPage })))
 const CommunityPage = lazy(() => import('./components/CommunityPage').then(module => ({ default: module.CommunityPage })))
+const AdminPage = lazy(() => import('./components/AdminDashboard').then(module => ({ default: module.AdminDashboard })))
 
 const programs = [
   'Bachelor of Science in Architecture',
@@ -150,14 +152,18 @@ function AuthError() {
 
 function AccessDeniedPage() {
   const { state, signOut } = useAuth()
+  const { allowPersonalGoogleLogin } = useLoginMode()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'signedOut') return <Navigate to="/login" replace />
-  if (state.status === 'ready') return <Navigate to="/dashboard" replace />
+  if (state.status === 'ready') return <Navigate to={state.isAdmin ? '/admin' : '/dashboard'} replace />
   if (state.status === 'needsOnboarding') return <Navigate to="/onboarding" replace />
   if (state.status === 'error') return <AuthError />
-  return <StatusScreen kind="access" label="Access unavailable" title="This account can't access Cali" detail={error || 'Cali is available to students with a verified @rtu.edu.ph Google account. Choose your institutional account and try again.'} action="Use another account" busy={busy} onAction={() => { setBusy(true); void signOut().catch(() => { setError('Could not sign out. Please try again.'); setBusy(false) }) }} />
+  const detail = state.status === 'ineligible' && state.reason === 'suspended'
+    ? `This account is suspended.${state.message ? ` Reason: ${state.message}` : ''}`
+    : allowPersonalGoogleLogin ? 'Cali requires a verified Google account. Choose a verified account and try again.' : 'Cali currently requires a verified @rtu.edu.ph Google account. Choose your institutional account and try again.'
+  return <StatusScreen kind="access" label="Access unavailable" title="This account can't access Cali" detail={error || detail} action="Use another account" busy={busy} onAction={() => { setBusy(true); void signOut().catch(() => { setError('Could not sign out. Please try again.'); setBusy(false) }) }} />
 }
 
 function CallbackPage() {
@@ -166,7 +172,7 @@ function CallbackPage() {
   const error = new URLSearchParams(location.search).get('error_description')
   if (error) return <StatusScreen title="Google sign-in didn't finish" detail={error} action="Back to sign in" onAction={() => { window.location.replace('/login') }} />
   if (state.status === 'loading') return <LoadingScreen />
-  if (state.status === 'ready') return <Navigate to="/dashboard" replace />
+  if (state.status === 'ready') return <Navigate to={state.isAdmin ? '/admin' : '/dashboard'} replace />
   if (state.status === 'needsOnboarding') return <Navigate to="/onboarding" replace />
   if (state.status === 'ineligible') return <Navigate to="/access-denied" replace />
   if (state.status === 'error') return <AuthError />
@@ -230,7 +236,7 @@ function SignOutControl() {
       <div className="signout-dialog-content">
         <ConfirmationIcon kind={busy ? 'loading' : 'signout'} />
         <h2 id="signout-title">Sign out of Cali?</h2>
-        <p id="signout-description">You can sign in again with your RTU Google account.</p>
+        <p id="signout-description">You can sign in again with an eligible verified Google account.</p>
         {error && <p className="form-error signout-dialog-error" role="alert">{error}</p>}
         <div className="signout-dialog-actions">
           <button ref={cancelRef} type="button" className="signout-cancel" onClick={() => setOpen(false)} disabled={busy}>Stay signed in</button>
@@ -388,6 +394,10 @@ function WorkspaceIcon({ section }: { section: WorkspaceSection }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[section]}</svg>
 }
 
+function AdminConsoleIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.4c0 4.7 3.1 8.1 7.5 9.6 4.4-1.5 7.5-4.9 7.5-9.6V6L12 3Z" /><path d="m9 12 2 2 4-4" /></svg>
+}
+
 function greetingForHour(hour: number) {
   if (hour < 12) return 'Good morning'
   if (hour < 18) return 'Good afternoon'
@@ -467,7 +477,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
       <div><p>USERNAME</p><h2>{student.username}</h2><Link className="workspace-public-profile-link" to={`/community/profile/${student.username}`}>View public profile</Link></div>
     </section>
     <div className="workspace-profile-details">
-        <section className="workspace-profile-section" aria-labelledby="profile-account-title"><h2 id="profile-account-title">Account</h2><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Institutional email</dt><dd>{email}</dd></div></dl></section>
+        <section className="workspace-profile-section" aria-labelledby="profile-account-title"><h2 id="profile-account-title">Account</h2><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Google email</dt><dd>{email}</dd></div></dl></section>
         <section className="workspace-profile-section" aria-labelledby="profile-academic-title">
           <div className="workspace-profile-section-head"><h2 id="profile-academic-title">Profile details</h2>{!editing && <button type="button" className="workspace-profile-edit" onClick={startEditing}>Edit</button>}</div>
           {editing ? <form className="workspace-profile-form" onSubmit={saveProfileDetails} noValidate>
@@ -615,6 +625,7 @@ function ModuleScreen({ section }: { section: ModuleSection }) {
 }
 
 function WorkspaceContent({ student, email, section }: { student: Student; email: string; section: WorkspaceSection }) {
+  const { state } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -665,6 +676,11 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
         {workspaceLinks.map(link => <NavLink key={link.section} to={link.path} end className={({ isActive }) => `workspace-nav-link${isActive || (section === 'settings' && link.section === 'profile') ? ' workspace-nav-link--active' : ''}`} onClick={() => setMenuOpen(false)}><WorkspaceIcon section={link.section} /><span>{link.label}</span>{(link.section === section || (section === 'settings' && link.section === 'profile')) && <span className="workspace-nav-marker" aria-hidden="true" />}</NavLink>)}
       </nav>
       <div className="workspace-sidebar-bottom">
+        {state.status === 'ready' && state.isAdmin && <NavLink className="workspace-admin-switch" to="/admin" onClick={() => setMenuOpen(false)}>
+          <span className="workspace-admin-switch-icon"><AdminConsoleIcon /></span>
+          <span className="workspace-admin-switch-copy"><small>ADMIN CONSOLE</small><strong>Switch to Admin</strong></span>
+          <svg className="workspace-admin-switch-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
+        </NavLink>}
         <div className="workspace-sidebar-actions"><ThemePicker /><SignOutControl /></div>
       </div>
     </aside>
@@ -703,7 +719,7 @@ function WorkspacePage({ section }: { section: WorkspaceSection }) {
 function HomeRedirect() {
   const { state } = useAuth()
   if (state.status === 'loading') return <LoadingScreen />
-  if (state.status === 'ready') return <Navigate to="/dashboard" replace />
+  if (state.status === 'ready') return <Navigate to={state.isAdmin ? '/admin' : '/dashboard'} replace />
   if (state.status === 'needsOnboarding') return <Navigate to="/onboarding" replace />
   if (state.status === 'ineligible') return <Navigate to="/access-denied" replace />
   if (state.status === 'error') return <AuthError />
@@ -712,7 +728,7 @@ function HomeRedirect() {
 
 function AppRoutes() {
   const [splashPhase, setSplashPhase] = useState<'showing' | 'leaving' | 'done'>(() => {
-    const knownPaths = ['/', '/login', '/team', '/terms-and-conditions', '/privacy-policy', '/community-guidelines', '/auth/callback', '/access-denied', '/onboarding', '/dashboard', '/schedules', '/tasks', '/calendar', '/study', '/community', '/profile', '/settings']
+    const knownPaths = ['/', '/login', '/team', '/terms-and-conditions', '/privacy-policy', '/community-guidelines', '/auth/callback', '/access-denied', '/onboarding', '/dashboard', '/schedules', '/tasks', '/calendar', '/study', '/community', '/profile', '/settings', '/admin', '/admin/moderation', '/admin/users', '/admin/system']
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'done'
     if (!knownPaths.includes(window.location.pathname)) return 'done'
     if (['/terms-and-conditions', '/privacy-policy', '/community-guidelines'].includes(window.location.pathname)) return 'done'
@@ -749,10 +765,11 @@ function AppRoutes() {
     <Route path="/community/profile/:username" element={<WorkspacePage section="community" />} />
     <Route path="/profile" element={<WorkspacePage section="profile" />} />
     <Route path="/settings" element={<WorkspacePage section="settings" />} />
+    <Route path="/admin/:section?" element={<Suspense fallback={<LoadingScreen />}><AdminPage /></Suspense>} />
     <Route path="*" element={<NotFoundPage />} />
   </Routes></div><ConnectionNotice />{splashPhase !== 'done' && <SplashScreen leaving={splashPhase === 'leaving'} />}</>
 }
 
 export default function App() {
-  return <BrowserRouter><AppErrorBoundary><AuthProvider><AppRoutes /></AuthProvider></AppErrorBoundary></BrowserRouter>
+  return <BrowserRouter><AppErrorBoundary><LoginModeProvider><AuthProvider><AppRoutes /></AuthProvider></LoginModeProvider></AppErrorBoundary></BrowserRouter>
 }

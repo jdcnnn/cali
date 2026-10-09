@@ -55,12 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userError || !userData.user) throw userError ?? new Error('Could not load your account.')
       if (id !== requestId.current) return
 
-      const { data: eligible, error: eligibilityError } = await supabase.rpc('cali_is_eligible_user')
+      const { data: access, error: eligibilityError } = await supabase.rpc('cali_access_status')
       if (eligibilityError) throw eligibilityError
       if (id !== requestId.current) return
-      if (!eligible) {
+      const accessStatus = (access ?? {}) as { eligible?: boolean; isAdmin?: boolean; accountType?: 'institutional' | 'personal'; reason?: string | null; suspensionReason?: string | null }
+      if (!accessStatus.eligible) {
         validatedUserId.current = userData.user.id
-        setState({ status: 'ineligible', user: userData.user, student: null, message: null })
+        setState({ status: 'ineligible', user: userData.user, student: null, message: accessStatus.suspensionReason ?? null, reason: accessStatus.reason ?? null })
         return
       }
 
@@ -69,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (id !== requestId.current) return
       validatedUserId.current = userData.user.id
       setState(isCompleteStudent(student, userData.user.id)
-        ? { status: 'ready', user: userData.user, student, message: null }
+        ? { status: 'ready', user: userData.user, student, message: null, isAdmin: accessStatus.isAdmin === true, accountType: accessStatus.accountType === 'personal' ? 'personal' : 'institutional' }
         : { status: 'needsOnboarding', user: userData.user, student: null, message: null })
     } catch (error) {
       if (id !== requestId.current) return
@@ -121,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     if (error) throw error
     if (!isCompleteStudent(data, state.user.id)) throw new Error('Your profile could not be saved. Please try again.')
-    setState({ status: 'ready', user: state.user, student: data, message: null })
+    setState({ status: 'ready', user: state.user, student: data, message: null, isAdmin: false, accountType: state.user.email?.toLowerCase().endsWith('@rtu.edu.ph') ? 'institutional' : 'personal' })
   }
 
   async function updateProfileDetails(username: string, program: string, yearLevel: number, bio = '') {

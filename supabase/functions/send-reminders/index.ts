@@ -88,7 +88,19 @@ Deno.serve(async request => {
     let communitySent = 0
     let communityMissed = 0
 
+    const claimedUserIds = [...new Set([...reminders.map(item => item.user_id), ...communityNotifications.map(item => item.user_id)])]
+    const { data: suspendedRows, error: suspendedError } = claimedUserIds.length
+      ? await admin.from('students').select('user_id').in('user_id', claimedUserIds).not('suspended_at', 'is', null)
+      : { data: [], error: null }
+    if (suspendedError) throw suspendedError
+    const suspendedUsers = new Set((suspendedRows ?? []).map(row => row.user_id as string))
+
     for (const reminder of reminders) {
+      if (suspendedUsers.has(reminder.user_id)) {
+        await admin.from('reminder_queue').update({ status: 'missed', claim_token: null, last_error: 'Account suspended' }).eq('id', reminder.id)
+        missed++
+        continue
+      }
       const { data: subscriptions, error: subscriptionsError } = await admin.from('push_subscriptions')
         .select('id,endpoint,p256dh,auth').eq('user_id', reminder.user_id).eq('is_active', true)
       if (subscriptionsError) throw subscriptionsError
@@ -194,6 +206,11 @@ Deno.serve(async request => {
     }
 
     for (const notification of communityNotifications) {
+      if (suspendedUsers.has(notification.user_id)) {
+        await admin.from('community_notifications').update({ push_status: 'missed', push_claimed_at: null, push_last_error: 'Account suspended' }).eq('id', notification.id)
+        communityMissed++
+        continue
+      }
       const { data: subscriptions, error: subscriptionsError } = await admin.from('push_subscriptions')
         .select('id,endpoint,p256dh,auth').eq('user_id', notification.user_id).eq('is_active', true)
       if (subscriptionsError) throw subscriptionsError
