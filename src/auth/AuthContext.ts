@@ -8,6 +8,7 @@ export type Student = {
   year_level: number
   full_name: string | null
   avatar_url: string | null
+  bio?: string | null
 }
 
 export type AuthState =
@@ -23,7 +24,7 @@ export type AuthContextValue = {
   reload: () => Promise<void>
   signOut: () => Promise<void>
   completeOnboarding: (username: string, program: string, yearLevel: number) => Promise<void>
-  updateProfileDetails: (username: string, program: string, yearLevel: number) => Promise<void>
+  updateProfileDetails: (username: string, program: string, yearLevel: number, bio?: string) => Promise<void>
   deleteAccount: () => Promise<void>
 }
 

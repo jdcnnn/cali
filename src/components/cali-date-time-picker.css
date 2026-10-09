@@ -7,7 +7,7 @@
 .cali-picker-trigger.is-empty { color: var(--color-cali-slate); font-weight: 500; }
 .cali-picker-trigger:disabled { background: var(--color-cali-pale); opacity: .65; }
 .cali-picker-trigger svg { flex: none; width: 18px; height: 18px; color: var(--color-cali-accent); }
-.cali-picker-dialog { position: fixed; inset: 50% auto auto 50%; width: min(390px, calc(100vw - 32px)); max-width: none; margin: 0; padding: 0; overflow: hidden; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 18px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px rgba(10, 29, 49, .3); }
+.cali-picker-dialog { position: fixed; inset: 50% auto auto 50%; width: min(390px, calc(100vw - 48px)); max-width: none; margin: 0; padding: 0; overflow: hidden; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 18px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px rgba(10, 29, 49, .3); }
 .cali-picker-dialog::backdrop { background: rgba(7, 24, 34, .68); }
 .cali-picker-dialog > div > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--color-cali-border); }
 .cali-picker-dialog header h3 { margin: 0; font-family: Fredoka, sans-serif; font-size: 22px; font-weight: 500; text-align: center; }
@@ -50,4 +50,4 @@
 .cali-date-dialog footer { align-items: center; justify-content: space-between; }
 .cali-date-dialog footer > span { display: flex; gap: 8px; }
 .cali-date-today { color: var(--color-cali-action-text); }
-@media (max-width: 420px) { .cali-picker-dialog { width: calc(100vw - 20px); } .cali-date-grid { gap: 2px; padding-inline: 12px; } .cali-date-selected { margin-inline: 14px; } .cali-date-month-nav { padding-inline: 14px; } .cali-date-dialog footer { align-items: stretch; flex-direction: column; } .cali-date-dialog footer > span { display: grid; grid-template-columns: 1fr 1fr; } .cali-date-today { width: 100%; } }
+@media (max-width: 420px) { .cali-picker-dialog { width: calc(100vw - 48px); } .cali-date-grid { gap: 2px; padding-inline: 12px; } .cali-date-selected { margin-inline: 14px; } .cali-date-month-nav { padding-inline: 14px; } .cali-date-dialog footer { align-items: stretch; flex-direction: column; } .cali-date-dialog footer > span { display: grid; grid-template-columns: 1fr 1fr; } .cali-date-today { width: 100%; } }

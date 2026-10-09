@@ -1,0 +1,113 @@
+.cali-select {
+  position: relative;
+  min-width: 0;
+}
+
+.cali-select.is-open { z-index: 80; }
+
+.cali-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 16px 0 11px;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 9px;
+  outline: 0;
+  background: var(--color-cali-surface);
+  color: var(--color-cali-ink);
+  font: 700 12px 'DM Sans', sans-serif;
+  text-align: left;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+
+.cali-select-trigger:hover,
+.cali-select.is-open .cali-select-trigger { border-color: var(--color-cali-accent); }
+
+.cali-select-trigger:focus-visible {
+  border-color: var(--color-cali-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-cali-accent) 16%, transparent);
+}
+
+.cali-select-trigger>svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  pointer-events: none;
+  transition: transform .16s ease;
+}
+
+.cali-select.is-open .cali-select-trigger>svg { transform: rotate(180deg); }
+
+.cali-select-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cali-select-leading {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--color-cali-slate);
+}
+
+.cali-select-leading svg { width: 18px; height: 18px; }
+
+.cali-select-options {
+  position: absolute;
+  z-index: 300;
+  top: calc(100% + 7px);
+  left: 0;
+  display: grid;
+  width: max(100%, 220px);
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: min(280px, 48dvh);
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 12px;
+  background: var(--color-cali-surface);
+  color: var(--color-cali-ink);
+  box-shadow: 0 16px 38px rgba(7, 31, 45, .22);
+  scrollbar-color: var(--color-cali-border) transparent;
+  animation: cali-select-enter .14s ease-out;
+}
+
+.cali-select-options>button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 43px;
+  height: auto;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: 700 12px 'DM Sans', sans-serif;
+  text-align: left;
+}
+
+.cali-select-options>button>span:first-child { display: grid; gap: 2px; min-width: 0; }
+.cali-select-options strong { overflow: hidden; font: inherit; text-overflow: ellipsis; white-space: nowrap; }
+.cali-select-options small { overflow: hidden; color: var(--color-cali-slate); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.cali-select-options>button:hover,
+.cali-select-options>button:focus-visible,
+.cali-select-options>button.is-selected { outline: 0; background: var(--color-cali-pale); color: var(--color-cali-action-text); }
+.cali-select-check { flex: none; visibility: hidden; color: var(--color-cali-accent); font-size: 13px; }
+.cali-select-options>button.is-selected .cali-select-check { visibility: visible; }
+.cali-select-options--portal { margin: 0; }
+
+@keyframes cali-select-enter {
+  from { opacity: 0; transform: translateY(-4px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

@@ -471,13 +471,13 @@
 }
 
 .task-editor-dialog {
-  width: min(640px, calc(100vw - 32px));
+  width: min(640px, calc(100vw - 48px));
   max-height: calc(100dvh - 32px);
   border-radius: 22px;
 }
 
 .task-confirm-dialog {
-  width: min(430px, calc(100vw - 32px));
+  width: min(430px, calc(100vw - 48px));
   border-radius: 20px;
 }
 
@@ -832,13 +832,13 @@
   }
 
   .task-editor-dialog {
-    width: calc(100vw - 20px);
+    width: calc(100vw - 48px);
     max-height: calc(100dvh - 20px);
     border-radius: 16px;
   }
 
   .task-confirm-dialog {
-    width: calc(100vw - 28px);
+    width: calc(100vw - 48px);
     border-radius: 16px;
   }
 
@@ -1489,7 +1489,7 @@
 .task-detail-dialog {
   position: fixed;
   inset: 50% auto auto 50%;
-  width: min(650px, calc(100vw - 32px));
+  width: min(650px, calc(100vw - 48px));
   max-width: none;
   max-height: calc(100dvh - 32px);
   margin: 0;
@@ -1868,7 +1868,7 @@
   }
 
   .task-detail-dialog {
-    width: calc(100vw - 20px);
+    width: calc(100vw - 48px);
     max-height: calc(100dvh - 20px);
     border-radius: 16px;
   }

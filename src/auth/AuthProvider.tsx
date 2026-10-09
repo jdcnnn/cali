@@ -1,3 +1,4 @@
+import { clearReviewerRecovery } from '../lib/reviewerRecovery'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { configurationError, supabase } from '../lib/supabase'
@@ -16,6 +17,7 @@ function isCompleteStudent(value: unknown, userId: string): value is Student {
     && Number.isInteger(student.year_level)
     && Number(student.year_level) >= 1
     && Number(student.year_level) <= 5
+    && (student.bio === undefined || student.bio === null || typeof student.bio === 'string')
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -44,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // getUser validates the restored token with Auth; getSession alone reads local storage.
       const { data: userData, error: userError } = await supabase.auth.getUser()
       if (userError?.status === 401 || userError?.status === 403) {
+        clearReviewerRecovery()
         await supabase.auth.signOut({ scope: 'local' })
         validatedUserId.current = null
         if (id === requestId.current) setState({ status: 'signedOut', user: null, student: null, message: null })
@@ -84,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') return
       if (event === 'SIGNED_OUT') {
+        clearReviewerRecovery()
         ++requestId.current
         validatedUserId.current = null
         setState({ status: 'signedOut', user: null, student: null, message: null })
@@ -99,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     if (!supabase) return
+    clearReviewerRecovery()
     await removePushSubscriptionOnSignOut()
     const { error } = await supabase.auth.signOut()
     if (error) throw error
@@ -119,18 +124,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: 'ready', user: state.user, student: data, message: null })
   }
 
-  async function updateProfileDetails(username: string, program: string, yearLevel: number) {
+  async function updateProfileDetails(username: string, program: string, yearLevel: number, bio = '') {
     if (!supabase || state.status !== 'ready') throw new Error('Your session is not ready. Please try again.')
     const normalizedUsername = username.trim().toLowerCase()
     const normalizedProgram = program.trim()
-    if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername) || !normalizedProgram || normalizedProgram.length > 120 || !Number.isInteger(yearLevel) || yearLevel < 1 || yearLevel > 5) {
+    const normalizedBio = bio.trim()
+    if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername) || !normalizedProgram || normalizedProgram.length > 120 || normalizedBio.length > 280 || !Number.isInteger(yearLevel) || yearLevel < 1 || yearLevel > 5) {
       throw new Error('Check your username, program, and year level.')
     }
     const userId = state.user.id
     const { data, error } = await supabase.from('students')
-      .update({ username: normalizedUsername, program: normalizedProgram, year_level: yearLevel })
+      .update({ username: normalizedUsername, program: normalizedProgram, year_level: yearLevel, bio: normalizedBio || null })
       .eq('user_id', userId)
-      .select('user_id, username, program, year_level, full_name, avatar_url')
+      .select('user_id, username, program, year_level, full_name, avatar_url, bio')
       .single()
     if (error) throw error
     if (!isCompleteStudent(data, userId)) throw new Error('Your profile details could not be saved. Please try again.')

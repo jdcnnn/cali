@@ -10,6 +10,15 @@ export type Reviewer = {
   revision: number
   created_at: string
   updated_at: string
+  visibility?: 'private' | 'preview' | 'public'
+  description?: string | null
+  category?: string
+  parent_reviewer_id?: string | null
+  root_reviewer_id?: string | null
+  original_author_id?: string | null
+  original_author_username?: string | null
+  published_at?: string | null
+  moderated_at?: string | null
 }
 
 export type ReviewerSubject = { id: string; subject_code: string; title: string; color_key: string }

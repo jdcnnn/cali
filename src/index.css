@@ -322,7 +322,7 @@ button:disabled {
 .signout-dialog {
   position: fixed;
   inset: 50% auto auto 50%;
-  width: min(440px, calc(100vw - 32px));
+  width: min(440px, calc(100vw - 48px));
   max-width: none;
   max-height: calc(100dvh - 32px);
   margin: 0;
@@ -405,7 +405,7 @@ button:disabled {
 }
 
 .signout-confirm-dialog {
-  width: min(430px, calc(100vw - 32px));
+  width: min(430px, calc(100vw - 48px));
   border-radius: 20px;
 }
 
@@ -1361,6 +1361,19 @@ button:disabled {
   font-family: Fredoka, sans-serif;
   font-size: 31px;
   font-weight: 500;
+}
+
+.workspace-public-profile-link {
+  display: inline-block;
+  margin-top: 5px;
+  color: var(--color-cali-action-text);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.workspace-public-profile-link:hover {
+  text-decoration: underline;
 }
 
 .workspace-profile-section {
@@ -2690,6 +2703,34 @@ button:disabled {
   min-width: 0;
 }
 
+.workspace-profile-form .workspace-profile-form-wide {
+  grid-column: 1 / -1;
+}
+
+.workspace-profile-form textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 11px 13px;
+  resize: vertical;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 10px;
+  outline: 0;
+  background: var(--color-cali-surface);
+  color: var(--color-cali-ink);
+  font: 13px/1.5 'DM Sans', sans-serif;
+}
+
+.workspace-profile-form textarea:focus {
+  border-color: var(--color-cali-accent);
+  box-shadow: 0 0 0 2px var(--color-cali-pale);
+}
+
+.workspace-profile-form .field-label small {
+  float: right;
+  color: var(--color-cali-slate);
+  font-weight: 600;
+}
+
 .workspace-profile-form .field-label {
   margin-bottom: 8px;
   color: var(--profile-ink);
@@ -3105,7 +3146,7 @@ button:disabled {
 }
 
 .workspace-install-dialog {
-  width: min(470px, calc(100vw - 32px));
+  width: min(470px, calc(100vw - 48px));
 }
 
 .workspace-install-dialog h2 {
@@ -3207,7 +3248,7 @@ button:disabled {
 }
 
 .workspace-delete-dialog {
-  width: min(470px, calc(100vw - 32px));
+  width: min(470px, calc(100vw - 48px));
 }
 
 .workspace-delete-dialog h2 {

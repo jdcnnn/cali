@@ -18,6 +18,17 @@ type PushSubscriptionRow = {
   auth: string
 }
 
+type CommunityQueueItem = {
+  id: string
+  user_id: string
+  reviewer_id: string | null
+  kind: string
+  title: string
+  body: string
+  url: string
+  push_attempts: number
+}
+
 const corsHeaders = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
 const emptyHeaders = { 'Cache-Control': 'no-store' }
 const required = (name: string) => {
@@ -59,15 +70,23 @@ Deno.serve(async request => {
     const admin = createClient(required('SUPABASE_URL'), required('SUPABASE_SERVICE_ROLE_KEY'), {
       auth: { persistSession: false, autoRefreshToken: false },
     })
-    const { data, error } = await admin.rpc('cali_claim_due_reminders', { p_limit: 50 })
-    if (error) throw error
-    const reminders = (data ?? []) as QueueItem[]
-    if (reminders.length === 0) return new Response(null, { status: 204, headers: emptyHeaders })
+    const [reminderClaim, communityClaim] = await Promise.all([
+      admin.rpc('cali_claim_due_reminders', { p_limit: 50 }),
+      admin.rpc('cali_claim_community_notifications', { p_limit: 50 }),
+    ])
+    if (reminderClaim.error) throw reminderClaim.error
+    // Rolling deployments may run the worker before the Community migration.
+    if (communityClaim.error && communityClaim.error.code !== 'PGRST202' && communityClaim.error.code !== '42883') throw communityClaim.error
+    const reminders = (reminderClaim.data ?? []) as QueueItem[]
+    const communityNotifications = (communityClaim.data ?? []) as CommunityQueueItem[]
+    if (reminders.length === 0 && communityNotifications.length === 0) return new Response(null, { status: 204, headers: emptyHeaders })
 
     webpush.setVapidDetails(required('VAPID_SUBJECT'), required('VAPID_PUBLIC_KEY'), required('VAPID_PRIVATE_KEY'))
     let sent = 0
     let missed = 0
     let retrying = 0
+    let communitySent = 0
+    let communityMissed = 0
 
     for (const reminder of reminders) {
       const { data: subscriptions, error: subscriptionsError } = await admin.from('push_subscriptions')
@@ -174,7 +193,47 @@ Deno.serve(async request => {
       if (reminder.item_type === 'class') await admin.rpc('cali_queue_next_class_reminder', { p_meeting_id: reminder.item_id })
     }
 
-    return new Response(JSON.stringify({ ok: true, claimed: reminders.length, sent, missed, retrying }), { headers: corsHeaders })
+    for (const notification of communityNotifications) {
+      const { data: subscriptions, error: subscriptionsError } = await admin.from('push_subscriptions')
+        .select('id,endpoint,p256dh,auth').eq('user_id', notification.user_id).eq('is_active', true)
+      if (subscriptionsError) throw subscriptionsError
+      const { data: deliveredRows, error: deliveredError } = await admin.from('community_notification_deliveries')
+        .select('subscription_id').eq('notification_id', notification.id)
+      if (deliveredError) throw deliveredError
+      const delivered = new Set((deliveredRows ?? []).map(row => row.subscription_id as string))
+      let transientFailure = false
+      let longestDelay = 60_000
+      for (const subscription of (subscriptions as PushSubscriptionRow[]).filter(item => !delivered.has(item.id))) {
+        try {
+          await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({
+            title: notification.title,
+            body: notification.body,
+            tag: `cali-community-${notification.id}`,
+            url: notification.url,
+            actionLabel: 'Open Community',
+            itemType: 'community',
+          }), { TTL: 3600, urgency: 'normal' })
+          const { error: deliveryError } = await admin.from('community_notification_deliveries').upsert({ notification_id: notification.id, subscription_id: subscription.id }, { onConflict: 'notification_id,subscription_id', ignoreDuplicates: true })
+          if (deliveryError) throw deliveryError
+          delivered.add(subscription.id)
+        } catch (cause) {
+          const pushError = cause as { statusCode?: number; headers?: Record<string, string>; message?: string }
+          if (pushError.statusCode === 404 || pushError.statusCode === 410) await admin.from('push_subscriptions').update({ is_active: false }).eq('id', subscription.id)
+          else { transientFailure = true; longestDelay = Math.max(longestDelay, retryDelayMs(pushError, notification.push_attempts)) }
+        }
+      }
+      if (transientFailure && notification.push_attempts < 3) {
+        await admin.from('community_notifications').update({ push_status: 'pending', push_claimed_at: null, push_next_attempt_at: new Date(Date.now() + longestDelay).toISOString(), push_last_error: 'Temporary push delivery failure' }).eq('id', notification.id)
+        retrying++
+        continue
+      }
+      const terminalStatus = delivered.size > 0 ? 'sent' : 'missed'
+      await admin.from('community_notifications').update({ push_status: terminalStatus, push_sent_at: terminalStatus === 'sent' ? new Date().toISOString() : null, push_claimed_at: null, push_last_error: terminalStatus === 'missed' ? (subscriptions?.length ? 'Push delivery failed' : 'No active push subscriptions') : null }).eq('id', notification.id)
+      if (terminalStatus === 'sent') communitySent++
+      else communityMissed++
+    }
+
+    return new Response(JSON.stringify({ ok: true, claimed: reminders.length, sent, missed, communityClaimed: communityNotifications.length, communitySent, communityMissed, retrying }), { headers: corsHeaders })
   } catch (cause) {
     const failure = cause as { name?: unknown; message?: unknown; code?: unknown; statusCode?: unknown }
     console.error(JSON.stringify({

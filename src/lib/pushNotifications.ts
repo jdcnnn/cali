@@ -1,3 +1,4 @@
+import { clearReviewerRecovery } from './reviewerRecovery'
 import { supabase } from './supabase'
 
 export type PushStatus = 'unsupported' | 'denied' | 'disabled' | 'enabled'
@@ -106,6 +107,7 @@ export async function removePushSubscriptionOnSignOut() {
 }
 
 export async function clearLocalAccountData() {
+  clearReviewerRecovery()
   try {
     window.localStorage.removeItem('cali-theme')
   } catch {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applySessionRatings, buildQuizSnapshot, nextQuizQuestionIndex, quizSnapshotMatchesQuestions, richTextFromText, scoreQuiz, SKIPPED_QUIZ_ANSWER, validFlashcard, validQuizQuestion, type QuizQuestion } from './studySets'
+import { applySessionRatings, buildFlashcardSession, buildQuizSnapshot, flashcardContentChanged, flashcardsForSession, nextQuizQuestionIndex, quizSnapshotMatchesQuestions, reconcileFlashcardProgress, richTextFromText, scoreQuiz, SKIPPED_QUIZ_ANSWER, validFlashcard, validQuizQuestion, type CardProgress, type Flashcard, type QuizQuestion } from './studySets'
 
 const question = (id: string): QuizQuestion => ({
   id,
@@ -11,6 +11,16 @@ const question = (id: string): QuizQuestion => ({
   explanation: richTextFromText('Because'),
   explanationText: 'Because',
 })
+
+const card = (id: string, front = `Front ${id}`, back = `Back ${id}`): Flashcard => ({
+  id,
+  front: richTextFromText(front),
+  back: richTextFromText(back),
+  frontText: front,
+  backText: back,
+})
+
+const learned = (mastered: boolean): CardProgress => ({ goodStreak: mastered ? 2 : 1, mastered, lastRating: 'good', updatedAt: '2026-01-01' })
 
 describe('study set helpers', () => {
   it('excludes incomplete cards and questions', () => {
@@ -82,5 +92,34 @@ describe('study set helpers', () => {
     expect(progress.second).toMatchObject({ mastered: false, goodStreak: 1 })
     const next = applySessionRatings(progress, { second: 'good' }, '2026-01-02')
     expect(next.second.mastered).toBe(true)
+  })
+
+  it('builds sequential and deterministic shuffled flashcard sessions', () => {
+    const cards = [card('1'), card('2'), card('3')]
+    const sequential = buildFlashcardSession(cards, {}, { mode: 'sequential', learningOnly: false }, 'session-a', '2026-01-01', () => 0)
+    const shuffledSession = buildFlashcardSession(cards, {}, { mode: 'shuffle', learningOnly: false }, 'session-b', '2026-01-01', () => 0)
+
+    expect(sequential?.cardIds).toEqual(['1', '2', '3'])
+    expect(shuffledSession?.cardIds).toEqual(['2', '3', '1'])
+    expect(cards.map(item => item.id)).toEqual(['1', '2', '3'])
+  })
+
+  it('builds learning-only sessions from ready cards that are not mastered', () => {
+    const cards = [card('1'), card('2'), card('3', '', '')]
+    const progress = { '1': learned(true), '2': learned(false) }
+
+    expect(flashcardsForSession(cards, progress, true).map(item => item.id)).toEqual(['2'])
+    expect(buildFlashcardSession(cards, progress, { mode: 'sequential', learningOnly: true }, 'session', '2026-01-01')?.cardIds).toEqual(['2'])
+    expect(buildFlashcardSession([card('1')], { '1': learned(true) }, { mode: 'sequential', learningOnly: true }, 'session', '2026-01-01')).toBeNull()
+  })
+
+  it('preserves progress for reorder-only edits and resets changed or deleted cards', () => {
+    const first = card('1'), second = card('2'), progress = { '1': learned(true), '2': learned(false) }
+    expect(flashcardContentChanged([first, second], [second, first])).toBe(false)
+    expect(reconcileFlashcardProgress([first, second], [second, first], progress)).toEqual(progress)
+
+    const edited = card('1', 'Updated front', first.backText)
+    expect(flashcardContentChanged([first, second], [edited, second])).toBe(true)
+    expect(reconcileFlashcardProgress([first, second], [edited], progress)).toEqual({})
   })
 })

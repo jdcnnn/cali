@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { CaliWordmark } from './CaliWordmark'
 import { SiteFooter } from './SiteFooter'
-import { ThemePicker } from '../theme/ThemePicker'
 import { startGoogleSignIn } from '../lib/supabase'
 import { useAuth } from '../auth/AuthContext'
 import jadePhoto from '../assets/jade-cunanan-temp.png'
@@ -74,7 +73,7 @@ export function TeamPage() {
     <header className="team-header">
       <div className="entry-container team-header-inner">
         <Link to="/" aria-label="Cali home"><CaliWordmark /></Link>
-        <div className="team-header-actions"><ThemePicker /><Link className="team-back" to={workspacePath ?? '/'}>{workspacePath ? state.status === 'ready' ? 'Dashboard' : 'Continue setup' : 'Back to Cali'}</Link></div>
+        <div className="team-header-actions"><Link className="team-back" to={workspacePath ?? '/'}>{workspacePath ? state.status === 'ready' ? 'Dashboard' : 'Continue setup' : 'Back to Cali'}</Link></div>
       </div>
     </header>
 

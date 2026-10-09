@@ -51,7 +51,7 @@ function reviewerGenerationApi(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENROUTER_API_KEY']) {
+  for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'OPENROUTER_API_KEY', 'CALI_REVIEWER_MODELS']) {
     if (!process.env[name] && env[name]) process.env[name] = env[name]
   }
   return {

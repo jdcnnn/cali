@@ -18,11 +18,13 @@ import { CalendarPage } from './components/CalendarPage'
 import { InstallCali } from './components/InstallCali'
 import { ConnectionNotice } from './components/ConnectionNotice'
 import { ConfirmationIcon } from './components/ConfirmationIcon'
+import './components/skeleton.css'
 import { ThemePicker } from './theme/ThemePicker'
 import { disablePushNotifications, enablePushNotifications, getPushStatus } from './lib/pushNotifications'
 import type { PushStatus } from './lib/pushNotifications'
 
 const StudyPage = lazy(() => import('./components/StudyPage').then(module => ({ default: module.StudyPage })))
+const CommunityPage = lazy(() => import('./components/CommunityPage').then(module => ({ default: module.CommunityPage })))
 
 const programs = [
   'Bachelor of Science in Architecture',
@@ -398,7 +400,8 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
   const [username, setUsername] = useState(student.username)
   const [programChoice, setProgramChoice] = useState(student.program)
   const [yearLevel, setYearLevel] = useState(String(student.year_level))
-  const [fieldErrors, setFieldErrors] = useState<{ username?: string; program?: string; yearLevel?: string }>({})
+  const [bio, setBio] = useState(student.bio ?? '')
+  const [fieldErrors, setFieldErrors] = useState<{ username?: string; program?: string; yearLevel?: string; bio?: string }>({})
   const [saveError, setSaveError] = useState('')
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -414,6 +417,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
     setUsername(student.username)
     setProgramChoice(student.program)
     setYearLevel(String(student.year_level))
+    setBio(student.bio ?? '')
     setFieldErrors({})
     setSaveError('')
     setSaved(false)
@@ -426,20 +430,21 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
     const normalizedUsername = username.trim().toLowerCase()
     const program = programChoice.trim()
     const yearValue = Number(yearLevel)
-    const errors: { username?: string; program?: string; yearLevel?: string } = {}
+    const errors: { username?: string; program?: string; yearLevel?: string; bio?: string } = {}
     if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername)) errors.username = 'Use 3–30 lowercase letters, numbers, or underscores.'
     if (!program) errors.program = 'Choose or enter your program.'
     else if (program.length > 120) errors.program = 'Use a program name up to 120 characters.'
     if (!Number.isInteger(yearValue) || yearValue < 1 || yearValue > 5) errors.yearLevel = 'Choose a year level from 1 to 5.'
+    if (bio.trim().length > 280) errors.bio = 'Keep your public bio to 280 characters.'
     setFieldErrors(errors)
-    if (errors.username || errors.program || errors.yearLevel) {
-      document.getElementById(errors.username ? 'profile-username' : errors.program ? 'profile-program' : 'profile-year-level')?.focus()
+    if (errors.username || errors.program || errors.yearLevel || errors.bio) {
+      document.getElementById(errors.username ? 'profile-username' : errors.program ? 'profile-program' : errors.yearLevel ? 'profile-year-level' : 'profile-bio')?.focus()
       return
     }
     setBusy(true)
     setSaveError('')
     try {
-      await updateProfileDetails(normalizedUsername, program, yearValue)
+      await updateProfileDetails(normalizedUsername, program, yearValue, bio)
       setEditing(false)
       setSaved(true)
     } catch (cause) {
@@ -459,7 +464,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
     <header className="workspace-profile-heading"><h1>Profile</h1><p>Your account and academic information.</p></header>
     <section className="workspace-profile-identity" aria-label="Username">
       {student.avatar_url ? <img src={student.avatar_url} alt="" referrerPolicy="no-referrer" /> : <ProfileAvatar name={student.username} className="workspace-profile-avatar" />}
-      <div><p>USERNAME</p><h2>{student.username}</h2></div>
+      <div><p>USERNAME</p><h2>{student.username}</h2><Link className="workspace-public-profile-link" to={`/community/profile/${student.username}`}>View public profile</Link></div>
     </section>
     <div className="workspace-profile-details">
         <section className="workspace-profile-section" aria-labelledby="profile-account-title"><h2 id="profile-account-title">Account</h2><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Institutional email</dt><dd>{email}</dd></div></dl></section>
@@ -469,9 +474,10 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
             <div><label className="field-label" htmlFor="profile-username">Username</label><input id="profile-username" name="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[a-z0-9_]{3,30}" className="field-input" value={username} onChange={event => { setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setFieldErrors(previous => ({ ...previous, username: undefined })) }} aria-describedby={fieldErrors.username ? 'profile-username-error profile-username-help' : 'profile-username-help'} aria-invalid={Boolean(fieldErrors.username)} /><p id="profile-username-help" className="field-help">Use 3–30 lowercase letters, numbers, or underscores.</p>{fieldErrors.username && <p id="profile-username-error" className="field-error" role="alert">{fieldErrors.username}</p>}</div>
             <div><label className="field-label" htmlFor="profile-program">Program</label><OnboardingDropdown id="profile-program" label="Program" placeholder="Browse or search programs" value={programChoice} options={programOptions} searchable allowCustom onChange={value => { setProgramChoice(value); setFieldErrors(previous => ({ ...previous, program: undefined })) }} invalid={Boolean(fieldErrors.program)} describedBy={fieldErrors.program ? 'profile-program-error profile-program-help' : 'profile-program-help'} /><p id="profile-program-help" className="field-help">Not on the list? Type your full program name, then choose “Use”.</p>{fieldErrors.program && <p id="profile-program-error" className="field-error" role="alert">{fieldErrors.program}</p>}</div>
             <div><label className="field-label" htmlFor="profile-year-level">Year level</label><OnboardingDropdown id="profile-year-level" label="Year level" placeholder="Select year level" value={yearLevel} options={yearOptions} onChange={value => { setYearLevel(value); setFieldErrors(previous => ({ ...previous, yearLevel: undefined })) }} invalid={Boolean(fieldErrors.yearLevel)} describedBy={fieldErrors.yearLevel ? 'profile-year-error' : undefined} />{fieldErrors.yearLevel && <p id="profile-year-error" className="field-error" role="alert">{fieldErrors.yearLevel}</p>}</div>
+            <div className="workspace-profile-form-wide"><label className="field-label" htmlFor="profile-bio">Public bio <small>{bio.length}/280</small></label><textarea id="profile-bio" maxLength={280} value={bio} onChange={event => { setBio(event.target.value); setFieldErrors(previous => ({ ...previous, bio: undefined })) }} placeholder="Share what you study or the kinds of reviewers you create." aria-invalid={Boolean(fieldErrors.bio)} />{fieldErrors.bio && <p className="field-error" role="alert">{fieldErrors.bio}</p>}<p className="field-help">Shown on your Cali Community profile.</p></div>
             {saveError && <p className="workspace-profile-save-error" role="alert">{saveError}</p>}
             <div className="workspace-profile-form-actions"><button type="button" className="workspace-profile-cancel" onClick={() => { setEditing(false); setSaveError('') }} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy}>{busy ? 'Saving...' : 'Save changes'}</button></div>
-          </form> : <><dl><div><dt>Username</dt><dd>{student.username}</dd></div><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div></dl>{saved && <p className="workspace-profile-saved" role="status">Profile details saved.</p>}</>}
+          </form> : <><dl><div><dt>Username</dt><dd>{student.username}</dd></div><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div><div><dt>Public bio</dt><dd>{student.bio || 'Add a short introduction for your Community profile.'}</dd></div></dl>{saved && <p className="workspace-profile-saved" role="status">Profile details saved.</p>}</>}
         </section>
     </div>
     <Link to="/settings" className="workspace-settings-entry">
@@ -679,7 +685,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
             </div></section>
           </div>
         </div>
-      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'settings' ? <SettingsScreen /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : section === 'study' ? <Suspense fallback={<div className="workspace-module-loading" aria-label="Loading Study"><span className="skeleton-block" /></div>}><StudyPage studentId={student.user_id} /></Suspense> : <ModuleScreen section={section} />}
+      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'settings' ? <SettingsScreen /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : section === 'study' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Study"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><StudyPage studentId={student.user_id} /></Suspense> : section === 'community' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Community"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><CommunityPage /></Suspense> : <ModuleScreen section={section} />}
     </div>
   </main>
 }
@@ -739,6 +745,8 @@ function AppRoutes() {
     <Route path="/calendar" element={<WorkspacePage section="calendar" />} />
     <Route path="/study" element={<WorkspacePage section="study" />} />
     <Route path="/community" element={<WorkspacePage section="community" />} />
+    <Route path="/community/reviewer/:reviewerId" element={<WorkspacePage section="community" />} />
+    <Route path="/community/profile/:username" element={<WorkspacePage section="community" />} />
     <Route path="/profile" element={<WorkspacePage section="profile" />} />
     <Route path="/settings" element={<WorkspacePage section="settings" />} />
     <Route path="*" element={<NotFoundPage />} />

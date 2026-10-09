@@ -40,3 +40,18 @@ describe('reviewer PDF extraction', () => {
     expect(pdfMocks.destroy).toHaveBeenCalledOnce()
   })
 })
+
+it('rejects partially scanned PDFs instead of silently omitting pages', async () => {
+  pdfMocks.getDocument.mockReturnValue({ promise: Promise.resolve({ numPages: 2, getPage: pdfMocks.getPage, destroy: pdfMocks.destroy }) })
+  pdfMocks.getTextContent.mockResolvedValueOnce({ items: [{ str: 'Page one', transform: [1, 0, 0, 1, 10, 20] }] }).mockResolvedValueOnce({ items: [] })
+  await expect(extractPdfText(testFile)).rejects.toThrow('page 2')
+})
+it('does not add page labels to multi-page extracted text', async () => {
+  pdfMocks.getDocument.mockReturnValue({ promise: Promise.resolve({ numPages: 2, getPage: pdfMocks.getPage, destroy: pdfMocks.destroy }) })
+  pdfMocks.getTextContent.mockResolvedValueOnce({ items: [{ str: 'First topic', transform: [1, 0, 0, 1, 10, 20] }] }).mockResolvedValueOnce({ items: [{ str: 'Second topic', transform: [1, 0, 0, 1, 10, 20] }] })
+  await expect(extractPdfText(testFile)).resolves.toBe('First topic\n\nSecond topic')
+})
+it('stops a cancelled PDF before initializing the PDF worker', async () => {
+  const controller = new AbortController(); controller.abort()
+  await expect(extractPdfText(testFile, undefined, controller.signal)).rejects.toMatchObject({ name: 'AbortError' })
+})

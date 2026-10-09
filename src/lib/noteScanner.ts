@@ -24,17 +24,19 @@ export function combineNotePageText(pages: string[]): string {
   return pages.map((text, index) => pages.length > 1 ? `Page ${index + 1}\n${text.trim()}` : text.trim()).join('\n\n').trim()
 }
 
-export async function scanNotePages(files: File[], onStatus?: (status: string) => void): Promise<string> {
+export async function scanNotePages(files: File[], onStatus?: (status: string) => void, signal?: AbortSignal, onWarning?: (warning: string) => void): Promise<string> {
   if (!files.length) throw new Error('Add at least one notebook page to scan.')
   if (files.length > MAX_NOTE_PAGES) throw new Error(`Scan no more than ${MAX_NOTE_PAGES} pages at a time.`)
   // Reuse Cali's single initialized OCR worker so multi-page notes do not load
   // another model copy alongside the schedule scanner.
   const { runScheduleOcr: runLocalOcr } = await import('./scheduleOcr')
   const pages: string[] = []
+  const uncertainPages: number[] = []
   for (let index = 0; index < files.length; index += 1) {
+    signal?.throwIfAborted()
     onStatus?.(`Scanning page ${index + 1} of ${files.length} on this device…`)
     let result
-    try { result = await runLocalOcr(files[index]) }
+    try { result = await runLocalOcr(files[index], undefined, signal) }
     catch (error) {
       const message = error instanceof Error ? error.message : ''
       if (/not supported|WebAssembly|Worker|OffscreenCanvas/i.test(message)) throw new Error('On-device note scanning is not supported in this browser. Try another modern browser or upload a digital PDF.')
@@ -42,9 +44,12 @@ export async function scanNotePages(files: File[], onStatus?: (status: string) =
     }
     const text = orderNoteLines(result.lines)
     if (!text) throw new Error(`Page ${index + 1} has no readable text. Try a clearer, straighter photo with even lighting.`)
+    if (result.lines.some(line => line.text.trim() && line.score < 0.65)) uncertainPages.push(index + 1)
     pages.push(text)
+    if (combineNotePageText(pages).length > MAX_REVIEWER_SOURCE_CHARACTERS) throw new Error('The scanned notes exceed 100,000 characters. Generate from fewer pages at a time.')
   }
   const combined = combineNotePageText(pages)
   if (combined.length > MAX_REVIEWER_SOURCE_CHARACTERS) throw new Error('The scanned notes exceed 100,000 characters. Generate from fewer pages at a time.')
+  if (uncertainPages.length) onWarning?.('Some words on page' + (uncertainPages.length === 1 ? ' ' : 's ') + uncertainPages.join(', ') + ' were uncertain. Compare these pages carefully with your notes.')
   return combined
 }

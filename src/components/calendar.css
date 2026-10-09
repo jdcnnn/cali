@@ -488,7 +488,7 @@
 .calendar-preview-dialog {
   position: fixed;
   inset: 50% auto auto 50%;
-  width: min(540px, calc(100vw - 32px));
+  width: min(540px, calc(100vw - 48px));
   max-width: none;
   max-height: calc(100dvh - 32px);
   margin: 0;
@@ -651,7 +651,7 @@
 .calendar-event-dialog {
   position: fixed;
   inset: 50% auto auto 50%;
-  width: min(620px, calc(100vw - 32px));
+  width: min(620px, calc(100vw - 48px));
   max-width: none;
   max-height: calc(100dvh - 32px);
   margin: 0;
@@ -666,7 +666,7 @@
 }
 
 .calendar-event-dialog.is-confirmation {
-  width: min(430px, calc(100vw - 32px));
+  width: min(430px, calc(100vw - 48px));
 }
 
 .calendar-event-dialog::backdrop {
@@ -1285,7 +1285,7 @@
   }
 
   .calendar-preview-dialog {
-    width: calc(100vw - 20px);
+    width: calc(100vw - 48px);
     max-height: calc(100dvh - 20px);
     border-radius: 16px;
   }
@@ -1323,7 +1323,7 @@
   }
 
   .calendar-event-dialog {
-    width: calc(100vw - 20px);
+    width: calc(100vw - 48px);
     max-height: calc(100dvh - 20px);
     border-radius: 16px;
   }

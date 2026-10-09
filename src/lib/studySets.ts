@@ -27,6 +27,8 @@ export type FlashcardSession = {
   startedAt: string
 }
 
+export type FlashcardStudyOptions = Pick<FlashcardSession, 'mode' | 'learningOnly'>
+
 export type FlashcardSet = {
   id: string
   user_id: string
@@ -96,6 +98,50 @@ export function richTextFromText(text: string): JSONContent {
 
 export function validFlashcard(card: Flashcard): boolean {
   return Boolean(card.frontText.trim() && card.backText.trim())
+}
+
+export function flashcardsForSession(cards: Flashcard[], progress: Record<string, CardProgress>, learningOnly: boolean): Flashcard[] {
+  return cards.filter(card => validFlashcard(card) && (!learningOnly || !progress[card.id]?.mastered))
+}
+
+export function buildFlashcardSession(
+  cards: Flashcard[],
+  progress: Record<string, CardProgress>,
+  options: FlashcardStudyOptions,
+  id: string,
+  startedAt: string,
+  random = Math.random,
+): FlashcardSession | null {
+  const eligible = flashcardsForSession(cards, progress, options.learningOnly)
+  if (!eligible.length) return null
+  const cardIds = eligible.map(card => card.id)
+  return {
+    id,
+    cardIds: options.mode === 'shuffle' ? shuffled(cardIds, random) : cardIds,
+    index: 0,
+    ratings: {},
+    mode: options.mode,
+    learningOnly: options.learningOnly,
+    startedAt,
+  }
+}
+
+export function flashcardContentChanged(previous: Flashcard[], next: Flashcard[]): boolean {
+  if (previous.length !== next.length) return true
+  const priorById = new Map(previous.map(card => [card.id, card]))
+  return next.some(card => {
+    const prior = priorById.get(card.id)
+    return !prior || prior.frontText !== card.frontText || prior.backText !== card.backText
+  })
+}
+
+export function reconcileFlashcardProgress(previous: Flashcard[], next: Flashcard[], progress: Record<string, CardProgress>): Record<string, CardProgress> {
+  const priorById = new Map(previous.map(card => [card.id, card]))
+  return Object.fromEntries(Object.entries(progress).filter(([cardId]) => {
+    const prior = priorById.get(cardId)
+    const current = next.find(card => card.id === cardId)
+    return Boolean(prior && current && prior.frontText === current.frontText && prior.backText === current.backText)
+  }))
 }
 
 export function validQuizQuestion(question: QuizQuestion): boolean {

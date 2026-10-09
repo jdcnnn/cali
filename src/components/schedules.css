@@ -449,7 +449,7 @@
 .schedule-dialog {
   position: fixed;
   inset: 50% auto auto 50%;
-  width: min(600px, calc(100vw - 28px));
+  width: min(600px, calc(100vw - 48px));
   max-width: none;
   max-height: calc(100dvh - 28px);
   margin: 0;
@@ -464,7 +464,7 @@
 }
 
 .schedule-dialog--confirmation {
-  width: min(430px, calc(100vw - 32px));
+  width: min(430px, calc(100vw - 48px));
   overflow: hidden;
   border-radius: 20px;
 }
@@ -879,7 +879,7 @@
 
 @media (max-width: 640px) {
   .schedule-dialog--confirmation {
-    width: calc(100vw - 28px);
+    width: calc(100vw - 48px);
     border-radius: 16px;
   }
 

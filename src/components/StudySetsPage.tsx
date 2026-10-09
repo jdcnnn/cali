@@ -3,19 +3,20 @@ import type { FormEvent, ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
 import {
-  applySessionRatings, buildQuizSnapshot, EMPTY_RICH_TEXT, nextQuizQuestionIndex, quizSnapshotMatchesQuestions, richTextFromText, scoreQuiz, SKIPPED_QUIZ_ANSWER,
+  applySessionRatings, buildFlashcardSession, buildQuizSnapshot, EMPTY_RICH_TEXT, nextQuizQuestionIndex, quizSnapshotMatchesQuestions, richTextFromText, scoreQuiz, SKIPPED_QUIZ_ANSWER,
   validFlashcard, validQuizQuestion, type Flashcard, type FlashcardRating,
-  type FlashcardSession, type FlashcardSet, type Quiz, type QuizAttempt, type QuizChoice, type QuizQuestion,
+  type FlashcardSession, type FlashcardSet, type FlashcardStudyOptions, type Quiz, type QuizAttempt, type QuizChoice, type QuizQuestion,
 } from '../lib/studySets'
 import type { ReviewerSubject } from '../lib/reviewers'
 import { CaliSelect, type CaliSelectOption } from './CaliSelect'
 import { BackArrowIcon } from './BackArrowIcon'
 import { ConfirmationIcon, type ConfirmationIconKind } from './ConfirmationIcon'
+import { StudyLibraryCardsSkeleton, StudyLibraryFiltersSkeleton } from './StudyLibrarySkeleton'
 
 type Tool = 'flashcards' | 'quizzes'
 type ReferenceNode = { type?: string; text?: string; attrs?: Record<string, unknown>; content?: ReferenceNode[] }
 type SourceReviewer = { id: string; title: string; subject_id: string | null; plain_text?: string; content?: ReferenceNode }
-type SetSummary = { id: string; subject_id: string | null; source_reviewer_title: string | null; title: string; revision: number; count: number; draftCount: number; updated_at: string }
+type SetSummary = { id: string; subject_id: string | null; source_reviewer_title: string | null; title: string; revision: number; count: number; draftCount: number; mastered: number; updated_at: string }
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error'
 
 const newId = () => crypto.randomUUID()
@@ -50,6 +51,8 @@ function SwapIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="curren
 function ChevronIcon() { return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg> }
 function SearchIcon() { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg> }
 function MoreIcon() { return <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg> }
+function MoveIcon({ direction }: { direction: 'up' | 'down' }) { return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={direction === 'up' ? 'm5.5 11.5 4.5-4 4.5 4' : 'm5.5 8.5 4.5 4 4.5-4'} /></svg> }
+function DuplicateIcon() { return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="6" y="6" width="9" height="9" rx="2" /><path d="M12 6V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h1" /></svg> }
 
 function renderReferenceNodes(nodes: ReferenceNode[] = []): ReactNode {
   return nodes.map((node, index) => {
@@ -86,6 +89,20 @@ function ConfirmDialog({ eyebrow = 'CONFIRM ACTION', title, body, confirmLabel, 
   useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close() }, [])
   const confirmOnce = () => { if (confirmed.current) return; confirmed.current = true; onConfirm() }
   return <dialog ref={ref} className="study-confirm-dialog" aria-labelledby="study-set-confirm-title" onCancel={event => { event.preventDefault(); onCancel() }}><div><ConfirmationIcon kind={kind ?? (danger ? 'error' : 'confirmation')} /><p className="workspace-overline">{eyebrow}</p><h2 id="study-set-confirm-title">{title}</h2>{typeof body === 'string' ? <p>{body}</p> : <div className="study-confirm-content">{body}</div>}<footer><button type="button" className="study-secondary" autoFocus onClick={onCancel}>Cancel</button><button type="button" className={danger ? 'study-danger' : 'button-primary'} onClick={confirmOnce}>{confirmLabel}</button></footer></div></dialog>
+}
+
+function FlashcardSetupDialog({ learningCount, busy, error, onStart, onCancel }: { learningCount: number; busy: boolean; error: string; onStart: (options: FlashcardStudyOptions) => void; onCancel: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null)
+  const [mode, setMode] = useState<FlashcardStudyOptions['mode']>('sequential')
+  const [learningOnly, setLearningOnly] = useState(false)
+  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close() }, [])
+  return <dialog ref={ref} className="study-confirm-dialog flashcard-setup-dialog" aria-labelledby="flashcard-setup-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div>
+    <p className="workspace-overline">CALI STUDY SESSION</p><h2 id="flashcard-setup-title">Set up your session</h2><p>Choose how Cali should arrange this round.</p>
+    <fieldset><legend>Card order</legend><div className="flashcard-setup-options"><label><input type="radio" name="flashcard-order" checked={mode === 'sequential'} onChange={() => setMode('sequential')} /><span><strong>In order</strong><small>Follow the deck as written</small></span></label><label><input type="radio" name="flashcard-order" checked={mode === 'shuffle'} onChange={() => setMode('shuffle')} /><span><strong>Shuffle</strong><small>Mix the card order</small></span></label></div></fieldset>
+    <label className={`flashcard-learning-toggle${learningCount ? '' : ' is-disabled'}`}><input type="checkbox" checked={learningOnly} disabled={!learningCount} onChange={event => setLearningOnly(event.target.checked)} /><span><strong>Still learning only</strong><small>{learningCount ? `${learningCount} ${learningCount === 1 ? 'card needs' : 'cards need'} more practice` : 'Every ready card is mastered'}</small></span></label>
+    {error && <p className="study-form-error" role="alert">{error}</p>}
+    <footer><button type="button" className="study-secondary" onClick={onCancel} disabled={busy}>Cancel</button><button type="button" className="button-primary" onClick={() => onStart({ mode, learningOnly })} disabled={busy}>{busy ? 'Starting' : 'Start session'}</button></footer>
+  </div></dialog>
 }
 
 function ToolTabs({ tool, navigate }: { tool: Tool; navigate: (changes: Record<string, string | null>) => void }) {
@@ -128,13 +145,22 @@ function FlashcardEditor({ initial, subjects, reviewers, onSaved, onBack }: { in
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [swappingCardId, setSwappingCardId] = useState<string | null>(null)
   const saveInFlight = useRef<Promise<boolean> | null>(null)
+  const saveRef = useRef<() => Promise<boolean>>(async () => false)
+  const autosaveTimer = useRef<number | null>(null)
+  const savedFingerprint = useRef(JSON.stringify({ title: initial.title.trim(), subjectId: initial.subject_id ?? '', sourceReviewerId: initial.source_reviewer_id ?? '', cards: initial.cards }))
   const editVersion = useRef(0)
   const readyCount = cards.filter(validFlashcard).length
-  const markDirty = () => { editVersion.current += 1; setSaveError(''); setStatus('dirty') }
+  const scheduleAutosave = () => {
+    if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current)
+    autosaveTimer.current = window.setTimeout(() => { autosaveTimer.current = null; void saveRef.current() }, 1200)
+  }
+  const markDirty = () => { editVersion.current += 1; setSaveError(''); setStatus('dirty'); scheduleAutosave() }
   const changeCard = (id: string, changes: Partial<Flashcard>) => { setCards(current => current.map(card => card.id === id ? { ...card, ...changes } : card)); markDirty() }
   const save = useCallback(async () => {
     if (!supabase || !title.trim()) return false
     if (saveInFlight.current) return saveInFlight.current
+    const fingerprint = JSON.stringify({ title: title.trim(), subjectId, sourceReviewerId, cards })
+    if (fingerprint === savedFingerprint.current) { setStatus('saved'); return true }
     const request = (async () => {
       const savingVersion = editVersion.current
       setSaveError(''); setStatus('saving')
@@ -150,7 +176,11 @@ function FlashcardEditor({ initial, subjects, reviewers, onSaved, onBack }: { in
         }
         if (error || !data) { setSaveError(saveErrorMessage(error, 'flashcard set')); setStatus('error'); return false }
         const saved = data as FlashcardSet
-        setRecord(saved); onSaved(saved); setStatus(editVersion.current === savingVersion ? 'saved' : 'dirty'); return true
+        const hasNewerEdits = editVersion.current !== savingVersion
+        savedFingerprint.current = fingerprint
+        setRecord(saved); onSaved(saved); setStatus(hasNewerEdits ? 'dirty' : 'saved')
+        if (hasNewerEdits) scheduleAutosave()
+        return true
       } catch {
         setSaveError(saveErrorMessage(null, 'flashcard set')); setStatus('error'); return false
       }
@@ -158,7 +188,25 @@ function FlashcardEditor({ initial, subjects, reviewers, onSaved, onBack }: { in
     saveInFlight.current = request
     return request
   }, [cards, onSaved, record, sourceReviewerId, subjectId, title])
+  useEffect(() => { saveRef.current = save }, [save])
+  useEffect(() => () => { if (autosaveTimer.current !== null) window.clearTimeout(autosaveTimer.current) }, [])
+  useEffect(() => {
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => { if (status !== 'saved') event.preventDefault() }
+    window.addEventListener('beforeunload', warnBeforeLeaving)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving)
+  }, [status])
   const addCard = () => { setCards(current => [...current, { id: newId(), front: EMPTY_RICH_TEXT, back: EMPTY_RICH_TEXT, frontText: '', backText: '' }]); markDirty() }
+  const moveCard = (index: number, direction: -1 | 1) => {
+    const destination = index + direction
+    if (destination < 0 || destination >= cards.length) return
+    setCards(current => { const next = [...current]; [next[index], next[destination]] = [next[destination], next[index]]; return next })
+    markDirty()
+  }
+  const duplicateCard = (card: Flashcard, index: number) => {
+    const copy = { ...card, id: newId() }
+    setCards(current => [...current.slice(0, index + 1), copy, ...current.slice(index + 1)])
+    markDirty()
+  }
   const swapCard = (card: Flashcard) => {
     if (swappingCardId) return
     setSwappingCardId(card.id)
@@ -166,15 +214,15 @@ function FlashcardEditor({ initial, subjects, reviewers, onSaved, onBack }: { in
     window.setTimeout(() => setSwappingCardId(current => current === card.id ? null : current), 360)
   }
   return <section className="set-detail-page">
-    <nav className="reviewer-page-nav set-editor-nav"><button type="button" className="cali-back-link" onClick={async () => { if (status === 'dirty' || status === 'error') { setConfirmDiscard(true); return } if (status === 'saving') { if (await save()) onBack(); return } onBack() }}><BackArrowIcon /><span className="set-back-label-long">Back to flashcards</span><span className="set-back-label-short">Flashcards</span></button><div className="set-editor-actions"><SaveStatus status={status} /><button type="button" className="button-primary" disabled={status === 'saved' || status === 'saving' || !title.trim()} onClick={() => void save()}><span className="set-save-button-long">Save changes</span><span className="set-save-button-short">Save</span></button></div></nav>
+    <nav className="reviewer-page-nav set-editor-nav"><button type="button" className="cali-back-link" onClick={async () => { if (status === 'dirty' || status === 'error' || status === 'saving') { const version = editVersion.current; if (await save()) { if (editVersion.current === version || await saveRef.current()) onBack(); else setConfirmDiscard(true) } else setConfirmDiscard(true); return } onBack() }}><BackArrowIcon /><span className="set-back-label-long">Back to flashcards</span><span className="set-back-label-short">Flashcards</span></button><div className="set-editor-actions"><SaveStatus status={status} /><button type="button" className="button-primary" disabled={status === 'saved' || status === 'saving' || !title.trim()} onClick={() => void save()}><span className="set-save-button-long">{status === 'error' ? 'Retry save' : 'Save changes'}</span><span className="set-save-button-short">{status === 'error' ? 'Retry' : 'Save'}</span></button></div></nav>
     {saveError && <p className="study-form-error set-editor-error" role="alert">{saveError}</p>}
     <div className="set-builder-layout">
       <SourcePanel sourceId={sourceReviewerId || null} reviewers={reviewers} onSourceChange={nextSourceId => { setSourceReviewerId(nextSourceId); markDirty() }} />
       <main className="set-builder">
         <header className="set-builder-header flashcard-builder-header"><div className="set-builder-heading flashcard-builder-heading"><p className="workspace-overline">FLASHCARD SET</p></div><label className="set-title-field"><span>Set title</span><input className="set-title-input" value={title} maxLength={160} aria-label="Flashcard set title" onChange={event => { setTitle(event.target.value); markDirty() }} /></label><div className="set-subject-field"><span>Subject</span><CaliSelect value={subjectId} options={subjectSelectOptions(subjects)} ariaLabel="Flashcard subject" className="cali-select--subject cali-select--set-field" onChange={nextValue => { setSubjectId(nextValue); markDirty() }} /></div><div className="set-deck-status flashcard-deck-status"><div><span>Deck progress</span><strong>{readyCount} of {cards.length} ready</strong></div><div className="set-deck-meter" aria-label={`${readyCount} of ${cards.length} cards ready`}><span style={{ width: `${cards.length ? (readyCount / cards.length) * 100 : 0}%` }} /></div></div></header>
         {removedCard && <div className="set-removal-notice" role="status"><span>Card {removedCard.index + 1} removed.</span><button type="button" onClick={() => { const removed = removedCard; setCards(current => [...current.slice(0, removed.index), removed.card, ...current.slice(removed.index)]); setRemovedCard(null); markDirty() }}>Undo</button></div>}
-        {cards.length ? <><div className="set-item-list">{cards.map((card, index) => <article key={`${card.id}-${index}`} className={`set-item-card flashcard-compose-card${validFlashcard(card) ? '' : ' is-draft'}${swappingCardId === card.id ? ' is-swapping' : ''}`}>
-          <div className="set-item-head"><div className="set-item-identity"><span className="set-item-number">{index + 1}</span><div><strong>Flashcard</strong><small>Front and back pair</small></div></div><div className="set-item-actions"><span className="set-item-readiness">{validFlashcard(card) ? 'Ready' : 'Draft'}</span><button type="button" className="set-remove-item" onClick={() => setRemoveTarget({ card, index })}>Remove</button></div></div>
+        {cards.length ? <><div className="set-item-list">{cards.map((card, index) => <article key={card.id} className={`set-item-card flashcard-compose-card${validFlashcard(card) ? '' : ' is-draft'}${swappingCardId === card.id ? ' is-swapping' : ''}`}>
+          <div className="set-item-head"><div className="set-item-identity"><span className="set-item-number">{index + 1}</span><div><strong>Flashcard</strong><small>Front and back pair</small></div></div><div className="set-item-actions flashcard-item-actions"><span className="set-item-readiness">{validFlashcard(card) ? 'Ready' : 'Draft'}</span><div className="flashcard-order-actions" aria-label={`Actions for card ${index + 1}`}><button type="button" disabled={index === 0} onClick={() => moveCard(index, -1)} aria-label={`Move card ${index + 1} up`} title="Move up"><MoveIcon direction="up" /></button><button type="button" disabled={index === cards.length - 1} onClick={() => moveCard(index, 1)} aria-label={`Move card ${index + 1} down`} title="Move down"><MoveIcon direction="down" /></button><button type="button" onClick={() => duplicateCard(card, index)} aria-label={`Duplicate card ${index + 1}`} title="Duplicate"><DuplicateIcon /></button></div><button type="button" className="set-remove-item" onClick={() => setRemoveTarget({ card, index })}>Remove</button></div></div>
           <div className="flashcard-compose"><label className="flashcard-side is-front"><span><b>Front</b><small>Question or term</small></span><textarea autoFocus={index === cards.length - 1 && !card.frontText} value={card.frontText} maxLength={10000} placeholder="Example: What is photosynthesis?" onChange={event => changeCard(card.id, { front: richTextFromText(event.target.value), frontText: event.target.value })} /></label><button type="button" className="flashcard-swap-control" disabled={swappingCardId !== null} aria-label={`Swap the front and back of card ${index + 1}`} title="Swap front and back" onClick={() => swapCard(card)}><span><SwapIcon /></span></button><label className="flashcard-side is-back"><span><b>Back</b><small>Answer or definition</small></span><textarea value={card.backText} maxLength={10000} placeholder="Example: The process plants use to convert light into chemical energy." onChange={event => changeCard(card.id, { back: richTextFromText(event.target.value), backText: event.target.value })} /></label></div>
         </article>)}</div><button type="button" className="study-secondary set-add-item" onClick={addCard}>+ Add another card</button></> : <div className="set-empty-builder"><h2>Create your first flashcard</h2><p>Put a question or term on the front, then its answer or definition on the back.</p><button type="button" className="button-primary" onClick={addCard}>+ Create first card</button></div>}
       </main>
@@ -185,30 +233,43 @@ function FlashcardEditor({ initial, subjects, reviewers, onSaved, onBack }: { in
 }
 
 function FlashcardStudy({ initial, onChange, onBack }: { initial: FlashcardSet; onChange: (set: FlashcardSet) => void; onBack: () => void }) {
-  const cards = initial.cards.filter(validFlashcard)
-  const createSession = (): FlashcardSession => ({ id: newId(), cardIds: cards.map(card => card.id), index: 0, ratings: {}, mode: 'sequential', learningOnly: false, startedAt: new Date().toISOString() })
-  const [session, setSession] = useState<FlashcardSession | null>(() => initial.active_session ?? createSession())
+  const [record, setRecord] = useState(initial)
   const [revealed, setRevealed] = useState(false)
-  const [completion, setCompletion] = useState<{ total: number; confident: number } | null>(null)
+  const [completion, setCompletion] = useState<{ total: number; confident: number; mode: FlashcardStudyOptions['mode'] } | null>(null)
   const [studyError, setStudyError] = useState('')
-  const [confirmRetry, setConfirmRetry] = useState(false)
+  const [confirmRestart, setConfirmRestart] = useState(false)
   const ratingInFlight = useRef(false)
   const [savingRating, setSavingRating] = useState(false)
+  const cards = record.cards.filter(validFlashcard)
+  const session = record.active_session
   const current = session ? cards.find(card => card.id === session.cardIds[session.index]) : null
-  const persist = async (active: FlashcardSession | null, progress = initial.progress) => {
-    if (!supabase) return false
-    const { data, error } = await supabase.from('flashcard_sets').update({ active_session: active, progress }).eq('id', initial.id).select().single()
-    if (error || !data) return false
-    onChange(data as FlashcardSet)
-    return true
+  const persist = async (expected: FlashcardSession | null, active: FlashcardSession | null, progress = record.progress) => {
+    if (!supabase) return null
+    const { data, error } = await supabase.rpc('cali_save_own_flashcard_study', {
+      p_id: record.id,
+      p_expected_session_id: expected?.id ?? null,
+      p_expected_index: expected?.index ?? null,
+      p_active_session: active,
+      p_progress: progress,
+    }).single()
+    if (error || !data) {
+      setStudyError(error?.message.includes('changed in another tab')
+        ? 'This session changed in another tab. Return to the set to load the latest session.'
+        : 'Cali could not save this response. Check your connection, then try again.')
+      return null
+    }
+    const saved = data as FlashcardSet
+    setRecord(saved); onChange(saved)
+    return saved
   }
-  const retrySet = async () => {
+  const startSession = async (options: FlashcardStudyOptions) => {
     if (ratingInFlight.current) return
-    const fresh = createSession()
+    const fresh = buildFlashcardSession(record.cards, record.progress, options, newId(), new Date().toISOString())
+    if (!fresh) { setStudyError(options.learningOnly ? 'Every ready card is already mastered.' : 'This set has no ready cards yet.'); return }
     ratingInFlight.current = true; setSavingRating(true); setStudyError('')
-    setCompletion(null); setSession(fresh); setRevealed(false)
     try {
-      if (!await persist(fresh)) setStudyError('Cali restarted this session here, but could not save it for later. Check your connection and try again.')
+      const saved = await persist(session, fresh)
+      if (saved) { setCompletion(null); setRevealed(false) }
     } finally {
       ratingInFlight.current = false; setSavingRating(false)
     }
@@ -220,46 +281,66 @@ function FlashcardStudy({ initial, onChange, onBack }: { initial: FlashcardSet; 
       const ratings = { ...session.ratings, [current.id]: rating }
       if (session.index + 1 < session.cardIds.length) {
         const next = { ...session, ratings, index: session.index + 1 }
-        if (await persist(next)) { setSession(next); setRevealed(false) }
-        else setStudyError('Cali could not save this response. Check your connection and try again.')
+        if (await persist(session, next)) setRevealed(false)
         return
       }
-      const progress = applySessionRatings(initial.progress, ratings, new Date().toISOString())
-      if (await persist(null, progress)) {
-        setCompletion({ total: session.cardIds.length, confident: Object.values(ratings).filter(value => value === 'good').length })
-        setSession(null); setRevealed(false)
-      } else setStudyError('Cali could not save this response. Check your connection and try again.')
+      const progress = applySessionRatings(record.progress, ratings, new Date().toISOString())
+      if (await persist(session, null, progress)) {
+        setCompletion({ total: session.cardIds.length, confident: Object.values(ratings).filter(value => value === 'good').length, mode: session.mode })
+        setRevealed(false)
+      }
     } finally {
       ratingInFlight.current = false; setSavingRating(false)
     }
   }
-  if (!cards.length) return <section className="set-study-shell"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Back to set</span></button><div className="set-study-start"><h1>No ready cards yet</h1><p>Add a front and back to at least one card before studying.</p></div></section>
+  if (!cards.length) return <section className="set-study-shell"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Back to set</span></button><div className="set-study-start"><p className="workspace-overline">CALI FLASHCARDS</p><h1>No ready cards yet</h1><p>Add a front and back to at least one card before studying.</p></div></section>
   if (completion) {
     const learning = Math.max(0, completion.total - completion.confident)
-    return <section className="set-study-shell flashcard-results-page"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Back to set</span></button><article className="flashcard-complete"><header><div><p className="workspace-overline">SESSION SUMMARY</p><h1>Session complete</h1><p>{initial.title}</p></div></header><div className="flashcard-complete-stats"><div><strong>{completion.confident}</strong><span>Remembered</span></div><div><strong>{learning}</strong><span>Still learning</span></div></div>{studyError && <p className="study-form-error" role="alert">{studyError}</p>}<footer><button type="button" className="button-primary" onClick={onBack}>Back to set</button><button type="button" className="study-secondary" disabled={savingRating} onClick={() => setConfirmRetry(true)}>Study again</button></footer></article>{confirmRetry && <ConfirmDialog eyebrow="STUDY AGAIN" title="Study this set again?" body="Begin a new session from the first card. Your saved mastery progress will remain." confirmLabel="Study again" kind="restart" onCancel={() => setConfirmRetry(false)} onConfirm={() => { setConfirmRetry(false); void retrySet() }} />}</section>
+    const remainingLearning = cards.filter(card => !record.progress[card.id]?.mastered).length
+    const recallRate = Math.round((completion.confident / Math.max(1, completion.total)) * 100)
+    return <section className="set-study-shell flashcard-results-page"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Back to set</span></button><article className="flashcard-complete"><svg className="flashcard-celebration" viewBox="0 0 80 80" aria-hidden="true"><circle className="flashcard-celebration-disc" cx="40" cy="40" r="27" /><path className="flashcard-celebration-check" d="M27 41 36 50 53 30" /></svg><header><div><p className="workspace-overline">CALI SESSION SUMMARY</p><h1>Session complete</h1><p>{record.title}</p></div></header><div className="flashcard-result-callout"><div><strong>{recallRate}% recalled</strong><span>You remembered {completion.confident} of {completion.total} {completion.total === 1 ? 'card' : 'cards'} this round.</span></div><div className="flashcard-result-meter" aria-label={`${recallRate}% recalled`}><span style={{ width: `${recallRate}%` }} /></div></div><div className="flashcard-complete-stats"><div><strong>{completion.confident}</strong><span>Remembered</span></div><div><strong>{learning}</strong><span>Still learning</span></div></div>{studyError && <p className="study-form-error" role="alert">{studyError}</p>}<footer className="flashcard-result-actions">{remainingLearning > 0 && <button type="button" className="button-primary" disabled={savingRating} onClick={() => void startSession({ mode: completion.mode, learningOnly: true })}>Review still learning</button>}<button type="button" className={remainingLearning > 0 ? 'study-secondary' : 'button-primary'} disabled={savingRating} onClick={() => void startSession({ mode: completion.mode, learningOnly: false })}>Study all again</button><button type="button" className="flashcard-result-back" onClick={onBack}>Back to set</button></footer></article></section>
   }
-  if (!session || !current) return null
-  return <section className="set-study-shell flashcard-session"><nav className="set-session-nav"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Back to set</span></button></nav><header className="flashcard-session-head"><div><p className="workspace-overline">FLASHCARD SESSION</p><h1>{initial.title}</h1></div><div><strong>{session.cardIds.length - session.index}</strong><span>remaining</span></div></header><div className="set-progress"><span style={{ width: `${(session.index / session.cardIds.length) * 100}%` }} /></div><div className="flashcard-session-meta"><span>Card {session.index + 1} of {session.cardIds.length}</span><p>{revealed ? 'Choose what happens next.' : 'Recall the answer, then reveal the card.'}</p></div>{studyError && <p className="study-form-error" role="alert">{studyError}</p>}<div className={`flashcard-stage${revealed ? ' is-revealed' : ''}`}>{!revealed ? <button type="button" className="flashcard-study-card" aria-label="Reveal answer" onClick={() => setRevealed(true)}><div className="set-plain-text">{current.frontText}</div><small>Tap to reveal the answer</small></button> : <article className="flashcard-study-card"><p className="flashcard-study-prompt">{current.frontText}</p><div className="set-plain-text">{current.backText}</div></article>}{revealed && <div className="flashcard-ratings" aria-label="Choose what happens next" aria-busy={savingRating}><button type="button" className="is-retry" disabled={savingRating} onClick={() => setConfirmRetry(true)}><strong>Retry set</strong><small>Start from card 1</small></button><button type="button" disabled={savingRating} onClick={() => void rate('hard')}><strong>Still learning</strong><small>Continue to next card</small></button><button type="button" disabled={savingRating} onClick={() => void rate('good')}><strong>Remembered</strong><small>Count this recall</small></button></div>}</div>{confirmRetry && <ConfirmDialog title="Restart this flashcard session?" body="Your current place and responses in this session will be replaced. Saved mastery from earlier completed sessions will remain." confirmLabel="Restart session" danger onCancel={() => setConfirmRetry(false)} onConfirm={() => { setConfirmRetry(false); void retrySet() }} />}</section>
+  if (!session || !current) return <section className="set-study-shell"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Back to set</span></button><div className="set-study-start"><p className="workspace-overline">CALI FLASHCARDS</p><h1>This session is no longer available</h1><p>The deck may have changed. Return to the set to start a fresh session.</p><button type="button" className="button-primary" onClick={onBack}>Return to set</button></div></section>
+  return <section className="set-study-shell flashcard-session"><nav className="set-session-nav"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Back to set</span></button><button type="button" className="study-secondary flashcard-restart-button" disabled={savingRating} onClick={() => setConfirmRestart(true)}>Restart</button></nav><header className="flashcard-session-head"><div><p className="workspace-overline">CALI FLASHCARD SESSION</p><h1>{record.title}</h1></div><div><strong>{session.cardIds.length - session.index}</strong><span>remaining</span></div></header><div className="set-progress"><span style={{ width: `${(session.index / session.cardIds.length) * 100}%` }} /></div><div className="flashcard-session-meta"><span>Card {session.index + 1} of {session.cardIds.length}</span><p>{revealed ? 'How well did you recall it?' : 'Recall the answer before revealing it.'}</p></div>{studyError && <p className="study-form-error" role="alert">{studyError}</p>}<div className={`flashcard-stage${revealed ? ' is-revealed' : ''}`}>{!revealed ? <button type="button" className="flashcard-study-card" aria-label="Tap to show answer" onClick={() => setRevealed(true)}><div className="set-plain-text">{current.frontText}</div><small className="flashcard-reveal-label"><span>Tap To Show Answer</span></small></button> : <article className="flashcard-study-card"><span className="flashcard-side-label">Answer</span><p className="flashcard-study-prompt">{current.frontText}</p><div className="set-plain-text">{current.backText}</div></article>}{revealed && <div className="flashcard-ratings" aria-label="Rate your recall" aria-busy={savingRating}><button type="button" disabled={savingRating} onClick={() => void rate('hard')}><strong>Still learning</strong><small>Needs another pass</small></button><button type="button" disabled={savingRating} onClick={() => void rate('good')}><strong>Remembered</strong><small>Count this recall</small></button></div>}</div>{confirmRestart && <ConfirmDialog eyebrow="RESTART SESSION" title="Restart this flashcard session?" body="Your current place and responses in this session will be replaced. Mastery from completed sessions will remain." confirmLabel="Restart session" kind="restart" onCancel={() => setConfirmRestart(false)} onConfirm={() => { setConfirmRestart(false); void startSession({ mode: session.mode, learningOnly: session.learningOnly }) }} />}</section>
 }
 
-function FlashcardOverview({ flashcardSet, onStart }: { flashcardSet: FlashcardSet; onStart: () => void }) {
+function FlashcardOverview({ flashcardSet, onChange, onStudy }: { flashcardSet: FlashcardSet; onChange: (set: FlashcardSet) => void; onStudy: () => void }) {
+  const [setupOpen, setSetupOpen] = useState(false)
+  const [setupBusy, setSetupBusy] = useState(false)
+  const [setupError, setSetupError] = useState('')
+  const [confirmReplace, setConfirmReplace] = useState(false)
   const cards = flashcardSet.cards.filter(validFlashcard)
   const mastered = cards.filter(card => flashcardSet.progress[card.id]?.mastered).length
+  const learning = cards.length - mastered
   const progress = cards.length ? (mastered / cards.length) * 100 : 0
+  const start = async (options: FlashcardStudyOptions) => {
+    if (!supabase || setupBusy) return
+    const session = buildFlashcardSession(flashcardSet.cards, flashcardSet.progress, options, newId(), new Date().toISOString())
+    if (!session) { setSetupError(options.learningOnly ? 'Every ready card is already mastered.' : 'Complete at least one card before starting.'); return }
+    setSetupBusy(true); setSetupError('')
+    const expected = flashcardSet.active_session
+    const { data, error } = await supabase.rpc('cali_save_own_flashcard_study', { p_id: flashcardSet.id, p_expected_session_id: expected?.id ?? null, p_expected_index: expected?.index ?? null, p_active_session: session, p_progress: flashcardSet.progress }).single()
+    setSetupBusy(false)
+    if (error || !data) { setSetupError(error?.message.includes('changed in another tab') ? 'This session changed in another tab. Reload the set and try again.' : 'Cali could not start the session. Check your connection and try again.'); return }
+    onChange(data as FlashcardSet); setSetupOpen(false); onStudy()
+  }
   return <article className="set-overview flashcard-overview">
     <header className="flashcard-overview-head">
       <div><p className="workspace-overline">FLASHCARD SET</p><h1>{flashcardSet.title}</h1><p className="flashcard-set-count">This set has {cards.length} {cards.length === 1 ? 'card' : 'cards'}</p></div>
     </header>
     <div className="flashcard-overview-body">
       <section className="flashcard-overview-summary">
-        <div className="flashcard-overview-progress"><div><span>Progress</span><strong>{mastered} of {cards.length} mastered</strong></div><div className="flashcard-overview-meter" aria-label={`${mastered} of ${cards.length} cards mastered`}><span style={{ width: `${progress}%` }} /></div></div>
-        <button type="button" className="button-primary" disabled={!cards.length} onClick={onStart}>{flashcardSet.active_session ? 'Resume session' : 'Start studying'}</button>
+        <div className="flashcard-overview-progress"><div><span>Mastery</span><strong>{mastered} of {cards.length} mastered</strong></div><div className="flashcard-overview-meter" aria-label={`${mastered} of ${cards.length} cards mastered`}><span style={{ width: `${progress}%` }} /></div></div>
+        <div className="flashcard-overview-counts"><div><strong>{mastered}</strong><span>Mastered</span></div><div><strong>{learning}</strong><span>Learning</span></div></div>
+        <div className="flashcard-overview-actions">{flashcardSet.active_session ? <><button type="button" className="button-primary" onClick={onStudy}>Resume session</button><button type="button" className="study-secondary" onClick={() => setConfirmReplace(true)}>Start new session</button></> : <button type="button" className="button-primary" disabled={!cards.length} onClick={() => { setSetupError(''); setSetupOpen(true) }}>Start studying</button>}</div>
       </section>
       <section className="flashcard-deck-preview">
         <header><p className="workspace-overline">CARDS IN THIS SET</p></header>
-        <div>{cards.slice(0, 4).map((card, index) => { const cardProgress = flashcardSet.progress[card.id]; return <div key={card.id} className="flashcard-preview-row"><span>{index + 1}</span><strong>{card.frontText}</strong><small className={cardProgress?.mastered ? 'is-mastered' : ''}>{cardProgress?.mastered ? 'Mastered' : cardProgress?.goodStreak === 1 ? '1 of 2 recalls' : 'Learning'}</small></div> })}{cards.length > 4 && <p className="flashcard-preview-more">+{cards.length - 4} more</p>}{cards.length === 0 && <p className="flashcard-preview-empty">No ready cards</p>}</div>
+        <div>{cards.slice(0, 4).map((card, index) => { const cardProgress = flashcardSet.progress[card.id]; return <div key={card.id} className="flashcard-preview-row"><span>{index + 1}</span><strong>{card.frontText}</strong><small className={cardProgress?.mastered ? 'is-mastered' : ''}>{cardProgress?.mastered ? 'Mastered' : cardProgress?.goodStreak === 1 ? '1 of 2 recalls' : 'Learning'}</small></div> })}{cards.length > 4 && <p className="flashcard-preview-more">+{cards.length - 4} more {cards.length - 4 === 1 ? 'card' : 'cards'}</p>}{cards.length === 0 && <p className="flashcard-preview-empty">No ready cards</p>}</div>
       </section>
     </div>
+    {confirmReplace && <ConfirmDialog eyebrow="NEW SESSION" title="Replace the current session?" body="Your current place and responses in this session will be replaced. Mastery from completed sessions will remain." confirmLabel="Set up new session" kind="restart" onCancel={() => setConfirmReplace(false)} onConfirm={() => { setConfirmReplace(false); setSetupError(''); setSetupOpen(true) }} />}
+    {setupOpen && <FlashcardSetupDialog learningCount={learning} busy={setupBusy} error={setupError} onCancel={() => { if (!setupBusy) setSetupOpen(false) }} onStart={options => void start(options)} />}
   </article>
 }
 
@@ -418,7 +499,7 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
     if (!supabase) return; setLoading(true)
     const countField = tool === 'flashcards' ? 'card_count' : 'question_count'
     const setFields = tool === 'flashcards'
-      ? `id,subject_id,source_reviewer_title,title,revision,${countField},updated_at`
+      ? `id,subject_id,source_reviewer_title,title,revision,${countField},cards,progress,updated_at`
       : `id,subject_id,source_reviewer_title,title,revision,${countField},questions,updated_at`
     const [setResult, subjectResult, reviewerResult] = await Promise.all([
       supabase.from(table).select(setFields).eq('user_id', studentId).order('updated_at', { ascending: false }),
@@ -428,8 +509,12 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
     setSummaries((setResult.data ?? []).map(raw => {
       const row = raw as unknown as Record<string, unknown>
       const total = Number(row[countField] ?? 0)
-      const ready = tool === 'quizzes' && Array.isArray(row.questions) ? (row.questions as QuizQuestion[]).filter(validQuizQuestion).length : total
-      return { id: String(row.id), subject_id: row.subject_id as string | null, source_reviewer_title: row.source_reviewer_title as string | null, title: String(row.title), revision: Number(row.revision), count: ready, draftCount: total - ready, updated_at: String(row.updated_at) }
+      const ready = tool === 'quizzes' && Array.isArray(row.questions)
+        ? (row.questions as QuizQuestion[]).filter(validQuizQuestion).length
+        : Array.isArray(row.cards) ? (row.cards as Flashcard[]).filter(validFlashcard).length : total
+      const progress = (row.progress ?? {}) as FlashcardSet['progress']
+      const mastered = tool === 'flashcards' && Array.isArray(row.cards) ? (row.cards as Flashcard[]).filter(card => validFlashcard(card) && progress[card.id]?.mastered).length : 0
+      return { id: String(row.id), subject_id: row.subject_id as string | null, source_reviewer_title: row.source_reviewer_title as string | null, title: String(row.title), revision: Number(row.revision), count: ready, draftCount: total - ready, mastered, updated_at: String(row.updated_at) }
     }))
     setSubjects((subjectResult.data ?? []) as ReviewerSubject[]); setReviewers((reviewerResult.data ?? []) as SourceReviewer[]); setLoading(false)
   }, [studentId, table, tool])
@@ -469,8 +554,9 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
       source_reviewer_title: saved.source_reviewer_title,
       title: saved.title,
       revision: saved.revision,
-      count: tool === 'flashcards' ? (saved as FlashcardSet).card_count : (saved as Quiz).questions.filter(validQuizQuestion).length,
-      draftCount: tool === 'quizzes' ? (saved as Quiz).questions.filter(question => !validQuizQuestion(question)).length : 0,
+      count: tool === 'flashcards' ? (saved as FlashcardSet).cards.filter(validFlashcard).length : (saved as Quiz).questions.filter(validQuizQuestion).length,
+      draftCount: tool === 'flashcards' ? (saved as FlashcardSet).cards.filter(card => !validFlashcard(card)).length : (saved as Quiz).questions.filter(question => !validQuizQuestion(question)).length,
+      mastered: tool === 'flashcards' ? (saved as FlashcardSet).cards.filter(card => validFlashcard(card) && (saved as FlashcardSet).progress[card.id]?.mastered).length : 0,
       updated_at: saved.updated_at,
     }))
   }
@@ -479,7 +565,7 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
   const reviewerOptions: CaliSelectOption[] = [{ value: '', label: 'Blank', detail: 'Start without a reviewer' }, ...reviewers.map(reviewer => ({ value: reviewer.id, label: reviewer.title }))]
 
   if (detail && tool === 'flashcards' && editing) return <FlashcardEditor initial={detail as FlashcardSet} subjects={subjects} reviewers={reviewers} onSaved={acceptSavedSet} onBack={() => navigate({ edit: null })} />
-  if (detail && tool === 'flashcards' && studying) return <FlashcardStudy initial={detail as FlashcardSet} onChange={changed => setDetail(changed)} onBack={() => navigate({ study: null })} />
+  if (detail && tool === 'flashcards' && studying) return <FlashcardStudy initial={detail as FlashcardSet} onChange={acceptSavedSet} onBack={() => navigate({ study: null })} />
   if (detail && tool === 'quizzes' && editing) return <QuizEditor initial={detail as Quiz} subjects={subjects} reviewers={reviewers} onSaved={acceptSavedSet} onBack={() => navigate({ edit: null })} />
   const activeAttemptMatchesQuiz = detail && tool === 'quizzes' && activeAttempt?.status === 'active'
     ? quizSnapshotMatchesQuestions(activeAttempt.snapshot, (detail as Quiz).questions)
@@ -500,7 +586,7 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
       const { data } = await supabase.from('quiz_attempts').insert({ id, quiz_id: detail.id, user_id: studentId, snapshot, answers: {} }).select().single()
       if (data) { setActiveAttempt(data as QuizAttempt); navigate({ study: '1' }) }
     }
-    if (isFlashcardTool(tool)) return <section className="set-detail-page"><nav className="reviewer-page-nav flashcard-detail-nav"><button type="button" className="cali-back-link" onClick={() => navigate({ [idParam]: null })}><BackArrowIcon /><span>Back to flashcards</span></button><details className="set-detail-menu"><summary aria-label="More flashcard set actions" title="More actions"><MoreIcon /></summary><div><button type="button" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; navigate({ edit: '1' }) }}>Edit</button><button type="button" className="is-danger" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; setConfirmAction('delete') }}>Delete</button></div></details></nav><FlashcardOverview flashcardSet={detail as FlashcardSet} onStart={() => navigate({ study: '1' })} />{confirmAction === 'delete' && <ConfirmDialog title={`Delete “${detail.title}”?`} body="This permanently removes the flashcard set and its progress. This cannot be undone." confirmLabel="Delete set" danger onCancel={() => setConfirmAction(null)} onConfirm={() => void remove()} />}</section>
+    if (isFlashcardTool(tool)) return <section className="set-detail-page"><nav className="reviewer-page-nav flashcard-detail-nav"><button type="button" className="cali-back-link" onClick={() => navigate({ [idParam]: null })}><BackArrowIcon /><span>Back to flashcards</span></button><details className="set-detail-menu"><summary aria-label="More flashcard set actions" title="More actions"><MoreIcon /></summary><div><button type="button" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; navigate({ edit: '1' }) }}>Edit</button><button type="button" className="is-danger" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; setConfirmAction('delete') }}>Delete</button></div></details></nav><FlashcardOverview flashcardSet={detail as FlashcardSet} onChange={acceptSavedSet} onStudy={() => navigate({ study: '1' })} />{confirmAction === 'delete' && <ConfirmDialog title={`Delete “${detail.title}”?`} body="This permanently removes the flashcard set and its progress. This cannot be undone." confirmLabel="Delete set" danger onCancel={() => setConfirmAction(null)} onConfirm={() => void remove()} />}</section>
     return <section className="set-detail-page">
       <nav className="reviewer-page-nav"><button type="button" className="cali-back-link" onClick={() => navigate({ [idParam]: null })}><BackArrowIcon /><span>Back to {tool}</span></button><div><button type="button" className="study-secondary" onClick={() => navigate({ edit: '1' })}>Edit</button><button type="button" className="study-danger" onClick={() => setConfirmAction('delete')}>Delete</button></div></nav>
       <article className="quiz-overview">
@@ -523,14 +609,15 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
   return <section className={`study-page${tool === 'quizzes' ? ' study-page--quizzes' : ''}`}>
     <header className="study-heading"><div><p className="workspace-overline">STUDY SPACE</p><h1>{tool === 'flashcards' ? <>Practice active <em>recall.</em></> : <>Check your <em>understanding.</em></>}</h1><p>{tool === 'flashcards' ? 'Build focused card sets and track what you have mastered.' : 'Create quizzes, answer each question, and review completed attempts.'}</p></div><div className="study-heading-actions"><button type="button" className="button-primary" onClick={() => navigate({ new: '1' })}><span>+</span> New {tool === 'flashcards' ? 'flashcard set' : 'quiz'}</button></div></header>
     <ToolTabs tool={tool} navigate={navigate} />
-    <section className={`reviewer-library${tool === 'quizzes' ? ' quiz-library' : ''}`}>
+    <section className={`reviewer-library${tool === 'quizzes' ? ' quiz-library' : ''}`} aria-busy={loading}>
       <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>{tool === 'flashcards' ? 'Flashcard sets' : 'Quizzes'}</h2></div>{tool === 'quizzes' && <p>The correct answer is shown after each question.</p>}</div>
-      <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={`Search ${tool}`} aria-label={`Search ${tool}`} /></label><CaliSelect value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} ariaLabel="Filter by subject" className="cali-select--filter" /></div>
-      <div className="study-set-grid">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(item => {
+      {loading ? <StudyLibraryFiltersSkeleton /> : <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={`Search ${tool}`} aria-label={`Search ${tool}`} /></label><CaliSelect value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} ariaLabel="Filter by subject" className="cali-select--filter" /></div>}
+      {loading ? <StudyLibraryCardsSkeleton containerClassName="study-set-grid" label={`Loading ${tool}`} /> : <div className="study-set-grid">{visible.length ? visible.map(item => {
         const subject = subjects.find(value => value.id === item.subject_id)
         if (tool === 'quizzes') return <button key={item.id} type="button" className="study-set-card quiz-set-card" onClick={() => navigate({ [idParam]: item.id })}><span className="study-set-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time></span><strong className="study-set-preview-title">{item.title}</strong><span className="study-set-preview-content"><span className="quiz-set-card-footer"><span><b>{item.count}</b> ready</span>{item.draftCount > 0 && <span className="has-drafts"><b>{item.draftCount}</b> {item.draftCount === 1 ? 'draft' : 'drafts'}</span>}</span></span></button>
-        return <button key={item.id} type="button" className="study-set-card" onClick={() => navigate({ [idParam]: item.id })}><span className="study-set-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time></span><strong className="study-set-preview-title">{item.title}</strong><span className="study-set-preview-content"><small>{item.count} {item.count === 1 ? 'card' : 'cards'}</small></span></button>
-      }) : <div className="reviewer-empty-list"><strong>Your first {tool === 'flashcards' ? 'flashcard set' : 'quiz'} starts here</strong><p>Create one from scratch or derive it from an existing reviewer.</p><button type="button" className="button-primary" onClick={() => navigate({ new: '1' })}>Create {tool === 'flashcards' ? 'set' : 'quiz'}</button></div>}</div>
+        const mastery = item.count ? (item.mastered / item.count) * 100 : 0
+        return <button key={item.id} type="button" className="study-set-card flashcard-set-card" onClick={() => navigate({ [idParam]: item.id })}><span className="study-set-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time></span><strong className="study-set-preview-title">{item.title}</strong><span className="study-set-preview-content"><span className="flashcard-library-summary"><small>{item.count} {item.count === 1 ? 'card' : 'cards'}</small><small>{item.mastered} mastered</small></span><span className="flashcard-library-meter" aria-hidden="true"><span style={{ width: `${mastery}%` }} /></span></span></button>
+      }) : <div className="reviewer-empty-list"><strong>Your first {tool === 'flashcards' ? 'flashcard set' : 'quiz'} starts here</strong><p>Create one from scratch or derive it from an existing reviewer.</p><button type="button" className="button-primary" onClick={() => navigate({ new: '1' })}>Create {tool === 'flashcards' ? 'set' : 'quiz'}</button></div>}</div>}
     </section>
     {params.get('new') && <div className="study-modal-backdrop"><form className="study-set-create" onSubmit={createSet}>
       <header><p className="workspace-overline">NEW {tool === 'flashcards' ? 'FLASHCARD SET' : 'QUIZ'}</p><h2>Choose a starting point</h2></header>

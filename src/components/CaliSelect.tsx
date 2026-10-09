@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, ReactNode } from 'react'
+import './cali-select.css'
 
 export type CaliSelectOption = {
   value: string
@@ -52,21 +53,24 @@ export function CaliSelect({ value, options, onChange, ariaLabel, className = ''
     if (host === rootRef.current) { setMenuStyle({}); return }
     const rect = trigger.getBoundingClientRect()
     const isBody = host === document.body
-    const hostRect = isBody ? { left: 0, top: 0 } : host.getBoundingClientRect()
-    const gutter = 8, gap = 7
     const viewportWidth = window.innerWidth, viewportHeight = window.innerHeight
+    const hostRect = isBody ? { left: 0, top: 0, bottom: viewportHeight } : host.getBoundingClientRect()
+    const gutter = 8, gap = 7
     const width = Math.min(Math.max(rect.width, Math.min(220, viewportWidth - gutter * 2)), viewportWidth - gutter * 2)
     const viewportLeft = Math.min(Math.max(rect.left, gutter), viewportWidth - width - gutter)
-    const availableBelow = Math.max(72, viewportHeight - rect.bottom - gap - gutter)
+    const availableBelow = Math.max(0, viewportHeight - rect.bottom - gap - gutter)
+    const availableAbove = Math.max(0, rect.top - gap - gutter)
+    const openAbove = availableBelow < 180 && availableAbove > availableBelow
+    const availableHeight = openAbove ? availableAbove : availableBelow
     setMenuStyle({
       position: isBody ? 'fixed' : 'absolute',
       zIndex: 300,
-      top: rect.bottom + gap - hostRect.top,
+      top: openAbove ? 'auto' : rect.bottom + gap - hostRect.top,
       left: viewportLeft - hostRect.left,
-      bottom: 'auto',
+      bottom: openAbove ? hostRect.bottom - rect.top + gap : 'auto',
       width,
       maxWidth: width,
-      maxHeight: Math.min(280, availableBelow),
+      maxHeight: Math.max(72, Math.min(280, availableHeight)),
     })
   }, [])
 
@@ -87,7 +91,7 @@ export function CaliSelect({ value, options, onChange, ariaLabel, className = ''
   const openMenu = (focusIndex?: number) => {
     const trigger = triggerRef.current
     if (!trigger) return
-    const host = rootRef.current ?? document.body
+    const host = trigger.closest('dialog') ?? document.body
     setPortalHost(host)
     positionMenu(host)
     setOpen(true)

@@ -1,3 +1,6 @@
+import { ReviewerStyleOptions } from './ReviewerStyleOptions'
+import { DEFAULT_REVIEWER_PREFERENCES, type ReviewerPreferences } from '../lib/reviewerPreferences'
+import { readReviewerRecovery, writeReviewerRecovery, clearReviewerRecovery, reviewerSubmissionKey } from '../lib/reviewerRecovery'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -16,12 +19,14 @@ import type { EditorView } from '@tiptap/pm/view'
 import { useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
 import { EMPTY_REVIEWER_DOCUMENT, formatReviewerDate, reviewerMatches, type Reviewer, type ReviewerSubject } from '../lib/reviewers'
+import { setReviewerVisibility, type ReviewerVisibility } from '../lib/community'
 import { extractPdfText, MAX_REVIEWER_SOURCE_CHARACTERS, PdfExtractionError } from '../lib/reviewerPdf'
 import { MAX_NOTE_PAGES, scanNotePages } from '../lib/noteScanner'
 import { StudySetsPage } from './StudySetsPage'
 import { CaliSelect, type CaliSelectOption } from './CaliSelect'
 import { BackArrowIcon } from './BackArrowIcon'
 import { ConfirmationIcon } from './ConfirmationIcon'
+import { StudyLibraryCardsSkeleton, StudyLibraryCountSkeleton, StudyLibraryFiltersSkeleton } from './StudyLibrarySkeleton'
 import './study.css'
 import './skeleton.css'
 
@@ -610,6 +615,51 @@ function ReviewerDeleteDialog({ reviewer, busy, error, onCancel, onConfirm }: { 
   return <dialog ref={dialogRef} className="study-confirm-dialog" aria-labelledby="reviewer-delete-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><div><ConfirmationIcon kind={busy ? 'loading' : 'error'} /><p className="workspace-overline">DELETE REVIEWER</p><h2 id="reviewer-delete-title">Delete “{reviewer.title}”?</h2><p>This permanently removes the reviewer and all of its content. This cannot be undone.</p>{error && <p className="study-form-error" role="alert">{error}</p>}<footer><button type="button" className="study-secondary" autoFocus onClick={onCancel} disabled={busy}>Keep reviewer</button><button type="button" className="study-danger" onClick={onConfirm} disabled={busy}>{busy ? 'Deleting…' : 'Delete reviewer'}</button></footer></div></dialog>
 }
 
+const communityCategoryOptions: CaliSelectOption[] = [
+  { value: 'General', label: 'General' },
+  { value: 'General Science', label: 'General Science' },
+  { value: 'Mathematics', label: 'Mathematics' },
+  { value: 'Programming', label: 'Programming' },
+  { value: 'Engineering', label: 'Engineering' },
+  { value: 'Health Sciences', label: 'Health Sciences' },
+  { value: 'Business', label: 'Business' },
+  { value: 'Social Sciences', label: 'Social Sciences' },
+  { value: 'Humanities', label: 'Humanities' },
+  { value: 'Languages', label: 'Languages' },
+]
+
+function ReviewerShareDialog({ reviewer, subjects, onCancel, onSaved }: { reviewer: Reviewer; subjects: ReviewerSubject[]; onCancel: () => void; onSaved: (reviewer: Reviewer) => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  const [visibility, setVisibility] = useState<ReviewerVisibility>(reviewer.visibility ?? 'private')
+  const [description, setDescription] = useState(reviewer.description ?? '')
+  const [category, setCategory] = useState(reviewer.category || 'General')
+  const [subjectId, setSubjectId] = useState(reviewer.subject_id ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => { const dialog = dialogRef.current; dialog?.showModal(); return () => { if (dialog?.open) dialog.close() } }, [])
+  async function save(event: FormEvent) {
+    event.preventDefault()
+    if (busy || !category.trim()) return
+    setBusy(true); setError('')
+    try {
+      const changed = await setReviewerVisibility(reviewer.id, visibility, description.trim(), category.trim(), subjectId || null) as Reviewer
+      onSaved(changed)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Cali couldn’t update this reviewer’s sharing settings.')
+    } finally { setBusy(false) }
+  }
+  const privateMode = visibility === 'private'
+  const subjectOptions = [{ value: '', label: 'General', detail: 'Not linked to a subject' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title, triggerLabel: `${subject.subject_code} — ${subject.title}` }))]
+  const categoryOptions = communityCategoryOptions.some(option => option.value === category)
+    ? communityCategoryOptions
+    : [{ value: category, label: category, detail: 'Existing category' }, ...communityCategoryOptions]
+  return <dialog ref={dialogRef} className="study-confirm-dialog reviewer-share-dialog" aria-labelledby="reviewer-share-title" onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}><form onSubmit={save}><ConfirmationIcon kind={busy ? 'loading' : privateMode ? 'warning' : 'information'} /><p className="workspace-overline">CALI COMMUNITY</p><h2 id="reviewer-share-title">{privateMode ? `Make “${reviewer.title}” private?` : `Share “${reviewer.title}”?`}</h2><p>{privateMode ? 'Only you will be able to find and read it. Any active access will end.' : visibility === 'public' ? 'Anyone in Cali can read, vote on, and create an attributed copy.' : 'Students can discover it and read a short preview, then request full access or an editable copy.'}</p>
+    <fieldset className="reviewer-visibility-options"><legend>Visibility</legend>{(['private', 'preview', 'public'] as ReviewerVisibility[]).map(option => <label key={option} className={visibility === option ? 'is-selected' : ''}><input type="radio" name="reviewer-visibility" value={option} checked={visibility === option} onChange={() => setVisibility(option)} /><span><strong>{option[0].toUpperCase() + option.slice(1)}</strong><small>{option === 'private' ? 'Visible only to you' : option === 'preview' ? 'Searchable · limited preview' : 'Fully readable · attributed copies'}</small></span></label>)}</fieldset>
+    {!privateMode && <div className="reviewer-share-fields"><label><span>Subject</span><CaliSelect ariaLabel="Community subject anchor" className="cali-select--form" value={subjectId} options={subjectOptions} onChange={setSubjectId} /></label><label><span>Category</span><CaliSelect ariaLabel="Reviewer category" className="cali-select--form" value={category} options={categoryOptions} onChange={setCategory} /></label><label><span>Description <small>{description.length}/420</small></span><textarea maxLength={420} value={description} onChange={event => setDescription(event.target.value)} placeholder="Tell students what this reviewer covers." /></label></div>}
+    {reviewer.parent_reviewer_id && !privateMode && <p className="reviewer-share-lineage">This will be published as a new version. The original creator and every published contributor will remain credited.</p>}
+    {error && <p className="study-form-error" role="alert">{error}</p>}<footer><button type="button" className="study-secondary" autoFocus onClick={onCancel} disabled={busy}>Cancel</button><button type="submit" className={privateMode ? 'study-danger' : 'button-primary'} disabled={busy || !category.trim()}>{busy ? 'Updating…' : privateMode ? 'Make private' : visibility === 'public' ? 'Publish publicly' : 'Publish preview'}</button></footer></form></dialog>
+}
+
 type GeneratedDraft = { requestId: string; title: string; content: JSONContent; plainText: string; revision: number; expiresAt: string }
 type AiGenerationQuota = { used: number; limit: number; resetsAt: string }
 type AiProgress = { phase: 'pdf' | 'scan' | 'generate'; active: number; detail?: string }
@@ -617,22 +667,23 @@ type AiProgress = { phase: 'pdf' | 'scan' | 'generate'; active: number; detail?:
 const aiProgressLabels = {
   pdf: ['Opening your PDF', 'Extracting the text', 'Preparing text for review'],
   scan: ['Preparing your pages', 'Extracting the text', 'Preparing text for review'],
-  generate: ['Checking your source', 'Organizing key ideas', 'Writing your reviewer', 'Preparing your editable draft'],
+  generate: ['Preparing your request', 'Generating and checking your reviewer', 'Opening your editable draft'],
 } as const
 
 function AiProgressView({ progress }: { progress: AiProgress }) {
   const labels = aiProgressLabels[progress.phase]
   const finished = progress.active >= labels.length
-  const phaseLabel = progress.phase === 'generate' ? 'Reviewer generation' : progress.phase === 'scan' ? 'Handwritten note scan' : 'PDF text extraction'
-  const currentLabel = finished ? progress.phase === 'generate' ? 'Reviewer ready' : 'Text ready to review' : labels[progress.active]
+  const isGenerating = progress.phase === 'generate'
+  const phaseLabel = progress.phase === 'scan' ? 'Handwritten note scan' : progress.phase === 'pdf' ? 'PDF text extraction' : 'Reviewer generation'
+  const currentLabel = finished ? (isGenerating ? 'Reviewer ready to edit' : 'Text ready to review') : labels[progress.active]
   const visibleStep = Math.min(progress.active + 1, labels.length)
   const completion = finished ? 100 : Math.round((visibleStep / labels.length) * 100)
   return <div className="ai-progress" role="status" aria-live="polite">
-    <header><span>{phaseLabel}</span><strong>{finished ? 'Complete' : `Step ${visibleStep} of ${labels.length}`}</strong></header>
-    <div className="ai-progress-track" aria-hidden="true"><span style={{ width: `${completion}%` }} /></div>
+    <header><span>{phaseLabel}</span><strong>{finished ? 'Complete' : isGenerating ? 'In progress' : `Step ${visibleStep} of ${labels.length}`}</strong></header>
+    <div className={`ai-progress-track${isGenerating && !finished ? ' is-indeterminate' : ''}`} aria-hidden="true"><span style={{ width: isGenerating && !finished ? '38%' : `${completion}%` }} /></div>
     <div className="ai-progress-copy"><h3>{currentLabel}</h3><p>{progress.detail ?? 'This may take a moment.'}</p></div>
     <ol>{labels.map((label, index) => <li key={label} className={index < progress.active ? 'is-complete' : index === progress.active ? 'is-active' : ''}><span aria-hidden="true">{index < progress.active ? 'Done' : index === progress.active ? 'Now' : `${index + 1}`}</span><strong>{label}</strong></li>)}</ol>
-    <p className="ai-progress-note">Keep this window open. Your original file stays on this device.</p>
+    <p className="ai-progress-note">{isGenerating ? 'You can close this window and recover the request later. Your original files stay on this device.' : 'Keep this window open. Your original file stays on this device.'}</p>
   </div>
 }
 
@@ -640,7 +691,7 @@ function AiSourceTextEditor({ sourceType, value, onChange }: { sourceType: 'pdf'
   const words = value.trim() ? value.trim().split(/\s+/).length : 0
   const label = sourceType === 'scan' ? 'Scanned text' : 'Extracted text'
   return <section className="ai-text-review" aria-label={label}>
-    <header><div><strong>{label}</strong><small>{sourceType === 'scan' ? 'Compare with your notes and correct any errors.' : 'Review and correct it before generating.'}</small></div><span>{words.toLocaleString()} words <i aria-hidden="true">·</i> {value.length.toLocaleString()} characters</span></header>
+    <header><div><strong>{label}</strong><small>{'You can edit this text.'}</small></div><span>{words.toLocaleString()} words <i aria-hidden="true">·</i> {value.length.toLocaleString()} characters</span></header>
     <textarea aria-label={label} spellCheck rows={9} maxLength={MAX_REVIEWER_SOURCE_CHARACTERS} value={value} onChange={event => onChange(event.target.value)} />
   </section>
 }
@@ -696,18 +747,22 @@ function AiGenerationQuotaDialog({ quota, onCancel, onConfirm }: { quota: AiGene
   </dialog>
 }
 
-function recoveredAiSource() { try { return window.localStorage.getItem('cali-ai-reviewer-recovery') ?? '' } catch { return '' } }
 function nextPaint() { return new Promise<void>(resolve => window.requestAnimationFrame(() => resolve())) }
 function briefPause(milliseconds = 420) { return new Promise<void>(resolve => window.setTimeout(resolve, milliseconds)) }
 
-function AiReviewerDialog({ subjects, initialDraft, onClose, onSaved }: { subjects: ReviewerSubject[]; initialDraft: GeneratedDraft | null; onClose: () => void; onSaved: (reviewer: Reviewer) => void }) {
+function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: { userId: string; subjects: ReviewerSubject[]; initialDraft: GeneratedDraft | null; onClose: () => void; onSaved: (reviewer: Reviewer) => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const [sourceType, setSourceType] = useState<'pdf' | 'scan'>('scan')
-  const [sourceText, setSourceText] = useState(recoveredAiSource)
+  const [recovery] = useState(() => readReviewerRecovery(userId))
+  const [intakeStep, setIntakeStep] = useState<0 | 1 | 2>(recovery?.requestId ? 2 : recovery?.sourceText ? 1 : 0)
+  const stepHeading = useRef<HTMLHeadingElement | null>(null)
+  const intakeBody = useRef<HTMLDivElement | null>(null)
+  const [sourceType, setSourceType] = useState<'pdf' | 'scan'>(recovery?.sourceType ?? 'scan')
+  const [sourceText, setSourceText] = useState(recovery?.sourceText ?? '')
+  const [preferences, setPreferences] = useState<ReviewerPreferences>(recovery?.preferences ?? { ...DEFAULT_REVIEWER_PREFERENCES })
   const [fileName, setFileName] = useState('')
   const [notePages, setNotePages] = useState<File[]>([])
   const [scanStatus, setScanStatus] = useState('')
-  const [detail, setDetail] = useState<'concise' | 'standard' | 'detailed'>('standard')
+  const [detail, setDetail] = useState<'concise' | 'standard' | 'detailed'>(recovery?.detail ?? 'standard')
   const [busy, setBusy] = useState(false)
   const [showCloseConfirmation, setShowCloseConfirmation] = useState(false)
   const [showQuotaMessage, setShowQuotaMessage] = useState(false)
@@ -726,13 +781,30 @@ function AiReviewerDialog({ subjects, initialDraft, onClose, onSaved }: { subjec
   const changeVersion = useRef(0)
   const persistedVersion = useRef(0)
   const saveInFlight = useRef<Promise<boolean> | null>(null)
-  const lastSubmission = useRef<{ key: string; requestId: string } | null>(null)
-  const progressTimer = useRef<number | null>(null)
+  const [pendingSubmissionKey, setPendingSubmissionKey] = useState<string | null>(() => recovery?.requestId ? reviewerSubmissionKey(recovery) : null)
+  const lastSubmission = useRef<{ key: string; requestId: string } | null>(recovery?.requestId ? { key: reviewerSubmissionKey(recovery), requestId: recovery.requestId } : null)
+  const lifetime = useRef(new AbortController())
+  const extractionController = useRef<AbortController | null>(null)
+  const actionInFlight = useRef(false)
   const subjectOptions = useMemo<CaliSelectOption[]>(() => [{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title }))], [subjects])
 
   useEffect(() => { const dialog = dialogRef.current; dialog?.showModal(); return () => { if (dialog?.open) dialog.close() } }, [])
-  useEffect(() => () => { if (progressTimer.current) window.clearTimeout(progressTimer.current) }, [])
+  useEffect(() => {
+    const controller = new AbortController()
+    lifetime.current = controller
+    return () => { controller.abort() }
+  }, [])
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => { if (draftState === 'dirty' || draftState === 'saving' || draftState === 'error') event.preventDefault() }
+    window.addEventListener('beforeunload', beforeUnload)
+    return () => window.removeEventListener('beforeunload', beforeUnload)
+  }, [draftState])
   useEffect(() => { titleRef.current = draftTitle }, [draftTitle])
+  useEffect(() => {
+    intakeBody.current?.scrollTo({ top: 0 })
+    stepHeading.current?.focus({ preventScroll: true })
+  }, [intakeStep])
+  useEffect(() => { if (initialDraft) clearReviewerRecovery(userId) }, [initialDraft, userId])
   useEffect(() => {
     let cancelled = false
     if (!supabase || initialDraft) return
@@ -768,8 +840,13 @@ function AiReviewerDialog({ subjects, initialDraft, onClose, onSaved }: { subjec
       return true
     })()
     saveInFlight.current = operation
-    try { return await operation } finally { saveInFlight.current = null }
+    let saved = false
+    try { saved = await operation } catch { setDraftState('error') } finally { saveInFlight.current = null }
+    if (saved && persistedVersion.current < changeVersion.current) return persistCurrentDraft()
+    return saved
   }, [draft, editor])
+
+  useEffect(() => { if (editor) editor.setEditable(!busy) }, [editor, busy])
 
   const scheduleAutosave = useCallback(() => {
     changeVersion.current += 1
@@ -786,11 +863,13 @@ function AiReviewerDialog({ subjects, initialDraft, onClose, onSaved }: { subjec
 
   const selectPdf = async (file: File | undefined) => {
     if (!file) return
+    extractionController.current = new AbortController()
+    const extractionSignal = AbortSignal.any([extractionController.current.signal, lifetime.current.signal])
     setError(''); setFileName(file.name); setSourceText(''); setBusy(true); setProgress({ phase: 'pdf', active: 0, detail: file.name })
     try {
       await nextPaint()
-      const text = await extractPdfText(file, (page, total) => setProgress({ phase: 'pdf', active: 1, detail: `Page ${page} of ${total}` }))
-      setSourceText(text); setProgress({ phase: 'pdf', active: 2, detail: 'Almost ready to review.' }); await briefPause(300); setProgress({ phase: 'pdf', active: 3, detail: 'You can check the extracted text now.' }); await briefPause(260)
+      const text = await extractPdfText(file, (page, total) => setProgress({ phase: 'pdf', active: 1, detail: `Page ${page} of ${total}` }), extractionSignal)
+      setSourceText(text); setProgress({ phase: 'pdf', active: 2, detail: 'Almost ready to review.' }); await briefPause(300); setProgress({ phase: 'pdf', active: 3, detail: 'You can check the extracted text now.' }); await briefPause(260); setIntakeStep(1)
     } catch (extractionError) {
       setSourceText(''); setError(extractionError instanceof PdfExtractionError ? extractionError.message : 'Cali could not read this PDF.')
     } finally { setProgress(null); setBusy(false) }
@@ -818,54 +897,97 @@ function AiReviewerDialog({ subjects, initialDraft, onClose, onSaved }: { subjec
 
   const scanNotes = async () => {
     if (!notePages.length || busy) return
+    extractionController.current = new AbortController()
+    const extractionSignal = AbortSignal.any([extractionController.current.signal, lifetime.current.signal])
     setBusy(true); setError(''); setSourceText(''); setScanStatus(''); setProgress({ phase: 'scan', active: 0, detail: `${notePages.length} page${notePages.length === 1 ? '' : 's'} selected` })
     try {
       await nextPaint()
-      const text = await scanNotePages(notePages, status => setProgress({ phase: 'scan', active: 1, detail: status }))
-      setSourceText(text); setProgress({ phase: 'scan', active: 2, detail: 'Almost ready to review.' }); await briefPause(300); setProgress({ phase: 'scan', active: 3, detail: 'You can check the extracted text now.' }); await briefPause(260)
-      setScanStatus('Scan complete. Review and correct the text below.')
+      const text = await scanNotePages(notePages, status => setProgress({ phase: 'scan', active: 1, detail: status }), extractionSignal, warning => setScanStatus(warning))
+      setSourceText(text); setProgress({ phase: 'scan', active: 2, detail: 'Almost ready to review.' }); await briefPause(300); setProgress({ phase: 'scan', active: 3, detail: 'You can check the extracted text now.' }); await briefPause(260); setIntakeStep(1)
+      setScanStatus(current => current || 'Scan complete. Review and correct the text below.')
     } catch (scanError) { setError(scanError instanceof Error ? scanError.message : 'Cali could not scan these notes.'); setScanStatus('') }
     finally { setProgress(null); setBusy(false) }
   }
 
+  const rememberSubmission = () => {
+    const value = { sourceType, sourceText: sourceText.trim(), detail, preferences }
+    const key = reviewerSubmissionKey(value)
+    if (lastSubmission.current?.key !== key) lastSubmission.current = { key, requestId: crypto.randomUUID() }
+    setPendingSubmissionKey(key)
+    writeReviewerRecovery(userId, { ...value, requestId: lastSubmission.current.requestId, expiresAt: Date.now() + 86_400_000 })
+    return lastSubmission.current.requestId
+  }
+  const recoverPendingDraft = async (requestId: string): Promise<GeneratedDraft | null> => {
+    if (!supabase) return null
+    const stopAt = Date.now() + 135_000
+    while (Date.now() < stopAt && !lifetime.current.signal.aborted) {
+      const { data: pending, error: statusError } = await supabase.from('reviewer_generation_requests').select('status,failure_reason').eq('id', requestId).eq('user_id', userId).abortSignal(AbortSignal.any([lifetime.current.signal, AbortSignal.timeout(8000)])).maybeSingle()
+      if (statusError) throw new Error('Could not check this generation. Your request is saved on this device; reopen it and retry.')
+      if (!pending) return null
+      if (pending.status === 'succeeded') {
+        const { data: row, error: draftError } = await supabase.from('generated_reviewer_drafts').select('request_id,title,content,plain_text,revision,expires_at').eq('request_id', requestId).abortSignal(AbortSignal.any([lifetime.current.signal, AbortSignal.timeout(8000)])).maybeSingle()
+        if (draftError || !row) throw new Error('The draft could not be recovered or has expired. Reopen your study library.')
+        return { requestId: row.request_id, title: row.title, content: row.content, plainText: row.plain_text, revision: row.revision, expiresAt: row.expires_at } as GeneratedDraft
+      }
+      if (pending.status !== 'processing') {
+        lastSubmission.current = null
+        setPendingSubmissionKey(null)
+        if (pending.status === 'failed') throw new Error(pending.failure_reason === 'content_blocked' ? 'This material was blocked by the academic content policy. Correct the source or reviewer instructions before retrying. This attempt does not count toward your monthly limit.' : 'The previous generation did not finish. Retry to start a new request; failed attempts do not count toward your monthly limit.')
+        throw new Error('This request was already saved or discarded. Reopen your study library.')
+      }
+      await new Promise<void>(resolve => {
+        const signal = lifetime.current.signal
+        const finish = () => { window.clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
+        const timer = window.setTimeout(finish, 2500)
+        signal.addEventListener('abort', finish, { once: true })
+      })
+    }
+    throw new Error('This generation is still pending. Close and reopen it to recover the request, or retry shortly.')
+  }
   const generate = async () => {
     const cleaned = sourceText.trim()
-    if (!cleaned || cleaned.length > MAX_REVIEWER_SOURCE_CHARACTERS || busy || !supabase) return
+    if (!cleaned || cleaned.length > MAX_REVIEWER_SOURCE_CHARACTERS || busy || actionInFlight.current || !supabase) return
+    actionInFlight.current = true
     setBusy(true); setError(''); setProgress({ phase: 'generate', active: 0, detail: 'Checking the reviewed text.' })
     try {
       await nextPaint()
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData.session?.access_token
       if (!token) throw new Error('Sign in again to generate a reviewer.')
-      const submissionKey = `${sourceType}\u0000${detail}\u0000${cleaned}`
-      if (lastSubmission.current?.key !== submissionKey) lastSubmission.current = { key: submissionKey, requestId: crypto.randomUUID() }
-      setProgress({ phase: 'generate', active: 1, detail: 'Finding the concepts that matter most.' })
-      progressTimer.current = window.setTimeout(() => setProgress({ phase: 'generate', active: 2, detail: 'Building sections and study notes.' }), 2600)
-      const response = await fetch('/api/study/reviewer-generation', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: lastSubmission.current.requestId, sourceType, sourceText: cleaned, detail }) })
+      const requestId = rememberSubmission()
+      setProgress({ phase: 'generate', active: 1, detail: 'Cali is checking the academic content, organizing the material, and validating the result. This may take up to two minutes.' })
+      const response = await fetch('/api/study/reviewer-generation', { method: 'POST', signal: AbortSignal.any([lifetime.current.signal, AbortSignal.timeout(125_000)]), headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId, sourceType, sourceText: cleaned, detail, preferences }) })
       const responseText = await response.text()
-      let result: GeneratedDraft & { error?: string; category?: string }
+      let result: GeneratedDraft & { error?: string; category?: string; recoverable?: boolean }
       try {
         result = JSON.parse(responseText) as GeneratedDraft & { error?: string; category?: string }
       } catch {
         throw new Error(response.ok ? 'The reviewer was created, but the response could not be opened. Please try again to recover it.' : 'Reviewer generation is temporarily unavailable. Keep this window open and try again in a moment.')
       }
-      if (!response.ok) { if (result.category && result.category !== 'active' && result.category !== 'quota') lastSubmission.current = null; throw new Error(result.error || 'Reviewer generation failed.') }
+      if (!response.ok && result.category === 'active') {
+        const recovered = await recoverPendingDraft(requestId)
+        if (recovered) result = recovered
+        else throw new Error(result.error || 'Another reviewer is being generated. Retry after it finishes.')
+      } else if (!response.ok) {
+        if (result.category && result.category !== 'quota' && !result.recoverable) { lastSubmission.current = null; setPendingSubmissionKey(null) }
+        throw new Error(result.error || 'Reviewer generation failed.')
+      }
+      if (!result.requestId || !result.content || !result.title || !Number.isInteger(result.revision)) throw new Error('The draft response could not be opened. Retry to recover it.')
       lastSubmission.current = null
-      if (progressTimer.current) window.clearTimeout(progressTimer.current)
-      progressTimer.current = null
-      setProgress({ phase: 'generate', active: 3, detail: 'Opening your editable draft.' }); await briefPause(360); setProgress({ phase: 'generate', active: 4, detail: 'Your editable draft is ready.' }); await briefPause(260)
-      setQuota(current => current ? { ...current, used: Math.min(current.limit, current.used + 1) } : current)
+      setPendingSubmissionKey(null)
+      setProgress({ phase: 'generate', active: 2, detail: 'The checked reviewer is ready. Opening the editor now.' }); await briefPause(360); setProgress({ phase: 'generate', active: 3, detail: 'Your editable draft is ready.' }); await briefPause(260)
+      void supabase.rpc('cali_reviewer_generation_quota').then(({ data }) => { if (data) setQuota(data as AiGenerationQuota) })
       setDraft(result); setDraftTitle(result.title); revision.current = result.revision
-      try { window.localStorage.removeItem('cali-ai-reviewer-recovery') } catch { /* Recovery is optional. */ }
+      clearReviewerRecovery(userId)
     } catch (generationError) {
-      try { window.localStorage.setItem('cali-ai-reviewer-recovery', cleaned) } catch { /* The source remains in memory. */ }
+      if (lifetime.current.signal.aborted) return
+      writeReviewerRecovery(userId, { sourceType, sourceText: cleaned, detail, preferences, requestId: lastSubmission.current?.requestId ?? null, expiresAt: Date.now() + 86_400_000 })
       const message = generationError instanceof TypeError
         ? 'Cali cannot reach reviewer generation right now. Keep this window open and try again in a moment.'
         : generationError instanceof Error ? generationError.message : 'Reviewer generation failed.'
       setError(message)
     } finally {
-      if (progressTimer.current) window.clearTimeout(progressTimer.current)
-      progressTimer.current = null
+      actionInFlight.current = false
       setProgress(null); setBusy(false)
     }
   }
@@ -874,81 +996,104 @@ function AiReviewerDialog({ subjects, initialDraft, onClose, onSaved }: { subjec
     event.preventDefault()
     const cleaned = sourceText.trim()
     if (!cleaned || cleaned.length > MAX_REVIEWER_SOURCE_CHARACTERS || busy || !supabase) return
+    if (intakeStep !== 2) return
+    if (lastSubmission.current?.key === reviewerSubmissionKey({ sourceType, sourceText: cleaned, detail, preferences })) { void generate(); return }
     if (quota) { setShowQuotaMessage(true); return }
     void generate()
   }
 
   const saveReviewer = async () => {
-    if (!supabase || !draft || busy || !draftTitle.trim()) return
+    if (!supabase || !draft || busy || actionInFlight.current || !draftTitle.trim()) return
+    actionInFlight.current = true
     setBusy(true); setError('')
-    if (draftState !== 'saved' && !await persistDraft()) { setError('The latest draft changes could not be saved. Try again.'); setBusy(false); return }
-    const { data, error: saveError } = await supabase.rpc('cali_save_own_generated_reviewer', { p_request_id: draft.requestId, p_subject_id: subjectId || null }).single()
-    setBusy(false)
-    if (saveError || !data) { setError(saveError?.message ?? 'Could not save this reviewer.'); return }
-    onSaved(data as Reviewer)
+    try {
+      if (!await persistDraft()) {
+        const { data: request } = await supabase.from('reviewer_generation_requests').select('status').eq('id', draft.requestId).maybeSingle()
+        if (request?.status !== 'saved') { setError('The latest draft changes could not be saved. Reopen the draft if it changed in another window.'); return }
+      }
+      if (saveTimer.current) window.clearTimeout(saveTimer.current)
+      const { data, error: saveError } = await supabase.rpc('cali_save_own_generated_reviewer', { p_request_id: draft.requestId, p_subject_id: subjectId || null, p_expected_revision: revision.current }).single()
+      if (saveError || !data) {
+        setError(saveError?.code === 'P0001' ? 'This draft changed in another window. Reopen it to load the latest version before saving.' : 'Could not save this reviewer. Retry; saving will not create a duplicate.')
+        return
+      }
+      onSaved(data as Reviewer)
+    } catch { setError('Could not save this reviewer. Retry to recover the saved result.') }
+    finally { actionInFlight.current = false; setBusy(false) }
   }
 
   const closeSourceDialog = () => {
-    try { window.localStorage.removeItem('cali-ai-reviewer-recovery') } catch { /* Recovery is optional. */ }
+    extractionController.current?.abort()
+    clearReviewerRecovery(userId)
     setSourceText(''); setNotePages([]); setFileName(''); setScanStatus(''); setError('')
     setShowCloseConfirmation(false)
     onClose()
   }
 
   const requestSourceClose = () => {
-    if (sourceText.trim() || notePages.length || fileName) { setShowCloseConfirmation(true); return }
+    if (sourceText.trim() || notePages.length || fileName || preferences.additionalContent) { setShowCloseConfirmation(true); return }
     closeSourceDialog()
   }
 
   const discard = async () => {
-    if (!draft || busy) return
+    if (!draft || busy || actionInFlight.current) return
     if (!supabase) { setError('Cali could not connect to your saved draft. Please try again.'); return }
+    actionInFlight.current = true
+    if (saveTimer.current) window.clearTimeout(saveTimer.current)
     setBusy(true); setError('')
     try {
+      if (saveInFlight.current) await saveInFlight.current
       const { error: discardError } = await supabase.rpc('cali_discard_own_generated_reviewer', { p_request_id: draft.requestId })
       if (discardError) { setError('Cali could not discard this draft. It is still saved, so you can try again.'); return }
       onClose()
     } catch {
       setError('Cali could not discard this draft. It is still saved, so you can try again.')
     } finally {
+      actionInFlight.current = false
       setBusy(false)
     }
   }
 
   return <dialog ref={dialogRef} className={`study-dialog ai-reviewer-dialog${draft ? ' has-draft' : ''}`} onCancel={event => { if (event.target !== event.currentTarget) return; event.preventDefault(); if (!busy) { if (draft) setDraftAction('discard'); else requestSourceClose() } }}>
-    {!draft ? <form onSubmit={requestGeneration} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Generate a reviewer</h2><p className="ai-dialog-intro">Use clear scans or well-lit photos of handwritten notes, or a text-based PDF.</p><details className="ai-how-it-works"><summary>How does it work?</summary><div><ol><li>Choose up to 10 clear scans or photos of handwritten pages, or upload one text-based PDF.</li><li>Check the extracted text and correct anything that was read incorrectly.</li><li>Choose a length, then generate an editable reviewer draft.</li></ol><p>Your original photos and PDF stay on your device. Only the extracted text is used to generate the reviewer.</p></div></details></div><button type="button" className="study-dialog-close" aria-label="Close reviewer generator" onClick={requestSourceClose} disabled={busy}><CloseIcon /></button></header>
-      {progress ? <AiProgressView progress={progress} /> : <>
-        <div className="ai-input-body">
-          <section className="ai-generator-section"><div className="ai-section-heading"><strong>Choose your source</strong></div><div className="ai-source-tabs" role="tablist" aria-label="Choose your source"><button type="button" role="tab" aria-selected={sourceType === 'scan'} className={sourceType === 'scan' ? 'is-active' : ''} onClick={() => { setSourceType('scan'); setSourceText(''); setFileName(''); setError('') }}><span><strong>Handwritten notes</strong><small>Choose page photos</small></span></button><button type="button" role="tab" aria-selected={sourceType === 'pdf'} className={sourceType === 'pdf' ? 'is-active' : ''} onClick={() => { setSourceType('pdf'); setSourceText(''); setScanStatus(''); setError('') }}><span><span className="ai-source-option-title"><strong>PDF document</strong><em>Recommended</em></span><small>Upload a digital file</small></span></button></div>
+    {!draft ? <form onSubmit={requestGeneration} className="study-dialog-shell ai-intake-wizard">
+      <header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Generate a reviewer</h2><p className="ai-dialog-intro">Turn your course material into clear study notes.</p></div><button type="button" className="study-dialog-close" aria-label="Close reviewer generator" onClick={requestSourceClose} disabled={busy}><CloseIcon /></button></header>
+      <ol className="ai-intake-steps" aria-label="Reviewer preparation steps">{['Add material', 'Check text', 'Customize'].map((label, index) => <li key={label} className={index === intakeStep ? 'is-current' : index < intakeStep ? 'is-complete' : ''} aria-current={index === intakeStep ? 'step' : undefined}><span aria-hidden="true">{index + 1}</span><strong>{label}</strong></li>)}</ol>
+      {progress ? <><AiProgressView progress={progress} /><footer className="ai-input-footer"><button type="button" className="study-secondary" onClick={() => { if (progress.phase === 'generate') onClose(); else setShowCloseConfirmation(true) }}>{progress.phase === 'generate' ? 'Close and resume later' : 'Stop extraction'}</button></footer></> : <>
+        <div className="ai-input-body" ref={intakeBody}>
+          {intakeStep === 0 && <>
+          <section className="ai-generator-section"><div className="ai-step-heading"><h3 ref={stepHeading} tabIndex={-1}>Add your material</h3><p>Choose a text-based PDF or photos of your notes.</p></div><div className="ai-source-tabs" role="tablist" aria-label="Choose your source"><button type="button" role="tab" aria-selected={sourceType === 'scan'} className={sourceType === 'scan' ? 'is-active' : ''} onClick={() => { setSourceType('scan'); setSourceText(''); setFileName(''); setError('') }}><span><strong>Note photos</strong><small>Up to 10 pages</small></span></button><button type="button" role="tab" aria-selected={sourceType === 'pdf'} className={sourceType === 'pdf' ? 'is-active' : ''} onClick={() => { setSourceType('pdf'); setSourceText(''); setScanStatus(''); setError('') }}><span><span className="ai-source-option-title"><strong>Digital PDF</strong></span><small>One text-based file</small></span></button></div>
             <div className="ai-source-card" aria-label={sourceType === 'scan' ? 'Handwritten note photos' : 'PDF document'}>
               {sourceType === 'pdf' ? <>
                 <label className="ai-file-picker"><input type="file" accept="application/pdf,.pdf" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void selectPdf(file) }} /><span><strong>{fileName || 'Select a PDF file'}</strong>{!fileName && <small>Text-based PDF · up to 20 MB</small>}</span><span className="ai-file-action">{fileName ? 'Change PDF' : 'Browse'}</span></label>
                 <p className="ai-source-note">Scanned or image-only PDFs cannot be read.</p>
-                {sourceText && <AiSourceTextEditor sourceType="pdf" value={sourceText} onChange={setSourceText} />}
               </> : <div className="ai-note-scanner">
                 {notePages.length === 0 ? <>
                   <label className="ai-file-picker"><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={event => { addNotePages(event.target.files); event.target.value = '' }} /><span><strong>Select page photos</strong><small>1–{MAX_NOTE_PAGES} clear images · JPG, PNG, or WebP</small></span><span className="ai-file-action">Browse</span></label>
-                  <p className="ai-source-note">For better accuracy, use one straight, well-lit, in-focus scan per page with clear handwriting.</p>
+                  <p className="ai-source-note">Use one clear, well-lit photo per page.</p>
                 </> : <div className="ai-note-batch">
                   <div className="ai-note-selection-head"><div><strong>Selected pages</strong><small>{notePages.length} of {MAX_NOTE_PAGES} · Clear, well-lit scans work best</small></div><label className="ai-add-pages"><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={notePages.length >= MAX_NOTE_PAGES} onChange={event => { addNotePages(event.target.files); event.target.value = '' }} /><span>{notePages.length >= MAX_NOTE_PAGES ? 'Page limit reached' : 'Add more photos'}</span></label></div>
                   <div className="ai-note-pages" aria-label="Notebook pages in reading order">{notePages.map((page, index) => <div key={`${page.name}-${page.lastModified}-${index}`}><span><b>{index + 1}</b><span><strong>Page {index + 1}</strong><small title={page.name}>{page.name}</small></span></span><span>{index > 0 && <button type="button" onClick={() => moveNotePage(index, -1)} aria-label={`Move page ${index + 1} up`}>Up</button>}{index < notePages.length - 1 && <button type="button" onClick={() => moveNotePage(index, 1)} aria-label={`Move page ${index + 1} down`}>Down</button>}<button type="button" className="is-remove" onClick={() => { setNotePages(current => current.filter((_, pageIndex) => pageIndex !== index)); setSourceText('') }} aria-label={`Remove page ${index + 1}`}>Remove</button></span></div>)}</div>
-                  <div className="ai-scan-row"><button type="button" className={`${sourceText ? 'study-secondary' : 'button-primary'} ai-scan-button`} onClick={() => { void scanNotes() }}>{sourceText ? 'Re-extract text' : 'Extract text'}</button></div>
                 </div>}
-                {scanStatus && !sourceText && <p className="ai-scan-status" role="status">{scanStatus}</p>}
-                {sourceText && <AiSourceTextEditor sourceType="scan" value={sourceText} onChange={setSourceText} />}
               </div>}
             </div>
+            <p className="ai-privacy-note">Your files stay on this device. Only reviewed text is sent for generation.</p>
           </section>
-          <section className="ai-generator-section ai-generator-settings"><div className="ai-section-heading"><strong>Reviewer detail</strong></div><fieldset className="ai-detail-options"><legend className="sr-only">Reviewer detail</legend>{([{ value: 'concise', label: 'Quick', note: 'Key points only' }, { value: 'standard', label: 'Balanced', note: 'Brief explanations' }, { value: 'detailed', label: 'In depth', note: 'More context' }] as const).map(option => <label key={option.value}><input type="radio" name="detail" checked={detail === option.value} onChange={() => setDetail(option.value)} /><span><strong>{option.label}</strong><small>{option.note}</small></span></label>)}</fieldset>
-          </section>
+
+          </>}
+          {intakeStep === 1 && <section className="ai-generator-section ai-check-source"><div className="ai-step-heading"><h3 ref={stepHeading} tabIndex={-1}>Check the extracted text</h3><p>Compare it with your material and correct any missing or misread words.</p></div>{scanStatus && <p className="ai-scan-status" role="status">{scanStatus}</p>}<AiSourceTextEditor sourceType={sourceType} value={sourceText} onChange={setSourceText} /><p className="ai-source-note">This is the text Cali will use to create your reviewer.</p></section>}
+          {intakeStep === 2 && <section className="ai-generator-section ai-reviewer-preferences"><div className="ai-step-heading"><h3 ref={stepHeading} tabIndex={-1}>Customize your reviewer</h3><p>Choose the amount of detail, then add presentation instructions if needed.</p></div><ReviewerStyleOptions preferences={preferences} detail={detail} onPreferencesChange={setPreferences} onDetailChange={setDetail} /></section>}
           {error && <p className="study-form-error" role="alert">{error}</p>}
         </div>
-        <footer className="ai-input-footer"><div><button type="button" className="study-secondary" onClick={requestSourceClose}>Cancel</button><button type="submit" className="button-primary" disabled={!sourceText.trim()}>Generate Reviewer</button></div></footer>
+        <footer className="ai-input-footer"><button type="button" className="study-secondary" onClick={() => { if (intakeStep === 0) requestSourceClose(); else { setError(''); setIntakeStep(intakeStep === 2 ? 1 : 0) } }}>{intakeStep === 0 ? 'Cancel' : 'Back'}</button><div>
+          {intakeStep === 0 && <button type="button" className="button-primary" disabled={!sourceText.trim() && (sourceType !== 'scan' || !notePages.length)} onClick={() => { if (sourceText.trim()) { setError(''); setIntakeStep(1) } else void scanNotes() }}>{sourceType === 'scan' && !sourceText.trim() ? 'Extract text' : 'Review text'}</button>}
+          {intakeStep === 1 && <button type="button" className="button-primary" disabled={!sourceText.trim()} onClick={() => { setError(''); setIntakeStep(2) }}>Use this text</button>}
+          {intakeStep === 2 && <button type="submit" className="button-primary" disabled={!sourceText.trim()}>{pendingSubmissionKey === reviewerSubmissionKey({ sourceType, sourceText: sourceText.trim(), detail, preferences }) ? 'Recover reviewer' : 'Generate reviewer'}</button>}
+        </div></footer>
       </>}
     </form> : <div className="ai-draft-shell"><header><div><p className="workspace-overline">AI-GENERATED DRAFT</p><h2>Edit before saving</h2><p>Check important details against your source. You can continue editing this reviewer after saving it from the Reviewers section.</p></div><span className={`reviewer-save-state reviewer-save-state--${draftState}`}>{draftState === 'saving' ? 'Saving…' : draftState === 'dirty' ? 'Unsaved changes' : draftState === 'error' ? 'Couldn’t autosave' : 'Draft saved'}</span></header>
-      <div className="ai-draft-fields"><label className="study-field"><span>Title</span><input maxLength={160} value={draftTitle} onChange={event => { setDraftTitle(event.target.value); scheduleAutosave() }} /></label><div className="study-field"><span>Subject</span><CaliSelect ariaLabel="Generated reviewer subject" className="cali-select--form" value={subjectId} options={subjectOptions} onChange={setSubjectId} /></div></div>
+      <div className="ai-draft-fields"><label className="study-field"><span>Title</span><input disabled={busy} maxLength={160} value={draftTitle} onChange={event => { setDraftTitle(event.target.value); scheduleAutosave() }} /></label><div className="study-field"><span>Subject</span><CaliSelect ariaLabel="Generated reviewer subject" className="cali-select--form" value={subjectId} options={subjectOptions} onChange={setSubjectId} /></div></div>
       <div className="ai-draft-editor"><header><strong>Reviewer content</strong><span>Click the text to make corrections</span></header><DocumentView content={draft.content} editable onEditor={setEditor} /></div>
-      {error && <p className="study-form-error" role="alert">{error}</p>}<footer><button type="button" className="study-danger" onClick={() => setDraftAction('discard')} disabled={busy}>Discard</button><button type="button" className="button-primary" onClick={() => setDraftAction('save')} disabled={busy || !draftTitle.trim()}>Save reviewer</button></footer>
+      {error && <p className="study-form-error" role="alert">{error}</p>}<footer><button type="button" className="study-secondary" disabled={busy} onClick={async () => { if (await persistDraft()) onClose(); else setError('Could not save your changes. Retry before closing.') }}>Close and keep draft</button><button type="button" className="study-danger" onClick={() => setDraftAction('discard')} disabled={busy}>Discard</button><button type="button" className="button-primary" onClick={() => setDraftAction('save')} disabled={busy || !draftTitle.trim()}>Save reviewer</button></footer>
     </div>}
     {showCloseConfirmation && <AiSourceCloseDialog onKeepEditing={() => setShowCloseConfirmation(false)} onDiscard={closeSourceDialog} />}
     {showQuotaMessage && quota && <AiGenerationQuotaDialog quota={quota} onCancel={() => setShowQuotaMessage(false)} onConfirm={() => { setShowQuotaMessage(false); void generate() }} />}
@@ -971,6 +1116,7 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
   const [newTitle, setNewTitle] = useState('')
   const [newSubject, setNewSubject] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Reviewer | null>(null)
+  const [shareTarget, setShareTarget] = useState<Reviewer | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [pageColorOverride, setPageColorOverride] = useState<{ reviewerId: string; color: string } | null>(null)
@@ -1085,7 +1231,7 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
         {!editing && <div className="reviewer-reader-actions">
           <button type="button" className="study-secondary reviewer-create-action" onClick={() => navigate({ tool: 'flashcards', source: selected.id, new: '1', reviewer: null })}>Create flashcards</button>
           <button type="button" className="study-secondary reviewer-create-action" onClick={() => navigate({ tool: 'quizzes', source: selected.id, new: '1', reviewer: null })}>Create quiz</button>
-          <button type="button" className="reviewer-icon-action" aria-label="Share reviewer — coming with Cali Community" title="Sharing will be available with Cali Community" disabled><ShareIcon /></button>
+          <button type="button" className="reviewer-icon-action" aria-label="Community sharing" title="Community sharing" onClick={() => setShareTarget(selected)}><ShareIcon /></button>
           <button type="button" className="reviewer-icon-action" aria-label="Open focus view" title="Focus view" onClick={enterFocusMode}><FocusIcon /></button>
           <button type="button" className="reviewer-icon-action" aria-label="Edit reviewer" title="Edit reviewer" onClick={() => navigate({ edit: '1' })}><EditIcon /></button>
           <details><summary aria-label="More reviewer actions" title="More actions"><MoreIcon /></summary><div><button type="button" onClick={() => { void duplicate(selected) }}>Duplicate</button><button type="button" className="is-danger" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; setDeleteError(''); setDeleteTarget(selected) }}>Delete permanently</button></div></details>
@@ -1094,12 +1240,13 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
       {noticeBanner}
       {editing ? <ReviewerEditor key={selected.id} reviewer={selected} subjects={subjects} onSaved={updateReviewer} onClose={() => navigate({ edit: null })} onPageColorChange={color => setPageColorOverride({ reviewerId: selected.id, color })} onSaveStateChange={setReviewerSaveState} onSaveReady={registerReviewerSave} /> : <article className={`reviewer-reading${selectedPageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': selectedPageColor || 'var(--color-cali-surface)' } as CSSProperties}>
         <header>
-          <div><p className="workspace-overline">{selectedSubject?.subject_code ?? 'GENERAL REVIEWER'}</p><h1>{selected.title}</h1><p>Updated {formatReviewerDate(selected.updated_at)}</p></div>
+          <div><p className="workspace-overline">{selectedSubject?.subject_code ?? 'GENERAL REVIEWER'}{selected.visibility && selected.visibility !== 'private' ? ` · ${selected.visibility.toUpperCase()}` : ''}</p><h1>{selected.title}</h1><p>Updated {formatReviewerDate(selected.updated_at)}</p></div>
         </header>
         <DocumentView content={selected.content} />
       </article>}
       {showUnsavedExit && <ReviewerUnsavedDialog status={reviewerSaveState} busy={exitSaving} error={exitSaveError} onKeepEditing={() => { if (!exitSaving) { setShowUnsavedExit(false); setExitSaveError('') } }} onSaveAndLeave={() => { void saveAndLeave() }} onLeave={leaveWithoutSaving} />}
       {deleteTarget && <ReviewerDeleteDialog reviewer={deleteTarget} busy={deleting} error={deleteError} onCancel={() => { if (!deleting) setDeleteTarget(null) }} onConfirm={() => { void remove() }} />}
+      {shareTarget && <ReviewerShareDialog reviewer={shareTarget} subjects={subjects} onCancel={() => setShareTarget(null)} onSaved={changed => { updateReviewer(changed); setShareTarget(null); setNotice({ kind: 'success', text: changed.visibility === 'private' ? 'Reviewer is private.' : `Reviewer published as ${changed.visibility}.` }) }} />}
     </section>
   }
 
@@ -1107,10 +1254,10 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
     <header className="study-heading"><div><p className="workspace-overline">STUDY SPACE</p><h1>Your study <em>library</em></h1><p>Create a reviewer from scratch, or turn notebook pages and PDFs into an editable draft.</p></div><div className="study-heading-actions"><button type="button" className="study-secondary" disabled={aiAvailability !== 'ready'} title={aiAvailability === 'unavailable' ? 'This feature is being prepared. Try again shortly.' : undefined} onClick={() => setShowAiGenerator(true)}>{aiAvailability === 'checking' ? 'Getting ready…' : resumableAiDraft ? 'Continue draft' : 'Generate Reviewer'}</button><button type="button" className="button-primary" onClick={() => navigate({ new: 'manual', reviewer: null, edit: null })}><span aria-hidden="true">+</span> Start blank</button></div></header>
     <div className="study-tabs" role="tablist" aria-label="Study tools"><button type="button" className="is-active" role="tab" aria-selected="true">Reviewers</button><button type="button" role="tab" aria-selected="false" onClick={() => navigate({ tool: 'flashcards' })}>Flashcards</button><button type="button" role="tab" aria-selected="false" onClick={() => navigate({ tool: 'quizzes' })}>Quizzes</button></div>
     {noticeBanner}
-    <section className="reviewer-library" aria-label="Reviewer library">
-      <div className="reviewer-library-head"><div><p className="workspace-overline">REVIEWERS</p><h2>Your reviewers</h2></div><span className="reviewer-count">{loading ? 'Loading…' : `${reviewers.length} ${reviewers.length === 1 ? 'reviewer' : 'reviewers'}`}</span></div>
-      <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers" aria-label="Search reviewers" /></label><CaliSelect ariaLabel="Filter by subject" className="cali-select--filter" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /></div>
-      <div className="reviewer-list">{loading ? <div className="reviewer-list-skeleton"><span /><span /><span /></div> : visible.length ? visible.map(reviewer => {
+    <section className="reviewer-library" aria-label="Reviewer library" aria-busy={loading}>
+      <div className="reviewer-library-head"><div><p className="workspace-overline">REVIEWERS</p><h2>Your reviewers</h2></div>{loading ? <StudyLibraryCountSkeleton /> : <span className="reviewer-count">{reviewers.length} {reviewers.length === 1 ? 'reviewer' : 'reviewers'}</span>}</div>
+      {loading ? <StudyLibraryFiltersSkeleton /> : <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers" aria-label="Search reviewers" /></label><CaliSelect ariaLabel="Filter by subject" className="cali-select--filter" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /></div>}
+      {loading ? <StudyLibraryCardsSkeleton containerClassName="reviewer-list" label="Loading reviewers" /> : <div className="reviewer-list">{visible.length ? visible.map(reviewer => {
         const subject = reviewer.subject_id ? subjectMap.get(reviewer.subject_id) : null
         const pageColor = String(reviewer.content.attrs?.pageColor ?? '')
         const previewContrastClass = usesLightForeground(pageColor) ? ' uses-light-foreground' : ' uses-dark-foreground'
@@ -1123,10 +1270,10 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
           aria-label={`Open ${reviewer.title}`}
           onClick={() => navigate({ reviewer: reviewer.id, edit: null, new: null })}
         ><span className="reviewer-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={reviewer.updated_at}>{formatReviewerDate(reviewer.updated_at)}</time></span><strong className="reviewer-preview-title">{reviewer.title}</strong><span className="reviewer-preview-content" aria-hidden="true">{previewBlocks.length ? previewBlocks.map((block, index) => block.kind === 'table' ? <span key={`table-${index}`} className="reviewer-preview-table" style={{ '--preview-columns': block.rows[0]?.length ?? 1 } as CSSProperties}>{block.rows.flatMap((row, rowIndex) => row.map((cell, cellIndex) => <span key={`${rowIndex}-${cellIndex}`} className={rowIndex === 0 ? 'is-header' : ''}>{cell || '\u00a0'}</span>))}</span> : <span key={`${block.kind}-${index}`} className={`reviewer-preview-line reviewer-preview-line--${block.kind}${block.checked ? ' is-checked' : ''}`}>{block.text}</span>) : <span className="reviewer-preview-line reviewer-preview-line--empty">This reviewer is ready for your notes.</span>}</span></button>
-      }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No reviewers found' : 'Create your first reviewer'}</strong><p>{reviewers.length ? 'Try a different search term or choose another subject.' : 'Start with a blank page, or create a draft from notebook photos or a PDF.'}</p>{!reviewers.length && <div className="reviewer-empty-actions"><button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Start blank</button><button type="button" className="study-secondary" disabled={aiAvailability !== 'ready'} onClick={() => setShowAiGenerator(true)}>Generate Reviewer</button></div>}</div>}</div>
+      }) : <div className="reviewer-empty-list"><strong>{reviewers.length ? 'No reviewers found' : 'Create your first reviewer'}</strong><p>{reviewers.length ? 'Try a different search term or choose another subject.' : 'Start with a blank page, or create a draft from notebook photos or a PDF.'}</p>{!reviewers.length && <div className="reviewer-empty-actions"><button type="button" className="button-primary" onClick={() => navigate({ new: 'manual' })}>Start blank</button><button type="button" className="study-secondary" disabled={aiAvailability !== 'ready'} onClick={() => setShowAiGenerator(true)}>Generate Reviewer</button></div>}</div>}</div>}
     </section>
     <dialog ref={createRef} className="study-dialog study-create-dialog" onCancel={event => { event.preventDefault(); navigate({ new: null }) }}><form onSubmit={createReviewer} className="study-dialog-shell"><header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Start with a blank page</h2><p>Give it a clear title. You can change the subject anytime.</p></div><button type="button" className="study-dialog-close" onClick={() => navigate({ new: null })}><CloseIcon /></button></header><div className="study-form-grid"><label className="study-field study-field--wide"><span>Title <small>{newTitle.length}/160</small></span><input autoFocus required maxLength={160} value={newTitle} onChange={event => setNewTitle(event.target.value)} placeholder="Example: Midterm reviewer" /></label><div className="study-field study-field--wide"><span>Subject</span><CaliSelect ariaLabel="New reviewer subject" className="cali-select--form" value={newSubject} options={subjectOptions} onChange={setNewSubject} /></div></div><footer><button type="button" className="study-secondary" onClick={() => navigate({ new: null })}>Cancel</button><button type="submit" className="button-primary" disabled={creating || !newTitle.trim()}>{creating ? 'Creating…' : 'Create reviewer'}</button></footer></form></dialog>
-    {showAiGenerator && <AiReviewerDialog subjects={subjects} initialDraft={resumableAiDraft} onClose={() => { setShowAiGenerator(false); setResumableAiDraft(null) }} onSaved={reviewer => { setReviewers(current => [reviewer, ...current]); setShowAiGenerator(false); setResumableAiDraft(null); navigate({ reviewer: reviewer.id, edit: '1', new: null }); setNotice({ kind: 'success', text: 'AI reviewer saved.' }) }} />}
+    {showAiGenerator && <AiReviewerDialog userId={studentId} subjects={subjects} initialDraft={resumableAiDraft} onClose={() => { setShowAiGenerator(false); void load() }} onSaved={reviewer => { setReviewers(current => [reviewer, ...current]); setShowAiGenerator(false); setResumableAiDraft(null); navigate({ reviewer: reviewer.id, edit: '1', new: null }); setNotice({ kind: 'success', text: 'AI reviewer saved.' }) }} />}
   </section>
 }
 
