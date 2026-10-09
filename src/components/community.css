@@ -616,7 +616,7 @@
 .community-reader-nav>a { color: var(--color-cali-action-text); font-size: 12px; font-weight: 800; text-decoration: none; }
 .community-reader-nav>div { display: flex; gap: 9px; }
 .community-reader-nav button { min-height: 40px; padding: 8px 13px; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-surface); color: var(--color-cali-ink); font-size: 11px; font-weight: 700; }
-.community-reader-nav .button-primary { border: 0; color: #fff; }
+.community-reader-nav .button-primary { border: 0; background: var(--color-cali-action); color: #fff; }
 
 .community-reader-hero {
   padding: clamp(32px, 6vw, 68px);
@@ -707,7 +707,7 @@
 .community-request-actions { display: flex; gap: 8px; }
 .community-request-actions button,
 .community-revoke { min-height: 36px; padding: 7px 11px; border: 1px solid var(--color-cali-border); border-radius: 8px; background: var(--color-cali-surface); color: var(--color-cali-ink); font-size: 10px; font-weight: 800; }
-.community-request-actions .button-primary { border: 0; color: #fff; }
+.community-request-actions .button-primary { border: 0; background: var(--color-cali-action); color: #fff; }
 .community-revoke { color: var(--confirm-error-ink); }
 
 .community-notification { display: grid; grid-template-columns: 8px minmax(0, 1fr) 20px; gap: 14px; align-items: center; min-height: 82px; padding: 15px 20px; border-bottom: 1px solid var(--color-cali-border); color: inherit; text-decoration: none; }
