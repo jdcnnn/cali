@@ -24,7 +24,7 @@ type ActionRequest = {
 }
 
 type Target = { type: 'reviewer' | 'profile'; id: string; label: string; hidden: boolean }
-type Props = { requestAction: (action: ActionRequest) => void }
+type Props = { requestAction: (action: ActionRequest) => void; liveVersion: number }
 
 const getError = (cause: unknown) => cause instanceof Error ? cause.message : 'The action could not be completed.'
 
@@ -108,7 +108,7 @@ function ContentPreview({ target, item, loading, error, onClose, onVisibility }:
   </div>
 }
 
-export function AdminModerationPanel({ requestAction }: Props) {
+export function AdminModerationPanel({ requestAction, liveVersion }: Props) {
   const [reports, setReports] = useState<AdminReport[]>([])
   const [content, setContent] = useState<CommunitySearch>({ reviewers: [], profiles: [] })
   const [query, setQuery] = useState('')
@@ -122,19 +122,20 @@ export function AdminModerationPanel({ requestAction }: Props) {
   const [previewError, setPreviewError] = useState('')
 
   useEffect(() => { const timer = window.setTimeout(() => setSearchQuery(query), 280); return () => window.clearTimeout(timer) }, [query])
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true)
     try {
       const [nextReports, nextContent] = await Promise.all([listAdminReports(), searchAdminCommunity(searchQuery)])
       setReports(nextReports); setContent(nextContent); setError('')
-    } catch (cause) { setError(getError(cause)) } finally { setLoading(false) }
+    } catch (cause) { setError(getError(cause)) } finally { if (showLoading) setLoading(false) }
   }, [searchQuery])
   useEffect(() => { void load() }, [load])
+  useEffect(() => { if (liveVersion > 0) void load(false) }, [liveVersion, load])
   useEffect(() => {
     if (!target) { setPreview(null); setPreviewError(''); return }
     setPreviewLoading(true); setPreview(null); setPreviewError('')
     void getAdminCommunityItem(target.type, target.id).then(setPreview).catch(cause => setPreviewError(getError(cause))).finally(() => setPreviewLoading(false))
-  }, [target])
+  }, [liveVersion, target])
 
   function resolve(report: AdminReport, action: 'dismiss' | 'hide') {
     requestAction({ title: action === 'hide' ? `Hide ${report.targetLabel || 'reported content'}?` : 'Dismiss this report?', description: action === 'hide' ? 'The item will be removed from Community and the report will be resolved. Its owner keeps the original content.' : 'The report will close without changing the item’s visibility.', confirmLabel: action === 'hide' ? 'Hide and resolve' : 'Dismiss report', tone: action === 'hide' ? 'danger' : 'default', reasonLabel: 'Resolution note', reasonPlaceholder: 'Record the reason for this decision…', onConfirm: async reason => { await resolveAdminReport(report.id, action, reason); await load() } })

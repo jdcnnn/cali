@@ -18,6 +18,7 @@ import { TasksPage } from './components/TasksPage'
 import { CalendarPage } from './components/CalendarPage'
 import { InstallCali } from './components/InstallCali'
 import { ConnectionNotice } from './components/ConnectionNotice'
+import { CommunityNotificationsProvider } from './components/CommunityNotificationsProvider'
 import { ConfirmationIcon } from './components/ConfirmationIcon'
 import './components/skeleton.css'
 import { ThemePicker } from './theme/ThemePicker'
@@ -771,5 +772,5 @@ function AppRoutes() {
 }
 
 export default function App() {
-  return <BrowserRouter><AppErrorBoundary><LoginModeProvider><AuthProvider><AppRoutes /></AuthProvider></LoginModeProvider></AppErrorBoundary></BrowserRouter>
+  return <BrowserRouter><AppErrorBoundary><LoginModeProvider><AuthProvider><CommunityNotificationsProvider><AppRoutes /></CommunityNotificationsProvider></AuthProvider></LoginModeProvider></AppErrorBoundary></BrowserRouter>
 }

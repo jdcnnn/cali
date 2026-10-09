@@ -6,19 +6,20 @@ import { ProfileAvatar } from './CaliWordmark'
 import { BackArrowIcon } from './BackArrowIcon'
 import { CaliSelect, type CaliSelectOption } from './CaliSelect'
 import { ConfirmationIcon } from './ConfirmationIcon'
+import { useCommunityNotifications } from './CommunityNotificationsProvider'
 import {
+  archiveCommunityNotification,
   copyCommunityReviewer,
-  getCommunityAdminStatus,
   getCommunityInbox,
+  getCommunityNotificationPage,
   getCommunityProfile,
   getCommunityReviewer,
-  listCommunityReports,
   markCommunityNotificationsRead,
-  moderateCommunityReport,
   recordCommunityReviewerUse,
   reportCommunityTarget,
   requestReviewerAccess,
   resolveReviewerAccess,
+  restoreCommunityNotification,
   revokeReviewerAccess,
   searchCommunityReviewers,
   voteCommunityReviewer,
@@ -26,8 +27,8 @@ import {
 import type {
   AccessType,
   CommunityInbox,
+  CommunityNotificationPage,
   CommunityProfile,
-  CommunityReport,
   CommunityRequest,
   CommunityReviewer,
   CommunityReviewerCard,
@@ -228,7 +229,7 @@ function ReportDialog({ target, onClose, onReported }: { target: { type: 'review
   </dialog>
 }
 
-function CommunityDashboard({ onNotice }: { onNotice: (notice: Notice) => void }) {
+function CommunityDashboard({ onNotice, inboxCount }: { onNotice: (notice: Notice) => void; inboxCount: number }) {
   const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState(params.get('q') ?? '')
   const [debouncedQuery, setDebouncedQuery] = useState(query)
@@ -317,7 +318,7 @@ function CommunityDashboard({ onNotice }: { onNotice: (notice: Notice) => void }
 
   return <div className="community-page">
     <section className="community-hero">
-      <div className="community-hero-copy"><p className="workspace-overline">CALI COMMUNITY</p><h1>Study better,<br /><em>together.</em></h1><p>Find reviewers shared by fellow RTU students, learn from their work, and contribute your own.</p><div className="community-hero-actions"><a href="#discover" className="button-primary" onClick={scrollToDiscover}>Browse reviewers</a><Link to="/community?view=inbox" className="community-secondary-action"><InboxIcon />Open inbox</Link></div></div>
+      <div className="community-hero-copy"><p className="workspace-overline">CALI COMMUNITY</p><h1>Study better,<br /><em>together.</em></h1><p>Find reviewers shared by fellow RTU students, learn from their work, and contribute your own.</p><div className="community-hero-actions"><a href="#discover" className="button-primary" onClick={scrollToDiscover}>Browse reviewers</a><Link to="/community?view=inbox" className="community-secondary-action"><InboxIcon />Open inbox{inboxCount > 0 && <span className="community-inbox-count" aria-label={`${inboxCount} inbox item${inboxCount === 1 ? '' : 's'} need your attention`}>{inboxCount > 99 ? '99+' : inboxCount}</span>}</Link></div></div>
       <section className={`community-showcase${showcasePaused ? ' is-paused' : ''}`} aria-label="Cali Reviewer Sharing features" onMouseEnter={() => setShowcasePaused(true)} onMouseLeave={() => setShowcasePaused(false)} onFocusCapture={() => setShowcasePaused(true)} onBlurCapture={() => setShowcasePaused(false)} onPointerDown={() => setShowcasePaused(true)} onPointerUp={() => setShowcasePaused(false)}>
         <div ref={showcaseRef} className="community-showcase-track" onScroll={syncCommunityFeature} tabIndex={0}>
           <article className={`community-showcase-slide${showcaseIndex === 0 ? ' is-active' : ''}`}>
@@ -451,37 +452,76 @@ function RequestRow({ request, incoming, onConfirm }: { request: CommunityReques
   return <article className="community-request-row"><CreatorAvatar username={request.student.username} avatarUrl={request.student.avatarUrl} /><div><div><strong>{incoming ? `@${request.student.username}` : request.reviewer.title}</strong><span className={`community-request-state is-${request.status}`}>{request.status}</span></div><p>{incoming ? <>Wants <b>{request.type === 'copy' ? 'an editable copy' : 'full read access'}</b> for “{request.reviewer.title}”</> : <>Requested {request.type === 'copy' ? 'an editable copy' : 'full read access'} from @{request.student.username}</>}</p><small>{timeAgo(request.createdAt)}</small></div>{incoming && request.status === 'pending' && <div className="community-request-actions"><button type="button" onClick={() => action(false)}>Decline</button><button type="button" className="button-primary" onClick={() => action(true)}>Approve</button></div>}{incoming && request.status === 'approved' && request.grantId && <button type="button" className="community-revoke" onClick={() => onConfirm({ tone: 'warning', kicker: 'REVOKE ACCESS', title: `End @${request.student.username}’s access?`, detail: `Their access to “${request.reviewer.title}” will end immediately. Any copies already created will remain in their library.`, confirmLabel: 'Revoke access', destructive: true, run: async () => { await revokeReviewerAccess(request.grantId!) } })}>Revoke</button>}</article>
 }
 
-function CommunityInboxView({ onNotice }: { onNotice: (notice: Notice) => void }) {
+function CommunityInboxView({ onNotice, liveVersion, onInboxChange }: { onNotice: (notice: Notice) => void; liveVersion: number; onInboxChange: () => void }) {
+  const pageSize = 10
   const [inbox, setInbox] = useState<CommunityInbox | null>(null)
-  const [admin, setAdmin] = useState(false)
-  const [reports, setReports] = useState<CommunityReport[]>([])
-  const [tab, setTab] = useState<'incoming' | 'outgoing' | 'updates' | 'moderation'>('incoming')
+  const [updates, setUpdates] = useState<CommunityNotificationPage>({ items: [], totalCount: 0, unreadCount: 0, page: 1, pageSize })
+  const [updatesPage, setUpdatesPage] = useState(1)
+  const [showArchived, setShowArchived] = useState(false)
+  const [updatesLoading, setUpdatesLoading] = useState(false)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [tab, setTab] = useState<'incoming' | 'outgoing' | 'updates'>('incoming')
   const [loading, setLoading] = useState(true)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const load = useCallback(async () => {
+  const markingRead = useRef(false)
+  const loadUpdates = useCallback(async (showLoading = true) => {
+    if (showLoading) setUpdatesLoading(true)
+    try {
+      const next = await getCommunityNotificationPage(updatesPage, pageSize, showArchived)
+      setUpdates(next)
+      setInbox(current => current ? { ...current, unreadCount: next.unreadCount } : current)
+    } catch { onNotice({ tone: 'error', text: 'Cali couldn’t load your updates.' }) }
+    finally { if (showLoading) setUpdatesLoading(false) }
+  }, [onNotice, showArchived, updatesPage])
+  const load = useCallback(async (showLoading = true) => {
     // This state belongs to an external Supabase request lifecycle.
     // oxlint-disable-next-line react/set-state-in-effect
-    setLoading(true)
+    if (showLoading) setLoading(true)
     try {
-      const [nextInbox, isAdmin] = await Promise.all([getCommunityInbox(), getCommunityAdminStatus()])
-      setInbox(nextInbox); setAdmin(isAdmin)
-      if (isAdmin) setReports(await listCommunityReports())
-      void markCommunityNotificationsRead()
+      setInbox(await getCommunityInbox())
     } catch { onNotice({ tone: 'error', text: 'Cali couldn’t load your Community inbox.' }) }
-    finally { setLoading(false) }
+    finally { if (showLoading) setLoading(false) }
   }, [onNotice])
   useEffect(() => { const timer = window.setTimeout(() => { void load() }, 0); return () => window.clearTimeout(timer) }, [load])
+  // Pagination loads the selected page from the external notification table.
+  // oxlint-disable-next-line react/set-state-in-effect
+  useEffect(() => { if (tab !== 'updates') return; void loadUpdates() }, [loadUpdates, tab])
+  // This refresh follows an external Supabase Realtime event.
+  // oxlint-disable-next-line react/set-state-in-effect
+  useEffect(() => { if (liveVersion === 0) return; void load(false); if (tab === 'updates') void loadUpdates(false) }, [liveVersion, load, loadUpdates, tab])
+  useEffect(() => {
+    if (tab !== 'updates' || !inbox?.unreadCount || markingRead.current) return
+    markingRead.current = true
+    void markCommunityNotificationsRead().then(() => {
+      const readAt = new Date().toISOString()
+      setInbox(current => current ? { ...current, unreadCount: 0 } : current)
+      setUpdates(current => ({ ...current, unreadCount: 0, items: current.items.map(item => item.readAt ? item : { ...item, readAt }) }))
+      onInboxChange()
+    }).catch(() => onNotice({ tone: 'error', text: 'Cali couldn’t mark your updates as read.' })).finally(() => { markingRead.current = false })
+  }, [inbox?.unreadCount, onInboxChange, onNotice, tab])
+  const changeArchiveState = async (notificationId: string) => {
+    setArchivingId(notificationId)
+    try {
+      if (showArchived) await restoreCommunityNotification(notificationId)
+      else await archiveCommunityNotification(notificationId)
+      const shouldGoBack = updates.items.length === 1 && updatesPage > 1
+      if (shouldGoBack) setUpdatesPage(page => page - 1)
+      else await loadUpdates(false)
+      await onInboxChange()
+      onNotice({ tone: 'success', text: showArchived ? 'Update restored.' : 'Update archived.' })
+    } catch { onNotice({ tone: 'error', text: showArchived ? 'Cali couldn’t restore that update.' : 'Cali couldn’t archive that update.' }) }
+    finally { setArchivingId(null) }
+  }
   const confirmAction = (action: ConfirmAction) => {
     if (!action) return
     const originalRun = action.run
-    setConfirm({ ...action, run: async () => { setBusy(true); setError(''); try { await originalRun(); setConfirm(null); await load(); onNotice({ tone: 'success', text: 'Access settings updated.' }) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Cali couldn’t complete that action. Please try again.') } finally { setBusy(false) } } })
+    setConfirm({ ...action, run: async () => { setBusy(true); setError(''); try { await originalRun(); setConfirm(null); await load(); onInboxChange(); onNotice({ tone: 'success', text: 'Access settings updated.' }) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Cali couldn’t complete that action. Please try again.') } finally { setBusy(false) } } })
   }
-  const moderate = (report: CommunityReport, action: 'dismiss' | 'hide') => confirmAction({ tone: action === 'hide' ? 'warning' : 'information', kicker: 'MODERATION', title: action === 'hide' ? `Hide ${report.targetLabel}?` : 'Dismiss this report?', detail: action === 'hide' ? 'The reported item will be removed from Community discovery immediately. Descendant reviewer versions remain independently available.' : 'The report will close without changing the reported item.', confirmLabel: action === 'hide' ? 'Hide from Community' : 'Dismiss report', destructive: action === 'hide', run: () => moderateCommunityReport(report.id, action) })
   if (loading) return <div className="community-reader-loading"><span className="cali-skeleton skeleton-block" /></div>
-  return <div className="community-inbox-page"><nav className="community-reader-nav"><Link className="cali-back-link" to="/community"><BackArrowIcon /><span>Community</span></Link></nav><header><p className="workspace-overline">ACCESS & UPDATES</p><h1>Community inbox</h1><p>Review access requests, track the ones you’ve sent, and stay updated.</p></header><div className="community-inbox-tabs" role="tablist"><button type="button" className={tab === 'incoming' ? 'is-active' : ''} onClick={() => setTab('incoming')}>Incoming <span>{inbox?.incoming.filter(item => item.status === 'pending').length ?? 0}</span></button><button type="button" className={tab === 'outgoing' ? 'is-active' : ''} onClick={() => setTab('outgoing')}>Sent</button><button type="button" className={tab === 'updates' ? 'is-active' : ''} onClick={() => setTab('updates')}>Updates <span>{inbox?.unreadCount ?? 0}</span></button>{admin && <button type="button" className={tab === 'moderation' ? 'is-active' : ''} onClick={() => setTab('moderation')}>Moderation <span>{reports.length}</span></button>}</div>
-    <section className="community-inbox-panel">{tab === 'incoming' && (inbox?.incoming.length ? inbox.incoming.map(item => <RequestRow key={item.id} request={item} incoming onConfirm={confirmAction} />) : <div className="community-empty"><strong>No requests waiting.</strong><p>New requests for your Preview reviewers will appear here.</p></div>)}{tab === 'outgoing' && (inbox?.outgoing.length ? inbox.outgoing.map(item => <RequestRow key={item.id} request={item} incoming={false} onConfirm={confirmAction} />) : <div className="community-empty"><strong>No requests sent.</strong><p>Open a Preview reviewer to request read access or an editable copy.</p></div>)}{tab === 'updates' && (inbox?.notifications.length ? inbox.notifications.map(item => <Link className={`community-notification${item.readAt ? '' : ' is-unread'}`} to={item.url} key={item.id}><span /><div><strong>{item.title}</strong><p>{item.body}</p><small>{timeAgo(item.createdAt)}</small></div><ArrowIcon /></Link>) : <div className="community-empty"><strong>You’re all caught up.</strong><p>Access decisions and Community activity will appear here.</p></div>)}{tab === 'moderation' && (reports.length ? reports.map(report => <article className="community-moderation-row" key={report.id}><div><span>{report.reason}</span><strong>{report.targetLabel}</strong><p>{report.details || 'No additional context was provided.'}</p><small>Reported by @{report.reporter} · {timeAgo(report.createdAt)}</small></div><div><button type="button" onClick={() => moderate(report, 'dismiss')}>Dismiss</button><button type="button" className="community-danger-action" onClick={() => moderate(report, 'hide')}>Hide</button></div></article>) : <div className="community-empty"><strong>No reports to review.</strong><p>The moderation queue is clear.</p></div>)}</section>
+  return <div className="community-inbox-page"><nav className="community-reader-nav"><Link className="cali-back-link" to="/community"><BackArrowIcon /><span>Community</span></Link></nav><header><p className="workspace-overline">ACCESS & UPDATES</p><h1>Community inbox</h1><p>Review access requests, track the ones you’ve sent, and stay updated.</p></header><div className="community-inbox-tabs" role="tablist"><button type="button" className={tab === 'incoming' ? 'is-active' : ''} onClick={() => setTab('incoming')}>Incoming <span>{inbox?.incoming.filter(item => item.status === 'pending').length ?? 0}</span></button><button type="button" className={tab === 'outgoing' ? 'is-active' : ''} onClick={() => setTab('outgoing')}>Sent</button><button type="button" className={tab === 'updates' ? 'is-active' : ''} onClick={() => setTab('updates')}>Updates <span>{inbox?.unreadCount ?? 0}</span></button></div>
+    <section className="community-inbox-panel">{tab === 'incoming' && (inbox?.incoming.length ? inbox.incoming.map(item => <RequestRow key={item.id} request={item} incoming onConfirm={confirmAction} />) : <div className="community-empty"><strong>No requests waiting.</strong><p>New requests for your Preview reviewers will appear here.</p></div>)}{tab === 'outgoing' && (inbox?.outgoing.length ? inbox.outgoing.map(item => <RequestRow key={item.id} request={item} incoming={false} onConfirm={confirmAction} />) : <div className="community-empty"><strong>No requests sent.</strong><p>Open a Preview reviewer to request read access or an editable copy.</p></div>)}{tab === 'updates' && <><div className="community-updates-view-toggle"><button type="button" className={!showArchived ? 'is-active' : ''} onClick={() => { setShowArchived(false); setUpdatesPage(1) }}>Current</button><button type="button" className={showArchived ? 'is-active' : ''} onClick={() => { setShowArchived(true); setUpdatesPage(1) }}>Archived</button></div>{updatesLoading ? <div className="community-updates-loading"><span className="cali-skeleton skeleton-block" /></div> : updates.items.length ? <><div>{updates.items.map(item => <article className={`community-notification${item.readAt ? '' : ' is-unread'}`} key={item.id}><span /><div><strong>{item.title}</strong><p>{item.body}</p><small>{timeAgo(item.createdAt)}</small></div><button type="button" className="community-notification-archive" onClick={() => { void changeArchiveState(item.id) }} disabled={archivingId === item.id}>{archivingId === item.id ? (showArchived ? 'Restoring…' : 'Archiving…') : (showArchived ? 'Restore' : 'Archive')}</button></article>)}</div><nav className="community-updates-pagination" aria-label={`${showArchived ? 'Archived' : 'Current'} updates pagination`}><button type="button" onClick={() => setUpdatesPage(page => Math.max(1, page - 1))} disabled={updatesPage <= 1}>Previous</button><span>Page {updatesPage} of {Math.max(1, Math.ceil(updates.totalCount / pageSize))}</span><button type="button" onClick={() => setUpdatesPage(page => page + 1)} disabled={updatesPage >= Math.ceil(updates.totalCount / pageSize)}>Next</button></nav></> : <div className="community-empty"><strong>{showArchived ? 'No archived updates.' : 'You’re all caught up.'}</strong><p>{showArchived ? 'Updates you archive will be kept here.' : 'Access decisions and Community activity will appear here.'}</p></div>}</>}</section>
     <ConfirmDialog action={confirm} busy={busy} error={error} onClose={() => { if (!busy) { setConfirm(null); setError('') } }} />
   </div>
 }
@@ -490,12 +530,13 @@ export function CommunityPage() {
   const { reviewerId, username } = useParams<{ reviewerId?: string; username?: string }>()
   const [params] = useSearchParams()
   const [notice, setNotice] = useState<Notice>(null)
+  const { inboxCount, liveVersion, refreshInboxCount } = useCommunityNotifications()
   const stableNotice = useCallback((next: Notice) => setNotice(next), [])
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 5200); return () => window.clearTimeout(timer) }, [notice])
   let content: ReactNode
   if (reviewerId) content = <ReviewerDetail reviewerId={reviewerId} onNotice={stableNotice} />
   else if (username) content = <PublicProfile username={username} onNotice={stableNotice} />
-  else if (params.get('view') === 'inbox') content = <CommunityInboxView onNotice={stableNotice} />
-  else content = <CommunityDashboard onNotice={stableNotice} />
+  else if (params.get('view') === 'inbox') content = <CommunityInboxView onNotice={stableNotice} liveVersion={liveVersion} onInboxChange={refreshInboxCount} />
+  else content = <CommunityDashboard onNotice={stableNotice} inboxCount={inboxCount} />
   return <><CommunityNotice notice={notice} onClose={() => setNotice(null)} />{content}</>
 }

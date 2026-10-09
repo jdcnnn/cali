@@ -88,7 +88,16 @@ export type CommunityNotification = {
   body: string
   url: string
   readAt: string | null
+  archivedAt: string | null
   createdAt: string
+}
+
+export type CommunityNotificationPage = {
+  items: CommunityNotification[]
+  totalCount: number
+  unreadCount: number
+  page: number
+  pageSize: number
 }
 
 export type CommunityInbox = {
@@ -190,6 +199,86 @@ export function reportCommunityTarget(targetType: 'reviewer' | 'profile', target
 
 export function getCommunityInbox() {
   return rpc<CommunityInbox>('cali_get_community_inbox')
+}
+
+export async function getCommunityNotificationPage(page = 1, pageSize = 10, archived = false): Promise<CommunityNotificationPage> {
+  if (!supabase) throw new Error('Cali is not connected to the database.')
+  const safePage = Math.max(1, Math.floor(page))
+  const safePageSize = Math.min(25, Math.max(1, Math.floor(pageSize)))
+  const from = (safePage - 1) * safePageSize
+  const itemsQuery = supabase.from('community_notifications')
+      .select('id, kind, title, body, url, read_at, archived_at, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, from + safePageSize - 1)
+  const [itemsResult, unreadResult] = await Promise.all([
+    archived ? itemsQuery.not('archived_at', 'is', null) : itemsQuery.is('archived_at', null),
+    supabase.from('community_notifications')
+      .select('id', { count: 'exact', head: true })
+      .is('archived_at', null)
+      .is('read_at', null),
+  ])
+  if (itemsResult.error) throw itemsResult.error
+  if (unreadResult.error) throw unreadResult.error
+  return {
+    items: (itemsResult.data ?? []).map(row => ({
+      id: row.id,
+      kind: row.kind,
+      title: row.title,
+      body: row.body,
+      url: row.url,
+      readAt: row.read_at,
+      archivedAt: row.archived_at,
+      createdAt: row.created_at,
+    })),
+    totalCount: itemsResult.count ?? 0,
+    unreadCount: unreadResult.count ?? 0,
+    page: safePage,
+    pageSize: safePageSize,
+  }
+}
+
+export async function archiveCommunityNotification(notificationId: string) {
+  if (!supabase) throw new Error('Cali is not connected to the database.')
+  const { error } = await supabase.from('community_notifications')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', notificationId)
+  if (error) throw error
+}
+
+export async function restoreCommunityNotification(notificationId: string) {
+  if (!supabase) throw new Error('Cali is not connected to the database.')
+  const { error } = await supabase.from('community_notifications')
+    .update({ archived_at: null })
+    .eq('id', notificationId)
+  if (error) throw error
+}
+
+export function subscribeToCommunityNotifications(userId: string, onNotification: (notification: CommunityNotification) => void) {
+  const client = supabase
+  if (!client) return () => undefined
+  const channel = client
+    .channel(`community-notifications:${userId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'community_notifications',
+      filter: `user_id=eq.${userId}`,
+    }, payload => {
+      const row = payload.new as Record<string, unknown>
+      if (typeof row.id !== 'string' || typeof row.title !== 'string' || typeof row.body !== 'string') return
+      onNotification({
+        id: row.id,
+        kind: typeof row.kind === 'string' ? row.kind : 'notice',
+        title: row.title,
+        body: row.body,
+        url: typeof row.url === 'string' ? row.url : '/community?view=inbox',
+        readAt: typeof row.read_at === 'string' ? row.read_at : null,
+        archivedAt: typeof row.archived_at === 'string' ? row.archived_at : null,
+        createdAt: typeof row.created_at === 'string' ? row.created_at : new Date().toISOString(),
+      })
+    })
+    .subscribe()
+  return () => { void client.removeChannel(channel) }
 }
 
 export function markCommunityNotificationsRead() {

@@ -86,6 +86,20 @@
 
 .community-secondary-action svg { width: 18px; }
 
+.community-inbox-count {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-cali-action);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .community-emblem {
   position: relative;
   display: grid;
@@ -710,14 +724,26 @@
 .community-request-actions .button-primary { border: 0; background: var(--color-cali-action); color: #fff; }
 .community-revoke { color: var(--confirm-error-ink); }
 
-.community-notification { display: grid; grid-template-columns: 8px minmax(0, 1fr) 20px; gap: 14px; align-items: center; min-height: 82px; padding: 15px 20px; border-bottom: 1px solid var(--color-cali-border); color: inherit; text-decoration: none; }
+.community-notification { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 14px; align-items: center; min-height: 82px; padding: 15px 20px; border-bottom: 1px solid var(--color-cali-border); color: inherit; }
 .community-notification>span { width: 7px; height: 7px; border-radius: 50%; background: transparent; }
 .community-notification.is-unread>span { background: var(--color-cali-accent); }
 .community-notification div { min-width: 0; }
 .community-notification strong { font-size: 12px; }
 .community-notification p { margin: 3px 0; overflow: hidden; color: var(--color-cali-slate); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .community-notification small { color: var(--color-cali-slate); font-size: 9px; }
-.community-notification svg { width: 16px; color: var(--color-cali-accent); }
+.community-notification-archive { min-height: 34px; padding: 7px 11px; border: 1px solid var(--color-cali-border); border-radius: 8px; background: var(--color-cali-surface); color: var(--color-cali-slate); font-size: 10px; font-weight: 800; }
+.community-notification-archive:hover:not(:disabled) { border-color: var(--color-cali-accent); background: var(--color-cali-pale); color: var(--color-cali-action-text); }
+.community-notification-archive:disabled { cursor: wait; opacity: .6; }
+.community-updates-view-toggle { display: flex; gap: 6px; padding: 13px 20px; border-bottom: 1px solid var(--color-cali-border); }
+.community-updates-view-toggle button { min-height: 32px; padding: 6px 11px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--color-cali-slate); font-size: 10px; font-weight: 800; }
+.community-updates-view-toggle button.is-active { border-color: var(--color-cali-border); background: var(--color-cali-pale); color: var(--color-cali-action-text); }
+.community-updates-loading { padding: 20px; }
+.community-updates-loading .skeleton-block { display: block; height: 260px; border-radius: 12px; }
+.community-updates-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--color-cali-border); }
+.community-updates-pagination span { color: var(--color-cali-slate); font-size: 10px; font-weight: 700; }
+.community-updates-pagination button { min-height: 34px; padding: 7px 12px; border: 1px solid var(--color-cali-border); border-radius: 8px; background: var(--color-cali-surface); color: var(--color-cali-ink); font-size: 10px; font-weight: 800; }
+.community-updates-pagination button:hover:not(:disabled) { border-color: var(--color-cali-accent); color: var(--color-cali-action-text); }
+.community-updates-pagination button:disabled { cursor: default; opacity: .45; }
 
 .community-moderation-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--color-cali-border); }
 .community-moderation-row>div:first-child { display: grid; gap: 3px; }

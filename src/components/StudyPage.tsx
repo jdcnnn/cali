@@ -1134,9 +1134,9 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
   const selectedStoredPageColor = String(selected?.content.attrs?.pageColor ?? '')
   const selectedPageColor = selected && pageColorOverride?.reviewerId === selected.id ? pageColorOverride.color : selectedStoredPageColor
   const selectedUsesLightForeground = usesLightForeground(selectedPageColor)
-  const load = useCallback(async () => {
+  const load = useCallback(async (showLoading = true) => {
     if (!supabase) return
-    setLoading(true)
+    if (showLoading) setLoading(true)
     const [reviewerResult, subjectResult, draftResult] = await Promise.all([supabase.from('reviewers').select('*').eq('user_id', studentId).order('updated_at', { ascending: false }), supabase.from('schedule_subjects').select('id,subject_code,title,color_key').eq('user_id', studentId).order('subject_code'), supabase.from('generated_reviewer_drafts').select('request_id,title,content,plain_text,revision,expires_at').eq('user_id', studentId).gt('expires_at', new Date().toISOString()).order('updated_at', { ascending: false }).limit(1).maybeSingle()])
     if (reviewerResult.error || subjectResult.error) {
       setNotice({ kind: 'error', text: 'Cali could not load your study space. Please try again.' })
@@ -1152,10 +1152,25 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
         setResumableAiDraft(row ? { requestId: row.request_id, title: row.title, content: row.content, plainText: row.plain_text, revision: row.revision, expiresAt: row.expires_at } : null)
       }
     }
-    setLoading(false)
+    if (showLoading) setLoading(false)
   }, [studentId])
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const client = supabase
+    if (!client) return
+    let refreshTimer: number | null = null
+    const channel = client.channel(`study-reviewers:${studentId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviewers', filter: `user_id=eq.${studentId}` }, () => {
+        if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+        refreshTimer = window.setTimeout(() => { void load(false) }, 120)
+      })
+      .subscribe()
+    return () => {
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+      void client.removeChannel(channel)
+    }
+  }, [load, studentId])
   useEffect(() => { if (params.get('new') === 'manual') createRef.current?.showModal(); else createRef.current?.close() }, [params])
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 4500); return () => window.clearTimeout(timer) }, [notice])
   useEffect(() => {
