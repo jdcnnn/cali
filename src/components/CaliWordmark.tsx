@@ -8,8 +8,23 @@ export function CaliWordmark({ light = false }: { light?: boolean }) {
   </span>
 }
 
-export function ProfileAvatar({ name, className = '' }: { name: string; className?: string }) {
-  return <div className={`grid place-items-center rounded-full bg-cali-pale text-cali-accent ${className}`} role="img" aria-label={`Avatar for ${name}`}>
-    <svg viewBox="0 0 32 32" className="size-7" fill="none" aria-hidden="true"><circle cx="16" cy="11" r="5" fill="currentColor" /><path d="M5 28c0-6 5-10 11-10s11 4 11 10" fill="currentColor" /></svg>
+export function ProfileAvatar({ name, src, className = '' }: { name: string; src?: string | null; className?: string }) {
+  const nameParts = name.trim().replace(/^@/, '').split(/\s+/).filter(Boolean)
+  const initials = (nameParts.length > 1
+    ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`
+    : nameParts[0]?.slice(0, 1) || '?').toUpperCase()
+
+  return <div className={`profile-avatar relative grid place-items-center overflow-hidden rounded-[28%] bg-cali-pale font-semibold uppercase text-cali-accent ${className}`} role="img" aria-label={`Avatar for ${name}`}>
+    <span aria-hidden="true">{initials}</span>
+    {src && <img
+      className="absolute inset-0 size-full object-cover"
+      src={src}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={event => event.currentTarget.remove()}
+    />}
   </div>
 }

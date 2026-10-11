@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { CaliWordmark } from './CaliWordmark'
 import { SiteFooter } from './SiteFooter'
 import './entry.css'
 
 type PolicyKind = 'terms' | 'privacy' | 'community'
 type PolicySection = { id: string; title: string; paragraphs?: string[]; bullets?: string[] }
+type PolicyReturnState = { from?: string; backLabel?: string; view?: 'student' | 'admin'; previousState?: unknown }
 
 const documents: Record<PolicyKind, { title: string; summary: string; sections: PolicySection[] }> = {
   terms: {
@@ -47,6 +48,12 @@ const documents: Record<PolicyKind, { title: string; summary: string; sections: 
 
 export function PolicyPage({ kind }: { kind: PolicyKind }) {
   const policy = documents[kind]
+  const location = useLocation()
+  const returnState = (location.state ?? {}) as PolicyReturnState
+  const returnTo = typeof returnState.from === 'string' && returnState.from.startsWith('/') && !returnState.from.startsWith('//')
+    ? returnState.from
+    : '/'
+  const backLabel = typeof returnState.backLabel === 'string' ? returnState.backLabel : 'Back to Cali'
   useEffect(() => {
     const previousTitle = document.title
     window.scrollTo(0, 0)
@@ -63,12 +70,12 @@ export function PolicyPage({ kind }: { kind: PolicyKind }) {
   return <div className="entry-page policy-page">
     <a className="entry-skip" href="#policy-main">Skip to content</a>
     <header className="team-header"><div className="entry-container team-header-inner">
-      <Link to="/" aria-label="Cali home"><CaliWordmark /></Link>
-      <Link className="team-back" to="/">Back to Cali</Link>
+      <Link to={returnTo} state={returnState.previousState} aria-label={backLabel}><CaliWordmark /></Link>
+      <Link className="team-back" to={returnTo} state={returnState.previousState}>{backLabel}</Link>
     </div></header>
     <main className="entry-container policy-main" id="policy-main">
       <div className="policy-intro"><h1>{policy.title}</h1><p>{policy.summary}</p></div>
-      <nav className="policy-switcher" aria-label="Policy pages">{policyLinks.map(link => <Link key={link.kind} to={link.path} aria-current={kind === link.kind ? 'page' : undefined}>{documents[link.kind].title}</Link>)}</nav>
+      <nav className="policy-switcher" aria-label="Policy pages">{policyLinks.map(link => <Link key={link.kind} to={link.path} state={returnState} aria-current={kind === link.kind ? 'page' : undefined}>{documents[link.kind].title}</Link>)}</nav>
       <div className="policy-layout"><nav className="policy-toc" aria-label="On this page"><strong>On this page</strong>{policy.sections.map(section => <a key={section.id} href={`#${section.id}`}>{section.title}</a>)}</nav>
         <article className="policy-content">{policy.sections.map(section => {
           const [number, ...heading] = section.title.split(' ')

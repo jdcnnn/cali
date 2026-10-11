@@ -3,9 +3,9 @@
 .schedule-scan-trigger svg { width: 18px; height: 18px; }
 .schedule-scan-dialog { position: fixed; inset: 50% auto auto 50%; width: min(940px, calc(100vw - 48px)); max-width: none; max-height: calc(100dvh - 28px); margin: 0; padding: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; transform: translate(-50%, -50%); border: 1px solid var(--color-cali-border); border-radius: 22px; background: var(--color-cali-surface); color: var(--color-cali-ink); box-shadow: 0 24px 70px #061f2d40; }
 .schedule-scan-dialog::backdrop { background: #07192399; backdrop-filter: blur(3px); }
-.schedule-scan-head { position: sticky; z-index: 4; top: 0; display: flex; align-items: start; justify-content: space-between; gap: 20px; padding: 25px 28px 20px; border-bottom: 1px solid var(--color-cali-border); background: var(--color-cali-surface); }
+.schedule-scan-head { position: sticky; z-index: 4; top: 0; display: flex; align-items: start; justify-content: space-between; gap: 20px; padding: 25px 28px 20px; border-bottom: 0; background: var(--color-cali-surface); }
 .schedule-scan-head h2 { margin: 8px 0 0; font-family: Fredoka, sans-serif; font-size: 31px; font-weight: 500; line-height: 1.12; }
-.schedule-scan-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 0; padding: 14px 28px; border-bottom: 1px solid var(--color-cali-border); background: var(--color-cali-canvas); list-style: none; }
+.schedule-scan-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 0; padding: 14px 28px; border-bottom: 0; background: var(--color-cali-canvas); list-style: none; }
 .schedule-scan-steps li { display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--color-cali-slate); font-size: 11px; font-weight: 800; line-height: 1.25; }
 .schedule-scan-steps li:not(:last-child)::after { width: min(90px, 35%); min-width: 8px; height: 1px; flex-shrink: 1; margin-left: auto; margin-right: 14px; background: var(--color-cali-border); content: ''; }
 .schedule-scan-steps span { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border: 1px solid var(--color-cali-border); border-radius: 50%; background: var(--color-cali-surface); font-size: 10px; line-height: 1; }
@@ -38,7 +38,7 @@
 .schedule-scan-preload--failed { color: #9a5b17; }
 .schedule-scan-timing { margin: 0 0 12px; color: var(--color-cali-slate); font-size: 11px; text-align: center; }
 @keyframes schedule-scan-pulse { 50% { opacity: .35; transform: scale(.75); } }
-.schedule-scan-actions, .schedule-scan-review-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--color-cali-border); }
+.schedule-scan-actions, .schedule-scan-review-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 0; }
 .schedule-scan-actions button, .schedule-scan-review-actions button { min-height: 44px; padding: 10px 16px; }
 .schedule-scan-primary { border: 1px solid var(--color-cali-action); border-radius: 11px; background: var(--color-cali-action); color: white; font-weight: 800; }
 .schedule-scan-primary:hover { background: var(--color-cali-deep); }
@@ -113,7 +113,7 @@
 .schedule-scan-fields input, .schedule-scan-meeting input, .schedule-scan-meeting select { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--color-cali-border); border-radius: 9px; background: var(--color-cali-surface); color: var(--color-cali-ink); font-size: 12px; font-weight: 600; letter-spacing: normal; text-transform: none; }
 .schedule-scan-fields input[aria-invalid="true"], .schedule-scan-meeting input[aria-invalid="true"] { border-color: #c95449; background: color-mix(in srgb, #c95449 6%, var(--color-cali-surface)); }
 .schedule-scan-wide { grid-column: 1 / -1; }
-.schedule-scan-meetings-head { margin-top: 17px; padding-top: 14px; border-top: 1px solid var(--color-cali-border); }
+.schedule-scan-meetings-head { margin-top: 17px; padding-top: 14px; border-top: 0; }
 .schedule-scan-meetings-head strong { font-size: 12px; }
 .schedule-scan-meetings { display: grid; gap: 8px; margin-top: 9px; }
 .schedule-scan-meeting { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1.3fr auto; align-items: end; gap: 8px; padding: 10px; border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-surface); }

@@ -58,10 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: access, error: eligibilityError } = await supabase.rpc('cali_access_status')
       if (eligibilityError) throw eligibilityError
       if (id !== requestId.current) return
-      const accessStatus = (access ?? {}) as { eligible?: boolean; isAdmin?: boolean; accountType?: 'institutional' | 'personal'; reason?: string | null; suspensionReason?: string | null }
+      const accessStatus = (access ?? {}) as { eligible?: boolean; isAdmin?: boolean; accountType?: 'institutional' | 'personal'; reason?: string | null; suspensionReason?: string | null; username?: string | null }
       if (!accessStatus.eligible) {
         validatedUserId.current = userData.user.id
-        setState({ status: 'ineligible', user: userData.user, student: null, message: accessStatus.suspensionReason ?? null, reason: accessStatus.reason ?? null })
+        setState({ status: 'ineligible', user: userData.user, student: null, message: accessStatus.suspensionReason ?? null, reason: accessStatus.reason ?? null, username: accessStatus.username ?? null })
         return
       }
 

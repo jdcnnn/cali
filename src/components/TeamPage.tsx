@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { CaliWordmark } from './CaliWordmark'
 import { SiteFooter } from './SiteFooter'
 import { startGoogleSignIn } from '../lib/supabase'
@@ -51,12 +51,22 @@ const teamMembers: TeamMember[] = [
 ]
 
 export function TeamPage() {
+  const location = useLocation()
   const { allowPersonalGoogleLogin } = useLoginMode()
   const { state } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => { window.scrollTo(0, 0) }, [])
-  const workspacePath = state.status === 'ready' ? (state.isAdmin ? '/admin' : '/dashboard') : state.status === 'needsOnboarding' ? '/onboarding' : null
+  const returnState = (location.state ?? {}) as { from?: string; backLabel?: string; view?: 'student' | 'admin'; previousState?: unknown }
+  const workspacePath = state.status === 'ready' ? (state.isAdmin && returnState.view !== 'student' ? '/admin' : '/dashboard') : state.status === 'needsOnboarding' ? '/onboarding' : null
+  const returnTo = typeof returnState.from === 'string' && returnState.from.startsWith('/') && !returnState.from.startsWith('//')
+    ? returnState.from
+    : workspacePath ?? '/'
+  const backLabel = typeof returnState.backLabel === 'string'
+    ? returnState.backLabel
+    : workspacePath
+      ? state.status === 'ready' ? 'Dashboard' : 'Continue setup'
+      : 'Back to Cali'
 
   async function signIn() {
     if (busy) return
@@ -74,8 +84,8 @@ export function TeamPage() {
     <a className="entry-skip" href="#team-main">Skip to content</a>
     <header className="team-header">
       <div className="entry-container team-header-inner">
-        <Link to="/" aria-label="Cali home"><CaliWordmark /></Link>
-        <div className="team-header-actions"><Link className="team-back" to={workspacePath ?? '/'}>{workspacePath ? state.status === 'ready' ? 'Dashboard' : 'Continue setup' : 'Back to Cali'}</Link></div>
+        <Link to={returnTo} state={returnState.previousState} aria-label={backLabel}><CaliWordmark /></Link>
+        <div className="team-header-actions"><Link className="team-back" to={returnTo} state={returnState.previousState}>{backLabel}</Link></div>
       </div>
     </header>
 

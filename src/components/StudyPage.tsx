@@ -664,6 +664,12 @@ type GeneratedDraft = { requestId: string; title: string; content: JSONContent; 
 type AiGenerationQuota = { used: number; limit: number; resetsAt: string }
 type AiProgress = { phase: 'pdf' | 'scan' | 'generate'; active: number; detail?: string }
 
+const GENERATED_DRAFT_AUTOSAVE_DELAY_MS = 4_000
+
+function reviewerRecoveryPollDelay(attempt: number) {
+  return Math.min(2_500 * (2 ** Math.floor(attempt / 4)), 10_000)
+}
+
 const aiProgressLabels = {
   pdf: ['Opening your PDF', 'Extracting the text', 'Preparing text for review'],
   scan: ['Preparing your pages', 'Extracting the text', 'Preparing text for review'],
@@ -852,7 +858,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
     changeVersion.current += 1
     setDraftState('dirty')
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
-    saveTimer.current = window.setTimeout(() => { void persistDraft() }, 1200)
+    saveTimer.current = window.setTimeout(() => { void persistDraft() }, GENERATED_DRAFT_AUTOSAVE_DELAY_MS)
   }, [persistDraft])
 
   useEffect(() => {
@@ -920,6 +926,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
   const recoverPendingDraft = async (requestId: string): Promise<GeneratedDraft | null> => {
     if (!supabase) return null
     const stopAt = Date.now() + 135_000
+    let pollAttempt = 0
     while (Date.now() < stopAt && !lifetime.current.signal.aborted) {
       const { data: pending, error: statusError } = await supabase.from('reviewer_generation_requests').select('status,failure_reason').eq('id', requestId).eq('user_id', userId).abortSignal(AbortSignal.any([lifetime.current.signal, AbortSignal.timeout(8000)])).maybeSingle()
       if (statusError) throw new Error('Could not check this generation. Your request is saved on this device; reopen it and retry.')
@@ -938,7 +945,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
       await new Promise<void>(resolve => {
         const signal = lifetime.current.signal
         const finish = () => { window.clearTimeout(timer); signal.removeEventListener('abort', finish); resolve() }
-        const timer = window.setTimeout(finish, 2500)
+        const timer = window.setTimeout(finish, reviewerRecoveryPollDelay(pollAttempt++))
         signal.addEventListener('abort', finish, { once: true })
       })
     }
@@ -1154,6 +1161,12 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
     }
     if (showLoading) setLoading(false)
   }, [studentId])
+  const refreshReviewers = useCallback(async () => {
+    if (!supabase) return
+    const { data, error } = await supabase.from('reviewers').select('*').eq('user_id', studentId).order('updated_at', { ascending: false })
+    if (error) setNotice({ kind: 'error', text: 'Cali could not refresh your reviewers. Please try again.' })
+    else setReviewers((data ?? []) as Reviewer[])
+  }, [studentId])
   // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => { void load() }, [load])
   useEffect(() => {
@@ -1163,14 +1176,14 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
     const channel = client.channel(`study-reviewers:${studentId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reviewers', filter: `user_id=eq.${studentId}` }, () => {
         if (refreshTimer !== null) window.clearTimeout(refreshTimer)
-        refreshTimer = window.setTimeout(() => { void load(false) }, 120)
+        refreshTimer = window.setTimeout(() => { void refreshReviewers() }, 120)
       })
       .subscribe()
     return () => {
       if (refreshTimer !== null) window.clearTimeout(refreshTimer)
       void client.removeChannel(channel)
     }
-  }, [load, studentId])
+  }, [refreshReviewers, studentId])
   useEffect(() => { if (params.get('new') === 'manual') createRef.current?.showModal(); else createRef.current?.close() }, [params])
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 4500); return () => window.clearTimeout(timer) }, [notice])
   useEffect(() => {

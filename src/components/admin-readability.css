@@ -14,3 +14,26 @@
 @media(max-width:430px){.admin-stat-grid{grid-template-columns:1fr}.admin-stat small{white-space:normal}.admin-filter-bar label{align-items:stretch;flex-direction:column}.admin-filter-bar select{width:100%}.admin-pagination .admin-button{padding-inline:8px}.admin-pagination span{text-align:center}.admin-page-header{gap:12px}.admin-policy-pill,.admin-count{max-width:100%;white-space:normal}}
 /* Specificity fixes for nested footer controls. */
 .admin-side-action .admin-side-action-icon>svg:last-child{display:block;align-self:center;justify-self:center;width:19px;height:19px;margin:0}.admin-sidebar-tools .admin-signout>span{font-size:13px;font-weight:700;line-height:1}.admin-sidebar-tools .admin-signout{font-size:13px;font-weight:700}
+
+.admin-audit-panel .admin-timeline strong{font-size:14px;line-height:1.4}
+.admin-audit-panel .admin-timeline p{font-size:12px;line-height:1.55}
+.admin-audit-panel .admin-timeline article>div:last-child span,.admin-audit-panel .admin-timeline time{font-size:11px;line-height:1.5}
+.admin-audit-panel .admin-audit-pagination span{font-size:11px}
+
+/* Denser, calmer actions with stronger user-detail hierarchy. */
+.admin-content .admin-button{min-height:34px;padding-inline:12px;border-radius:8px;font-size:11px}
+.admin-content .admin-button--small{min-height:30px;padding-inline:10px}
+.admin-directory .admin-panel-head{align-items:flex-end}
+.admin-user{padding:15px 4px}
+.admin-user-avatar{width:44px;height:44px}
+.admin-user-main{gap:4px}
+.admin-user-main strong{font-size:14px;line-height:1.35}
+.admin-user-main>div span{font-size:11px;font-weight:650}
+.admin-user-main p{font-size:12px;line-height:1.45}
+.admin-user-main small{font-size:11px;line-height:1.5}
+.admin-user-tags span{font-size:9px;letter-spacing:.035em}
+.admin-page-header h1{font-size:clamp(36px,4vw,46px);line-height:1.08}
+.admin-panel-head h2{font-size:22px;line-height:1.2}
+.admin-panel-head p{max-width:620px;font-size:12px;line-height:1.6}
+
+@media(max-width:800px){.admin-directory .admin-panel-head{align-items:stretch}.admin-content .admin-button{min-height:34px}}

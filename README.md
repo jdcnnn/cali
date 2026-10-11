@@ -73,6 +73,22 @@ Apply the Study migrations from `20261003000000_study_reviewers.sql` through `20
 
 Major actions and status dialogs across Study, Tasks, Calendar, Schedules, Schedule Scanner, sign-out, and account deletion use the shared Cali confirmation treatment. It provides branded confirmation/default, warning, loading, success, error, and blue information states with non-broken inline SVG icons. Dialog copy stays specific to the action and does not add unsupported details.
 
+## Community and administration
+
+Community supports authenticated discovery and sharing of reviewers. Students can publish a reviewer as public or preview-only, search and filter shared reviewers, inspect attribution and subject context, vote, record use, request view or edit access, copy permitted content, and manage incoming and outgoing access. Owners can approve, change, or revoke grants. Notifications are paginated, archivable, restored on demand, and updated through Supabase Realtime.
+
+Community moderation applies to shared reviewers only. Public profiles are not treated as moderatable Community content; administrators inspect users and their public profile fields from the Users module instead. Reports preserve the reporter's reason and optional details, show a bounded reviewer-content preview, and require an administrator to dismiss the report or hide the reviewer. Reviewer owners receive a notice when a report enters the queue and when an administrator hides their reviewer. Report counts never suspend an account automatically.
+
+The responsive admin workspace contains Overview, Users, Moderation, and System areas. Overview prioritizes work that needs attention and summarizes active accounts, shared reviewers, sign-in policy, and recent audited changes without decorative analytics. Users supports server-paginated search, account-type and status filters, public-profile inspection inside the admin workspace, reviewer/report signals, and deliberate suspension/restoration with a recorded reason. Moderation exposes the reported reviewer, report reason/details, owner, reporter, and content preview before action. System controls whether verified personal Google accounts may sign in and provides paginated audit history.
+
+Apply the Community and admin migrations beginning with `20261009010000_cali_community.sql` through `20261010104500_access_status_support_identity.sql` before testing these flows. The later migrations restrict moderation to reviewers, correct reviewer totals, add owner-level report signals and notices, and include the signed-in username in a suspended account's support ticket.
+
+## Error and access states
+
+Cali uses one responsive full-screen status system for denied access, missing routes, authentication failures, offline state, and unexpected application errors. It uses the shared Cali wordmark, centered responsive hierarchy, and neutral diagnostic identifiers: `403`, `404`, `500`, `AUTH`, and `OFFLINE`. The suspended-account page shows only the recorded reason and known recovery actions.
+
+Suspended users may sign out to use another account or open a prefilled Gmail support ticket addressed to Team ChiliMansi. The draft contains the diagnostic code, username, account email, account ID, suspension reason, and a blank user-message section. Opening the draft does not send it; the user reviews and sends it from Gmail.
+
 ## Reminders and Web Push
 
 Classes, tasks, and calendar events each keep an independent optional reminder. The presets are 30 minutes, 1 hour, 3 hours, and 5 hours; Custom accepts a non-zero lead time from 1 minute through 7 days. Tasks and events need a specific time before a reminder can be selected. Editing an item rebuilds its pending reminder, while deleting an item or completing a task cancels pending work.
@@ -127,7 +143,15 @@ The web and installed-app icon uses the exact graduation-cap structure from Cali
 - supabase/migrations/: database migrations
 - cali.md: current project decisions and plan
 
-Auth, onboarding, manual weekly schedule management, local schedule scanning, student task planning, the independent Calendar, closed-tab reminders, AI-assisted and manually authored reviewers, flashcards, and quizzes are implemented. The remaining application modules are described in cali.md.
+Auth, onboarding, manual weekly schedule management, local schedule scanning, student task planning, the independent Calendar, closed-tab reminders, Study, reviewer sharing, Community access workflows, moderation, and the administration workspace are implemented. Deployment and release follow-ups are described in cali.md.
+
+## Next implementations
+
+1. Apply all pending Community/admin migrations through `20261010104500_access_status_support_identity.sql` to the linked Supabase project, then deploy the matching frontend together with them.
+2. Run authenticated desktop and mobile acceptance checks for Community sharing/access, admin search and filters, reviewer report review, suspension/restoration, public-profile inspection, audit pagination, and the prefilled Gmail support ticket.
+3. Add end-to-end authorization coverage for student/admin route separation and every privileged RPC. Keep report counts advisory until a documented threshold, appeal path, false-positive policy, and human-review safeguard are approved; automatic suspension is intentionally not implemented.
+4. Complete the release accessibility pass: keyboard order, focus visibility, screen-reader labels, dialog behavior, contrast, reduced motion, and compact phone/short-viewport layouts.
+5. Define the Learning analytics phase using only actionable study and quiz measures. Avoid decorative dashboards or unsupported performance claims.
 
 ## Vercel deployment
 
@@ -139,7 +163,7 @@ Production intentionally remains Cali's live testing and iteration environment. 
 
 Before deployment, run `npm test`, `npm run lint`, and `npm run build`. The production build now fails when a required client or reviewer-generation variable is missing and scans `dist` to prevent server secrets from entering the browser bundle. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production. The `send-reminders` Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`; cron-job.org calls it once per minute with `X-Cali-Cron-Secret`. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, the VAPID private key, or the cron secret as Vite environment variables.
 
-All repository migrations through `20261008093705_enhanced_academic_reviewers.sql` are already applied to the currently linked Cali Supabase project. A different Supabase project still needs the complete migration sequence.
+Repository migrations through `20261008093705_enhanced_academic_reviewers.sql` are confirmed applied to the currently linked Cali Supabase project. Community and administration migrations beginning with `20261009010000_cali_community.sql` require an explicit migration check/apply before the corresponding local frontend changes are deployed. A different Supabase project needs the complete migration sequence.
 
 ## Progressive web app
 

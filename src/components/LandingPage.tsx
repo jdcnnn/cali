@@ -6,9 +6,11 @@ import { ThemePicker } from "../theme/ThemePicker";
 import { clearAuthRedirectError, initialAuthRedirectError, startGoogleSignIn } from "../lib/supabase";
 import "./entry.css";
 import { useLoginMode } from "../auth/LoginModeContext";
+import { useAuth } from "../auth/AuthContext";
 
 export function LandingPage() {
   const { allowPersonalGoogleLogin } = useLoginMode();
+  const { state } = useAuth();
   const location = useLocation();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,6 +20,10 @@ export function LandingPage() {
   const menuRef = useRef<HTMLDivElement>(null);
   const authDialogRef = useRef<HTMLDialogElement>(null);
   const retryButtonRef = useRef<HTMLButtonElement>(null);
+  const navigationState = (location.state ?? {}) as { view?: "student" | "admin" };
+  const workspaceDestination = state.status === "ready"
+    ? state.isAdmin && navigationState.view !== "student" ? "/admin" : "/dashboard"
+    : state.status === "needsOnboarding" ? "/onboarding" : null;
 
   useEffect(() => {
     const dialog = authDialogRef.current;
@@ -119,6 +125,7 @@ export function LandingPage() {
           <Link
             className="entry-home"
             to="/"
+            state={location.state}
             onClick={scrollToTop}
             aria-label="CALI home"
           >
@@ -157,17 +164,19 @@ export function LandingPage() {
             </nav>
             <div className="entry-header-actions">
               <ThemePicker />
-              <button
-                className="entry-header-cta"
-                onClick={() => {
-                  setMenuOpen(false);
-                  void signIn();
-                }}
-                disabled={busy}
-                aria-busy={busy}
-              >
-                {busy ? "Connecting…" : "Try Cali for free"}
-              </button>
+              {workspaceDestination
+                ? <Link className="entry-header-cta" to={workspaceDestination} onClick={() => setMenuOpen(false)}>{state.status === "ready" ? "Dashboard" : "Continue setup"}</Link>
+                : <button
+                  className="entry-header-cta"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void signIn();
+                  }}
+                  disabled={busy || state.status === "loading"}
+                  aria-busy={busy || state.status === "loading"}
+                >
+                  {state.status === "loading" ? "Checking session…" : busy ? "Connecting…" : "Try Cali for free"}
+                </button>}
             </div>
           </div>
         </div>
@@ -193,22 +202,28 @@ export function LandingPage() {
               </p>
             )}
             <div className="entry-hero-actions">
-              <button
-                className="entry-google-primary"
-                onClick={signIn}
-                disabled={busy}
-                aria-busy={busy}
-              >
-                <span>
-                  {busy ? "Connecting to Google…" : "Continue with Google"}
-                </span>
-              </button>
+              {workspaceDestination
+                ? <Link className="entry-google-primary" to={workspaceDestination}><span>{state.status === "ready" ? "Open Dashboard" : "Continue setup"}</span></Link>
+                : <button
+                  className="entry-google-primary"
+                  onClick={signIn}
+                  disabled={busy || state.status === "loading"}
+                  aria-busy={busy || state.status === "loading"}
+                >
+                  <span>
+                    {state.status === "loading" ? "Checking your session…" : busy ? "Connecting to Google…" : "Continue with Google"}
+                  </span>
+                </button>}
               <a className="entry-text-link" href="#features">
                 Explore features
               </a>
             </div>
             <p className="entry-auth-note">
-              {allowPersonalGoogleLogin ? 'Use any verified Google account to create your Cali account.' : 'Use your verified @rtu.edu.ph Google account to create your Cali account.'}
+              {state.status === "ready"
+                ? "Your Cali session is active on this device."
+                : state.status === "needsOnboarding"
+                  ? "Your Google session is active. Complete your Cali profile to continue."
+                  : allowPersonalGoogleLogin ? 'Use any verified Google account to create your Cali account.' : 'Use your verified @rtu.edu.ph Google account to create your Cali account.'}
             </p>
           </div>
         </section>

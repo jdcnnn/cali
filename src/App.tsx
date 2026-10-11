@@ -20,10 +20,13 @@ import { InstallCali } from './components/InstallCali'
 import { ConnectionNotice } from './components/ConnectionNotice'
 import { CommunityNotificationsProvider } from './components/CommunityNotificationsProvider'
 import { ConfirmationIcon } from './components/ConfirmationIcon'
+import { StudentGuide } from './components/GuidePages'
 import './components/skeleton.css'
+import './components/status-pages-refined.css'
 import { ThemePicker } from './theme/ThemePicker'
 import { disablePushNotifications, enablePushNotifications, getPushStatus } from './lib/pushNotifications'
 import type { PushStatus } from './lib/pushNotifications'
+import { formatYearLevel, yearLevelOptions } from './lib/academic'
 
 const StudyPage = lazy(() => import('./components/StudyPage').then(module => ({ default: module.StudyPage })))
 const CommunityPage = lazy(() => import('./components/CommunityPage').then(module => ({ default: module.CommunityPage })))
@@ -76,13 +79,7 @@ function shortProgramName(program: string) {
 }
 
 const programOptions = programs.map(program => ({ value: program, label: shortProgramName(program) }))
-const yearOptions = [
-  { value: '1', label: '1st Year' },
-  { value: '2', label: '2nd Year' },
-  { value: '3', label: '3rd Year' },
-  { value: '4', label: '4th Year' },
-  { value: '5', label: '5th Year' },
-]
+const yearOptions = yearLevelOptions
 
 function Brand({ light = false }: { light?: boolean }) {
   return <CaliWordmark light={light} />
@@ -98,27 +95,31 @@ function LoadingScreen() {
 
 type StatusKind = 'error' | 'offline' | 'access' | 'not-found'
 
-function StatusArtwork({ kind }: { kind: StatusKind }) {
-  const paths = {
-    error: <><circle cx="12" cy="12" r="9" /><path d="M12 7v6m0 4h.01" /></>,
-    offline: <><path d="m3 3 18 18M8.5 8.7A8.8 8.8 0 0 1 12 8c3.6 0 6.7 2.1 8.2 5M5 12.8c.3-.4.7-.8 1.1-1.1M9 16.5a4.6 4.6 0 0 1 6 0M12 20h.01" /></>,
-    access: <><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></>,
-    'not-found': <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 5 5M8.5 8.5l4 4m0-4-4 4" /></>,
-  }
-  return <span className={`status-artwork status-artwork--${kind}`}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[kind]}</svg></span>
-}
+type StatusDetail = { label: string; value: string }
 
-function StatusScreen({ title, detail, action, onAction, busy = false, kind = 'error', label = 'Something went wrong' }: { title: string; detail: string; action: string; onAction: () => void; busy?: boolean; kind?: StatusKind; label?: string }) {
-  return <main className="status-page">
-    <section className="status-card" aria-labelledby="status-title">
-      <div className="status-card-brand"><Brand /></div>
-      <StatusArtwork kind={kind} />
-      <p className="status-label">{label}</p>
-      <h1 id="status-title">{title}</h1>
-      <p className="status-detail">{detail}</p>
-      <button className="button-primary status-action" onClick={onAction} disabled={busy}>{busy ? 'Please wait...' : action}</button>
-      <p className="status-support">If this keeps happening, close Cali and try again in a moment.</p>
-    </section>
+function StatusScreen({ title, detail, action, onAction, actionHref, secondaryAction, secondaryHref, busy = false, kind = 'error', label = 'Something went wrong', code, reason, facts = [], support = 'If this keeps happening, close Cali and try again in a moment.', alert }: { title: string; detail: string; action: string; onAction?: () => void; actionHref?: string; secondaryAction?: string; secondaryHref?: string; busy?: boolean; kind?: StatusKind; label?: string; code?: string; reason?: string; facts?: StatusDetail[]; support?: string; alert?: string }) {
+  const displayCode = code ?? ({ error: '500', offline: 'OFFLINE', access: '403', 'not-found': '404' } satisfies Record<StatusKind, string>)[kind]
+  return <main className={`status-page status-page--${kind}`}>
+    <div className="status-layout">
+      <section className="status-content" aria-labelledby="status-title">
+        <Link to="/" className="status-brand" aria-label="Cali home"><Brand /></Link>
+        <div className="status-body">
+          <div className="status-heading"><p className="status-label">{label}</p><span className="status-code" aria-label={`Error code ${displayCode}`}>{displayCode}</span></div>
+          <h1 id="status-title">{title}</h1>
+          <p className="status-detail">{detail}</p>
+          {(reason || facts.length > 0) && <dl className="status-details">
+            {reason && <div className="status-details-primary"><dt>Suspension reason</dt><dd>{reason}</dd></div>}
+            {facts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
+          </dl>}
+          {alert && <p className="status-alert" role="alert">{alert}</p>}
+        </div>
+        <div className="status-footer">
+          {actionHref ? <Link className="button-primary status-action" to={actionHref}>{action}</Link> : <button className="button-primary status-action" onClick={onAction} disabled={busy}>{busy ? 'Please wait...' : action}</button>}
+          {secondaryAction && secondaryHref && <a className="status-secondary-action" href={secondaryHref} target="_blank" rel="noreferrer">{secondaryAction}</a>}
+          {support && <p className="status-support">{support}</p>}
+        </div>
+      </section>
+    </div>
   </main>
 }
 
@@ -148,7 +149,29 @@ function AuthError() {
     window.addEventListener('online', retry, { once: true })
     return () => window.removeEventListener('online', retry)
   }, [offline, reload])
-  return <StatusScreen kind={offline ? 'offline' : 'error'} label={offline ? 'Connection unavailable' : 'Unable to load'} title={offline ? "You're offline" : "We couldn't open Cali"} detail={offline ? 'Reconnect to the internet and Cali will try to open your workspace again.' : state.message ?? 'Please check your connection and try again.'} action="Try again" onAction={() => { void reload() }} />
+  return <StatusScreen kind={offline ? 'offline' : 'error'} code={offline ? undefined : 'AUTH'} label={offline ? 'Connection unavailable' : 'Unable to load'} title={offline ? "You're offline" : "We couldn't open Cali"} detail={offline ? 'Reconnect to the internet and Cali will try to open your workspace again.' : state.message ?? 'Please check your connection and try again.'} action="Try again" onAction={() => { void reload() }} />
+}
+
+function suspensionSupportHref(username: string | null, email: string, userId: string, reason: string | null) {
+  const accountName = username ? `@${username}` : 'Not available'
+  const subject = `[Cali Support] Suspended account — ${username ? `@${username}` : email}`
+  const body = [
+    'CALI SUPPORT TICKET',
+    '',
+    'Issue: Suspended account access',
+    'Error code: 403',
+    '',
+    'ACCOUNT DETAILS',
+    `Username: ${accountName}`,
+    `Email: ${email || 'Not available'}`,
+    `Account ID: ${userId}`,
+    `Suspension reason: ${reason || 'No reason was provided.'}`,
+    '',
+    'YOUR MESSAGE',
+    'Please describe your concern here:',
+    '',
+  ].join('\n')
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=2024-200362%40rtu.edu.ph&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
 function AccessDeniedPage() {
@@ -156,22 +179,29 @@ function AccessDeniedPage() {
   const { allowPersonalGoogleLogin } = useLoginMode()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const suspended = state.status === 'ineligible' && state.reason === 'suspended'
+  useEffect(() => {
+    const previousTitle = document.title
+    document.title = suspended ? 'Account suspended | Cali' : 'Access unavailable | Cali'
+    return () => { document.title = previousTitle }
+  }, [suspended])
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'signedOut') return <Navigate to="/login" replace />
   if (state.status === 'ready') return <Navigate to={state.isAdmin ? '/admin' : '/dashboard'} replace />
   if (state.status === 'needsOnboarding') return <Navigate to="/onboarding" replace />
   if (state.status === 'error') return <AuthError />
-  const detail = state.status === 'ineligible' && state.reason === 'suspended'
-    ? `This account is suspended.${state.message ? ` Reason: ${state.message}` : ''}`
+  const detail = suspended
+    ? 'This account is suspended and cannot access Cali.'
     : allowPersonalGoogleLogin ? 'Cali requires a verified Google account. Choose a verified account and try again.' : 'Cali currently requires a verified @rtu.edu.ph Google account. Choose your institutional account and try again.'
-  return <StatusScreen kind="access" label="Access unavailable" title="This account can't access Cali" detail={error || detail} action="Use another account" busy={busy} onAction={() => { setBusy(true); void signOut().catch(() => { setError('Could not sign out. Please try again.'); setBusy(false) }) }} />
+  const supportHref = suspended ? suspensionSupportHref(state.username, state.user.email ?? '', state.user.id, state.message) : undefined
+  return <StatusScreen kind="access" label={suspended ? 'Account access' : 'Access unavailable'} title={suspended ? 'Access is currently unavailable.' : 'Use an eligible Google account.'} detail={suspended ? 'This account has been suspended. Review the recorded reason or request help from Cali support.' : detail} reason={suspended ? state.message || 'No reason was provided.' : undefined} alert={error} support={suspended ? 'Contact support opens a prefilled email ticket for you to review before sending.' : 'Use another eligible account to continue to Cali.'} action="Use another account" secondaryAction={suspended ? 'Contact support' : undefined} secondaryHref={supportHref} busy={busy} onAction={() => { setBusy(true); setError(''); void signOut().catch(() => { setError('Could not sign out. Please try again.'); setBusy(false) }) }} />
 }
 
 function CallbackPage() {
   const { state } = useAuth()
   const location = useLocation()
   const error = new URLSearchParams(location.search).get('error_description')
-  if (error) return <StatusScreen title="Google sign-in didn't finish" detail={error} action="Back to sign in" onAction={() => { window.location.replace('/login') }} />
+  if (error) return <StatusScreen code="AUTH" title="Google sign-in didn't finish" detail={error} action="Back to sign in" onAction={() => { window.location.replace('/login') }} />
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'ready') return <Navigate to={state.isAdmin ? '/admin' : '/dashboard'} replace />
   if (state.status === 'needsOnboarding') return <Navigate to="/onboarding" replace />
@@ -189,7 +219,7 @@ function NotFoundPage() {
     document.title = 'Page not found | Cali'
     return () => { document.title = previousTitle }
   }, [])
-  return <main className="status-page"><section className="status-card" aria-labelledby="not-found-title"><div className="status-card-brand"><Brand /></div><StatusArtwork kind="not-found" /><p className="status-label">404 / Page not found</p><h1 id="not-found-title">That page isn't here.</h1><p className="status-detail">The address may be incorrect, or the page may have moved.</p><Link className="button-primary status-action" to={destination}>{action}</Link><p className="status-support">Your Cali account and saved work are unaffected.</p></section></main>
+  return <StatusScreen kind="not-found" label="Page not found" title="That page isn't here." detail="The address may be incorrect, or the page may have moved." action={action} actionHref={destination} support="" />
 }
 
 function GoogleProfile({ email, name, avatar }: { email: string; name: string | null; avatar: string | null }) {
@@ -333,7 +363,7 @@ function OnboardingPage() {
   </main>
 }
 
-type WorkspaceSection = 'dashboard' | 'schedules' | 'tasks' | 'calendar' | 'study' | 'community' | 'profile' | 'settings'
+type WorkspaceSection = 'dashboard' | 'schedules' | 'tasks' | 'calendar' | 'study' | 'community' | 'profile' | 'guide' | 'settings'
 
 const workspaceLinks: { section: WorkspaceSection; label: string; path: string }[] = [
   { section: 'dashboard', label: 'Dashboard', path: '/dashboard' },
@@ -390,6 +420,7 @@ function WorkspaceIcon({ section }: { section: WorkspaceSection }) {
     study: <><path d="M12 6c-2-1.5-5-2-9-1v14c4-1 7-.5 9 1.5 2-2 5-2.5 9-1.5V5c-4-1-7-.5-9 1Z" /><path d="M12 6v14" /></>,
     community: <><circle cx="9" cy="8" r="3" /><path d="M3 20v-2a6 6 0 0 1 12 0v2H3Z" /><path d="M17 5a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 5" /></>,
     profile: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2H4Z" /></>,
+    guide: <><path d="M4 4.5h11a3 3 0 0 1 3 3V20H7a3 3 0 0 1-3-3V4.5Z"/><path d="M7 16.5h11M8 8h6m-6 4h7"/></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" /></>,
   }
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[section]}</svg>
@@ -416,7 +447,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
   const [saveError, setSaveError] = useState('')
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
-  const year = yearOptions[student.year_level - 1]?.label ?? `Year ${student.year_level}`
+  const year = formatYearLevel(student.year_level)
 
   useEffect(() => {
     if (!saved) return
@@ -472,19 +503,20 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
   }
 
   return <div className="workspace-profile-page">
-    <header className="workspace-profile-heading"><h1>Profile</h1><p>Your account and academic information.</p></header>
-    <section className="workspace-profile-identity" aria-label="Username">
-      {student.avatar_url ? <img src={student.avatar_url} alt="" referrerPolicy="no-referrer" /> : <ProfileAvatar name={student.username} className="workspace-profile-avatar" />}
-      <div><p>USERNAME</p><h2>{student.username}</h2><Link className="workspace-public-profile-link" to={`/community/profile/${student.username}`}>View public profile</Link></div>
+    <header className="workspace-profile-heading"><p className="workspace-overline">YOUR CALI ACCOUNT</p><h1>Profile</h1><p>Manage the identity and academic details connected to your workspace.</p></header>
+    <section className="workspace-profile-identity" aria-label="Profile summary">
+      <ProfileAvatar name={student.full_name || student.username} src={student.avatar_url} className="workspace-profile-avatar" />
+      <div className="workspace-profile-identity-copy"><p>COMMUNITY IDENTITY</p><h2>@{student.username}</h2><span>{student.full_name || 'Google account name unavailable'}</span><div className="workspace-profile-summary-meta"><span>{student.program}</span><span>{year}</span></div></div>
+      <Link className="workspace-public-profile-link" to={`/community/profile/${student.username}`}><span>View public profile</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></Link>
     </section>
     <div className="workspace-profile-details">
-        <section className="workspace-profile-section" aria-labelledby="profile-account-title"><h2 id="profile-account-title">Account</h2><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Google email</dt><dd>{email}</dd></div></dl></section>
+        <section className="workspace-profile-section workspace-profile-account" aria-labelledby="profile-account-title"><header><p className="workspace-overline">SIGN-IN IDENTITY</p><h2 id="profile-account-title">Google account</h2><span>This information comes from the account used to sign in.</span></header><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Email address</dt><dd>{email}</dd></div></dl></section>
         <section className="workspace-profile-section" aria-labelledby="profile-academic-title">
-          <div className="workspace-profile-section-head"><h2 id="profile-academic-title">Profile details</h2>{!editing && <button type="button" className="workspace-profile-edit" onClick={startEditing}>Edit</button>}</div>
+          <div className="workspace-profile-section-head"><div><p className="workspace-overline">PUBLIC DETAILS</p><h2 id="profile-academic-title">Academic profile</h2><span>Used across your workspace and Community profile.</span></div>{!editing && <button type="button" className="workspace-profile-edit" onClick={startEditing}>Edit profile</button>}</div>
           {editing ? <form className="workspace-profile-form" onSubmit={saveProfileDetails} noValidate>
             <div><label className="field-label" htmlFor="profile-username">Username</label><input id="profile-username" name="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[a-z0-9_]{3,30}" className="field-input" value={username} onChange={event => { setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); setFieldErrors(previous => ({ ...previous, username: undefined })) }} aria-describedby={fieldErrors.username ? 'profile-username-error profile-username-help' : 'profile-username-help'} aria-invalid={Boolean(fieldErrors.username)} /><p id="profile-username-help" className="field-help">Use 3–30 lowercase letters, numbers, or underscores.</p>{fieldErrors.username && <p id="profile-username-error" className="field-error" role="alert">{fieldErrors.username}</p>}</div>
-            <div><label className="field-label" htmlFor="profile-program">Program</label><OnboardingDropdown id="profile-program" label="Program" placeholder="Browse or search programs" value={programChoice} options={programOptions} searchable allowCustom onChange={value => { setProgramChoice(value); setFieldErrors(previous => ({ ...previous, program: undefined })) }} invalid={Boolean(fieldErrors.program)} describedBy={fieldErrors.program ? 'profile-program-error profile-program-help' : 'profile-program-help'} /><p id="profile-program-help" className="field-help">Not on the list? Type your full program name, then choose “Use”.</p>{fieldErrors.program && <p id="profile-program-error" className="field-error" role="alert">{fieldErrors.program}</p>}</div>
             <div><label className="field-label" htmlFor="profile-year-level">Year level</label><OnboardingDropdown id="profile-year-level" label="Year level" placeholder="Select year level" value={yearLevel} options={yearOptions} onChange={value => { setYearLevel(value); setFieldErrors(previous => ({ ...previous, yearLevel: undefined })) }} invalid={Boolean(fieldErrors.yearLevel)} describedBy={fieldErrors.yearLevel ? 'profile-year-error' : undefined} />{fieldErrors.yearLevel && <p id="profile-year-error" className="field-error" role="alert">{fieldErrors.yearLevel}</p>}</div>
+            <div className="workspace-profile-form-wide"><label className="field-label" htmlFor="profile-program">Program</label><OnboardingDropdown id="profile-program" label="Program" placeholder="Browse or search programs" value={programChoice} options={programOptions} searchable allowCustom onChange={value => { setProgramChoice(value); setFieldErrors(previous => ({ ...previous, program: undefined })) }} invalid={Boolean(fieldErrors.program)} describedBy={fieldErrors.program ? 'profile-program-error profile-program-help' : 'profile-program-help'} /><p id="profile-program-help" className="field-help">Not on the list? Type your full program name, then choose “Use”.</p>{fieldErrors.program && <p id="profile-program-error" className="field-error" role="alert">{fieldErrors.program}</p>}</div>
             <div className="workspace-profile-form-wide"><label className="field-label" htmlFor="profile-bio">Public bio <small>{bio.length}/280</small></label><textarea id="profile-bio" maxLength={280} value={bio} onChange={event => { setBio(event.target.value); setFieldErrors(previous => ({ ...previous, bio: undefined })) }} placeholder="Share what you study or the kinds of reviewers you create." aria-invalid={Boolean(fieldErrors.bio)} />{fieldErrors.bio && <p className="field-error" role="alert">{fieldErrors.bio}</p>}<p className="field-help">Shown on your Cali Community profile.</p></div>
             {saveError && <p className="workspace-profile-save-error" role="alert">{saveError}</p>}
             <div className="workspace-profile-form-actions"><button type="button" className="workspace-profile-cancel" onClick={() => { setEditing(false); setSaveError('') }} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy}>{busy ? 'Saving...' : 'Save changes'}</button></div>
@@ -493,7 +525,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
     </div>
     <Link to="/settings" className="workspace-settings-entry">
       <span className="workspace-settings-entry-icon"><WorkspaceIcon section="settings" /></span>
-      <span className="workspace-settings-entry-copy"><strong>Cali Settings</strong><small>Manage reminders, app installation, and account controls.</small></span>
+      <span className="workspace-settings-entry-copy"><strong>Cali Settings</strong><small>Open app preferences, the Cali Guide, policies, and account controls.</small></span>
       <svg className="workspace-settings-entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
     </Link>
   </div>
@@ -532,11 +564,37 @@ function SettingsScreen() {
 
   return <div className="workspace-settings-page">
     <Link to="/profile" className="cali-back-link workspace-settings-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg><span>Back to Profile</span></Link>
-    <header className="workspace-settings-page-heading"><p className="workspace-overline">CALI SETTINGS</p><h1>Settings</h1><p>Manage reminders, app installation, and account controls.</p></header>
+    <header className="workspace-settings-page-heading"><p className="workspace-overline">CALI SETTINGS</p><h1>Settings</h1><p>Control how Cali works on this device, review its policies, and manage your account.</p></header>
     <div className="workspace-settings-stack">
-      <NotificationSettings />
-      <InstallCali />
-      <section className="workspace-danger-zone" aria-labelledby="danger-zone-title"><div><p className="workspace-danger-label">DANGER ZONE</p><h2 id="danger-zone-title">Delete account</h2><p>Permanently delete your account and all profile, schedule, task, event, reminder, and notification data stored in Cali.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></section>
+      <section className="workspace-settings-group" aria-labelledby="workspace-device-title">
+        <header className="workspace-settings-group-head"><div><p className="workspace-overline">YOUR DEVICE</p><h2 id="workspace-device-title">App and reminders</h2></div><p>Choose how Cali reaches you and whether it is installed for quicker access.</p></header>
+        <div className="workspace-settings-panel"><NotificationSettings /><InstallCali /></div>
+      </section>
+      <section className="workspace-settings-group" aria-labelledby="workspace-help-title">
+        <header className="workspace-settings-group-head"><div><p className="workspace-overline">HELP</p><h2 id="workspace-help-title">Help and information</h2></div><p>Learn how Cali’s modules, sharing controls, and account features work.</p></header>
+        <div className="workspace-help-card"><Link to="/guide" className="workspace-help-link"><span className="workspace-help-icon"><WorkspaceIcon section="guide" /></span><span><strong>Cali Guide</strong><small>Browse feature explanations, privacy guidance, and important workflows.</small></span><svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></Link></div>
+      </section>
+      <section className="workspace-settings-group" aria-labelledby="workspace-legal-title">
+        <header className="workspace-settings-group-head"><div><p className="workspace-overline">LEGAL</p><h2 id="workspace-legal-title">Policies and terms</h2></div><p>Understand the rules for using Cali and how your information is handled.</p></header>
+        <div className="workspace-legal-card">
+          <nav aria-label="Cali policies">
+            <Link to="/terms-and-conditions" state={{ from: '/settings', backLabel: 'Back to Settings', view: 'student' }} className="workspace-legal-link">
+              <span className="workspace-legal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5M10 12h5M10 16h5"/></svg></span>
+              <span><strong>Terms &amp; Conditions</strong><small>Rules and responsibilities for using Cali.</small></span>
+              <svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+            </Link>
+            <Link to="/privacy-policy" state={{ from: '/settings', backLabel: 'Back to Settings', view: 'student' }} className="workspace-legal-link">
+              <span className="workspace-legal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 19 6v5c0 4.6-2.8 8.1-7 10-4.2-1.9-7-5.4-7-10V6z"/><path d="m9.5 12 1.7 1.7 3.6-4"/></svg></span>
+              <span><strong>Privacy Policy</strong><small>What information Cali uses and how it is protected.</small></span>
+              <svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+            </Link>
+          </nav>
+        </div>
+      </section>
+      <section className="workspace-settings-group" aria-labelledby="workspace-account-title">
+        <header className="workspace-settings-group-head"><div><p className="workspace-overline">ACCOUNT</p><h2 id="workspace-account-title">Account data</h2></div><p>Permanent account actions are kept separate to prevent accidental changes.</p></header>
+        <div className="workspace-danger-zone"><div><p className="workspace-danger-label">PERMANENT ACTION</p><h3>Delete account</h3><p>Delete your account and all profile, schedule, task, event, reminder, and notification data stored in Cali.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></div>
+      </section>
     </div>
     <dialog ref={deleteDialogRef} className="signout-dialog workspace-delete-dialog" aria-labelledby="delete-account-title" aria-describedby="delete-account-description" onCancel={event => { if (deleting) event.preventDefault() }} onClose={() => { setDeleteOpen(false); deleteTriggerRef.current?.focus() }}>
       <form className="signout-dialog-content" onSubmit={confirmDeleteAccount}>
@@ -702,7 +760,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
             </div></section>
           </div>
         </div>
-      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'settings' ? <SettingsScreen /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : section === 'study' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Study"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><StudyPage studentId={student.user_id} /></Suspense> : section === 'community' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Community"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><CommunityPage /></Suspense> : <ModuleScreen section={section} />}
+      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'guide' ? <StudentGuide /> : section === 'settings' ? <SettingsScreen /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : section === 'study' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Study"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><StudyPage studentId={student.user_id} /></Suspense> : section === 'community' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Community"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><CommunityPage /></Suspense> : <ModuleScreen section={section} />}
     </div>
   </main>
 }
@@ -719,8 +777,11 @@ function WorkspacePage({ section }: { section: WorkspaceSection }) {
 
 function HomeRedirect() {
   const { state } = useAuth()
+  const location = useLocation()
+  const navigationState = (location.state ?? {}) as { view?: 'student' | 'admin' }
   if (state.status === 'loading') return <LoadingScreen />
-  if (state.status === 'ready') return <Navigate to={state.isAdmin ? '/admin' : '/dashboard'} replace />
+  if (['#features', '#how-it-works', '#about'].includes(location.hash)) return <LandingPage />
+  if (state.status === 'ready') return <Navigate to={state.isAdmin && navigationState.view !== 'student' ? '/admin' : '/dashboard'} replace />
   if (state.status === 'needsOnboarding') return <Navigate to="/onboarding" replace />
   if (state.status === 'ineligible') return <Navigate to="/access-denied" replace />
   if (state.status === 'error') return <AuthError />
@@ -729,7 +790,7 @@ function HomeRedirect() {
 
 function AppRoutes() {
   const [splashPhase, setSplashPhase] = useState<'showing' | 'leaving' | 'done'>(() => {
-    const knownPaths = ['/', '/login', '/team', '/terms-and-conditions', '/privacy-policy', '/community-guidelines', '/auth/callback', '/access-denied', '/onboarding', '/dashboard', '/schedules', '/tasks', '/calendar', '/study', '/community', '/profile', '/settings', '/admin', '/admin/moderation', '/admin/users', '/admin/system']
+    const knownPaths = ['/', '/login', '/team', '/terms-and-conditions', '/privacy-policy', '/community-guidelines', '/auth/callback', '/access-denied', '/onboarding', '/dashboard', '/schedules', '/tasks', '/calendar', '/study', '/community', '/profile', '/guide', '/settings', '/admin', '/admin/moderation', '/admin/users', '/admin/system', '/admin/handbook']
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'done'
     if (!knownPaths.includes(window.location.pathname)) return 'done'
     if (['/terms-and-conditions', '/privacy-policy', '/community-guidelines'].includes(window.location.pathname)) return 'done'
@@ -765,6 +826,7 @@ function AppRoutes() {
     <Route path="/community/reviewer/:reviewerId" element={<WorkspacePage section="community" />} />
     <Route path="/community/profile/:username" element={<WorkspacePage section="community" />} />
     <Route path="/profile" element={<WorkspacePage section="profile" />} />
+    <Route path="/guide" element={<WorkspacePage section="guide" />} />
     <Route path="/settings" element={<WorkspacePage section="settings" />} />
     <Route path="/admin/:section?" element={<Suspense fallback={<LoadingScreen />}><AdminPage /></Suspense>} />
     <Route path="*" element={<NotFoundPage />} />

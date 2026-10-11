@@ -1,0 +1,114 @@
+.status-page {
+  --status-accent: var(--color-cali-accent);
+  --status-soft: var(--color-cali-pale);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 54px) clamp(20px, 5vw, 76px) 24px;
+  background-color: var(--color-cali-canvas);
+  background-image: linear-gradient(to bottom, var(--color-cali-border), var(--color-cali-border));
+  background-repeat: no-repeat;
+  background-position: 0 clamp(82px, 8vw, 108px);
+  background-size: 100% 1px;
+  color: var(--color-cali-ink);
+}
+
+.status-page--access { --status-accent: #a86613; --status-soft: #fff5e5; }
+.status-page--error { --status-accent: var(--confirm-error-ink, #9f3d35); --status-soft: var(--confirm-error-bg, #fff1ef); }
+
+.status-header,
+.status-page-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100%, 1320px);
+  margin-inline: auto;
+}
+
+.status-brand { display: inline-flex; padding: 5px; border-radius: 10px; }
+.status-brand:focus-visible { outline: 3px solid color-mix(in srgb, var(--color-cali-accent) 25%, transparent); outline-offset: 3px; }
+.status-brand img { width: auto; height: 42px; }
+.status-header > span,
+.status-page-footer { color: var(--color-cali-slate); font-size: 10px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+
+.status-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  width: min(100%, 1080px);
+  margin: clamp(42px, 7vh, 84px) auto;
+}
+
+.status-content { width: min(100%, 820px); }
+.status-heading { display: flex; align-items: center; gap: 13px; }
+.status-page .status-artwork { display: grid; place-items: center; width: 43px; height: 43px; flex: 0 0 auto; margin: 0; border: 1px solid color-mix(in srgb, var(--status-accent) 20%, var(--color-cali-border)); border-radius: 13px; background: var(--status-soft); color: var(--status-accent); }
+.status-page .status-artwork svg { width: 21px; height: 21px; }
+.status-page .status-artwork--error { background: var(--confirm-error-bg, #fff1ef); color: var(--confirm-error-ink, #9f3d35); }
+.status-page .status-label { margin: 0; color: var(--status-accent); font-size: 11px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+
+.status-content h1 {
+  max-width: 590px;
+  margin: 26px 0 0;
+  color: var(--color-cali-ink);
+  font-family: Fredoka, sans-serif;
+  font-size: clamp(43px, 5vw, 67px);
+  font-weight: 500;
+  letter-spacing: -.045em;
+  line-height: 1.02;
+}
+
+.status-page .status-detail { max-width: 570px; margin: 19px 0 0; color: var(--color-cali-slate); font-size: 16px; line-height: 1.72; }
+.status-reason { margin-top: 30px; padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--status-accent) 32%, var(--color-cali-border)); border-left: 4px solid var(--status-accent); border-radius: 4px 14px 14px 4px; background: color-mix(in srgb, var(--status-soft) 72%, var(--color-cali-surface)); }
+.status-reason p { margin: 0 0 7px; color: var(--status-accent); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.status-reason strong { display: block; overflow-wrap: anywhere; font-size: 15px; font-weight: 700; line-height: 1.55; }
+
+.status-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 25px 0 0; border-block: 1px solid var(--color-cali-border); }
+.status-facts > div { padding: 16px 18px 17px 0; }
+.status-facts > div + div { padding-left: 20px; border-left: 1px solid var(--color-cali-border); }
+.status-facts dt { color: var(--color-cali-slate); font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+.status-facts dd { margin: 6px 0 0; font-size: 12px; font-weight: 700; line-height: 1.5; }
+.status-alert { margin: 18px 0 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--confirm-error-ink) 35%, var(--color-cali-border)); border-radius: 10px; background: var(--confirm-error-bg); color: var(--confirm-error-ink); font-size: 12px; font-weight: 650; line-height: 1.5; }
+
+.status-footer { display: flex; align-items: center; gap: 21px; margin-top: 30px; }
+.status-page .status-action { display: inline-flex; align-items: center; justify-content: center; width: auto; min-width: 190px; min-height: 45px; margin: 0; padding-inline: 21px; text-decoration: none; }
+.status-page .status-support { max-width: 305px; margin: 0; color: var(--color-cali-slate); font-size: 11px; line-height: 1.55; }
+
+.status-page-footer { padding-top: 18px; border-top: 1px solid var(--color-cali-border); font-size: 9px; }
+
+:root[data-theme="dark"] .status-page--access { --status-accent: #ffd18c; --status-soft: #453a28; }
+:root[data-theme="dark"] .status-page--error { --status-soft: var(--confirm-error-bg); }
+
+@media (max-width: 920px) {
+  .status-page { overflow: auto; padding-inline: clamp(20px, 6vw, 52px); }
+  .status-layout { margin-block: 54px; }
+  .status-content { max-width: 680px; }
+}
+
+@media (max-width: 560px) {
+  .status-page { align-items: stretch; padding: 18px 18px max(18px, env(safe-area-inset-bottom)); }
+  .status-header > span { display: none; }
+  .status-brand img { height: 36px; }
+  .status-layout { margin: 42px 0 34px; }
+  .status-content h1 { margin-top: 22px; font-size: clamp(38px, 12vw, 51px); }
+  .status-page .status-detail { margin-top: 15px; font-size: 14px; line-height: 1.65; }
+  .status-reason { margin-top: 24px; padding: 16px; }
+  .status-facts { grid-template-columns: 1fr; }
+  .status-facts > div { padding: 14px 0; }
+  .status-facts > div + div { padding-left: 0; border-top: 1px solid var(--color-cali-border); border-left: 0; }
+  .status-footer { align-items: stretch; flex-direction: column; gap: 13px; margin-top: 24px; }
+  .status-page .status-action { width: 100%; }
+  .status-page .status-support { max-width: none; }
+  .status-page-footer { padding-top: 15px; font-size: 8px; }
+}
+
+@media (max-height: 760px) and (min-width: 921px) {
+  .status-page { padding-block: 24px 18px; }
+  .status-layout { margin-block: 30px; }
+}

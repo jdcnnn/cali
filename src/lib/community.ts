@@ -5,6 +5,13 @@ export type ReviewerVisibility = 'private' | 'preview' | 'public'
 export type AccessType = 'read' | 'copy'
 export type VoteValue = -1 | 0 | 1
 
+export type CommunityVoteResult = {
+  userVote: VoteValue
+  netVotes: number
+  upvotes: number
+  downvotes: number
+}
+
 export type CommunityCreator = {
   userId: string
   username: string
@@ -40,7 +47,9 @@ export type CommunityReviewerCard = {
   userVote: VoteValue
   usage7d: number
   usage30d: number
+  studentUseCount: number
   excerpt: string
+  isSaved?: boolean
 }
 
 export type CommunityContributor = {
@@ -81,6 +90,14 @@ export type CommunityRequest = {
   student: { userId: string; username: string; avatarUrl: string | null }
 }
 
+export type CommunityReviewerAccess = {
+  id: string
+  type: AccessType
+  createdAt: string
+  reviewer: { id: string; title: string; visibility: ReviewerVisibility }
+  student: { userId: string; username: string; avatarUrl: string | null }
+}
+
 export type CommunityNotification = {
   id: string
   kind: string
@@ -102,6 +119,7 @@ export type CommunityNotificationPage = {
 
 export type CommunityInbox = {
   incoming: CommunityRequest[]
+  access: CommunityReviewerAccess[]
   outgoing: CommunityRequest[]
   notifications: CommunityNotification[]
   unreadCount: number
@@ -161,6 +179,14 @@ export function getCommunityReviewer(reviewerId: string) {
   return rpc<CommunityReviewer>('cali_get_community_reviewer', { p_reviewer_id: reviewerId })
 }
 
+export function listSavedCommunityReviewers(limit = 48) {
+  return rpc<CommunityReviewerCard[]>('cali_list_saved_reviewers', { p_limit: limit })
+}
+
+export function setCommunityReviewerSaved(reviewerId: string, saved: boolean) {
+  return rpc<boolean>('cali_set_reviewer_saved', { p_reviewer_id: reviewerId, p_saved: saved })
+}
+
 export function getCommunityProfile(username: string) {
   return rpc<CommunityProfile>('cali_get_community_profile', { p_username: username })
 }
@@ -177,6 +203,10 @@ export function resolveReviewerAccess(requestId: string, approve: boolean) {
   return rpc('cali_resolve_reviewer_access', { p_request_id: requestId, p_approve: approve })
 }
 
+export function changeReviewerAccess(grantId: string, accessType: AccessType) {
+  return rpc('cali_change_reviewer_access', { p_grant_id: grantId, p_access_type: accessType })
+}
+
 export function revokeReviewerAccess(grantId: string) {
   return rpc('cali_revoke_reviewer_access', { p_grant_id: grantId })
 }
@@ -185,8 +215,23 @@ export function copyCommunityReviewer(reviewerId: string) {
   return rpcSingle<{ id: string }>('cali_copy_community_reviewer', { p_reviewer_id: reviewerId })
 }
 
-export function voteCommunityReviewer(reviewerId: string, value: VoteValue) {
-  return rpc<{ userVote: VoteValue; netVotes: number }>('cali_vote_community_reviewer', { p_reviewer_id: reviewerId, p_value: value })
+async function broadcastCommunityVoteUpdate(reviewerId: string) {
+  const client = supabase
+  if (!client) return
+  const channel = client.channel('community-reviewer-votes')
+  try {
+    await channel.httpSend('vote-updated', { reviewerId })
+  } finally {
+    await client.removeChannel(channel)
+  }
+}
+
+export async function voteCommunityReviewer(reviewerId: string, value: VoteValue) {
+  const result = await rpc<CommunityVoteResult>('cali_vote_community_reviewer', { p_reviewer_id: reviewerId, p_value: value })
+  // The vote is already durable. Realtime delivery is best-effort and must not
+  // turn a successful reaction into an error for the student.
+  void broadcastCommunityVoteUpdate(reviewerId).catch(() => undefined)
+  return result
 }
 
 export function recordCommunityReviewerUse(reviewerId: string) {
@@ -276,6 +321,30 @@ export function subscribeToCommunityNotifications(userId: string, onNotification
         archivedAt: typeof row.archived_at === 'string' ? row.archived_at : null,
         createdAt: typeof row.created_at === 'string' ? row.created_at : new Date().toISOString(),
       })
+    })
+    .subscribe()
+  return () => { void client.removeChannel(channel) }
+}
+
+export function subscribeToCommunityAccessChanges(userId: string, onChange: () => void) {
+  const client = supabase
+  if (!client) return () => undefined
+  const channel = client
+    .channel(`community-access:${userId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reviewer_access_requests' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reviewer_access_grants' }, onChange)
+    .subscribe()
+  return () => { void client.removeChannel(channel) }
+}
+
+export function subscribeToCommunityVoteUpdates(onChange: (reviewerId: string) => void) {
+  const client = supabase
+  if (!client) return () => undefined
+  const channel = client
+    .channel('community-reviewer-votes')
+    .on('broadcast', { event: 'vote-updated' }, message => {
+      const reviewerId = (message.payload as { reviewerId?: unknown } | undefined)?.reviewerId
+      if (typeof reviewerId === 'string') onChange(reviewerId)
     })
     .subscribe()
   return () => { void client.removeChannel(channel) }

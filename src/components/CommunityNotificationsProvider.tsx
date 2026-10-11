@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
-import { getCommunityInbox, getCommunityNotificationPage, subscribeToCommunityNotifications } from '../lib/community'
+import { getCommunityInbox, getCommunityNotificationPage, subscribeToCommunityAccessChanges, subscribeToCommunityNotifications } from '../lib/community'
 import type { CommunityNotification } from '../lib/community'
 
 type CommunityNotificationsContextValue = {
@@ -43,6 +43,13 @@ export function CommunityNotificationsProvider({ children }: { children: ReactNo
     if (!userId) return
     return subscribeToCommunityNotifications(userId, notification => {
       setNotice(notification)
+      setLiveVersion(version => version + 1)
+      void refreshInboxCount()
+    })
+  }, [refreshInboxCount, userId])
+  useEffect(() => {
+    if (!userId) return
+    return subscribeToCommunityAccessChanges(userId, () => {
       setLiveVersion(version => version + 1)
       void refreshInboxCount()
     })

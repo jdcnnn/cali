@@ -263,7 +263,7 @@ The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK 
 
 ### Initial data domains, not a complete schema
 
-Student profile, schedule meetings and their class reminders, push subscriptions, tasks, reviewers, flashcard sets, quizzes, flashcard progress, and quiz attempts are implemented domains. Community shares remain planned. Original uploaded files and standalone study-material records are not persistent domains.
+Student profiles, schedule meetings and their class reminders, push subscriptions, tasks, reviewers, Community shares and access grants, reports and notifications, flashcard sets, quizzes, flashcard progress, and quiz attempts are implemented domains. Original uploaded files and standalone study-material records are not persistent domains.
 
 ## 9. Design direction
 
@@ -284,8 +284,16 @@ The design prioritizes readable academic information and quick access to work. S
 | 7. Calendar | **Complete** | Independent Cali-branded monthly calendar for class meetings, task deadlines, and Events, with a responsive selected-day detail panel, preview modals, selected-date creation, notification targeting, Event editing/deletion, a three-way create menu, and ten theme-aware named colors. Weekly browsing remains in Schedules. |
 | 8. Study | **Complete** | Private reviewers, notebook-photo OCR, digital-PDF extraction, AI-assisted reviewer drafts, flashcards, quizzes, mastery, and attempt history are implemented. OCR for scanned PDFs, `.docx` import, and AI-generated flashcards/quizzes are outside this phase. |
 | 9. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
-| 10. Community | **Planned** | Publishing, discovery, attribution, visibility, and moderation for shared reviewers. |
+| 10. Community and administration | **Implemented locally; deployment verification pending** | Reviewer publishing/discovery, attribution, voting/use signals, view/edit requests and grants, copies, realtime/paginated notifications, reviewer-only reports and moderation, responsive admin Overview/Users/Moderation/System areas, public-profile inspection, suspension controls, report signals, sign-in policy, and audit history. |
 | 11. Release review | **Planned** | Key journey, authorization, data handling, accessibility, performance, and deployment verification. |
+
+### Next implementation sequence
+
+1. Apply and verify the Community/admin migrations from `20261009010000_cali_community.sql` through `20261010104500_access_status_support_identity.sql`, then deploy the matching frontend.
+2. Perform authenticated desktop/mobile acceptance testing of reviewer publishing, access grants, notifications, report review, user inspection, suspension/restoration, audit pagination, and the support-ticket draft.
+3. Add end-to-end authorization tests for student/admin routes and privileged RPCs. Report totals remain signals only; automatic suspension requires a separately approved threshold, appeal path, false-positive policy, and human-review safeguard.
+4. Complete release accessibility, keyboard, focus, contrast, reduced-motion, performance, and device-matrix review.
+5. Specify Learning analytics around actionable saved study activity and quiz outcomes, without decorative or unsupported analytics.
 
 Each remaining phase should receive its own user flow, data contract, validation rules, failure states, and acceptance criteria before development begins. Completed phases remain subject to release-level accessibility, performance, and deployment verification.
 

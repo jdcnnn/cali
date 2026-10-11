@@ -1,0 +1,291 @@
+/* Shared visual contract for Cali dialogs and action icons. Module-specific CSS
+   owns layout; this file owns modal hierarchy, control rhythm, and semantics. */
+
+:is(
+  dialog.signout-dialog,
+  dialog.task-editor-dialog,
+  dialog.task-detail-dialog,
+  dialog.task-confirm-dialog,
+  dialog.calendar-preview-dialog,
+  dialog.calendar-event-dialog,
+  dialog.schedule-dialog,
+  dialog.schedule-scan-dialog,
+  dialog.study-dialog,
+  dialog.study-confirm-dialog,
+  dialog.cali-picker-dialog
+) {
+  border-color: var(--color-cali-border);
+  border-radius: var(--modal-radius);
+  background: var(--color-cali-surface);
+  color: var(--color-cali-ink);
+  box-shadow: var(--modal-shadow);
+}
+
+:is(
+  dialog.signout-dialog,
+  dialog.task-editor-dialog,
+  dialog.task-detail-dialog,
+  dialog.task-confirm-dialog,
+  dialog.calendar-preview-dialog,
+  dialog.calendar-event-dialog,
+  dialog.schedule-dialog,
+  dialog.schedule-scan-dialog,
+  dialog.study-dialog,
+  dialog.study-confirm-dialog,
+  dialog.cali-picker-dialog
+)::backdrop {
+  background: var(--modal-backdrop);
+  backdrop-filter: blur(4px);
+}
+
+:is(
+  .signout-dialog.signout-dialog,
+  .task-confirm-dialog.task-confirm-dialog,
+  .study-confirm-dialog.study-confirm-dialog,
+  .schedule-dialog.schedule-dialog--confirmation,
+  .calendar-event-dialog.calendar-event-dialog.is-confirmation,
+  .admin-dialog.admin-dialog
+) h2,
+:is(.schedule-remove-dialog.schedule-remove-dialog, .schedule-scan-confirm.schedule-scan-confirm) h3 {
+  font-family: Fredoka, sans-serif;
+  font-size: var(--modal-title-size);
+  font-weight: 500;
+  letter-spacing: -.025em;
+  line-height: 1.18;
+}
+
+:is(
+  .task-editor-dialog.task-editor-dialog,
+  .task-detail-dialog.task-detail-dialog,
+  .calendar-preview-dialog.calendar-preview-dialog,
+  .calendar-event-dialog.calendar-event-dialog:not(.is-confirmation),
+  .schedule-dialog.schedule-dialog:not(.schedule-dialog--confirmation),
+  .study-dialog.study-dialog,
+  .cali-picker-dialog.cali-picker-dialog,
+  .admin-preview.admin-preview,
+  .admin-user-profile-modal.admin-user-profile-modal,
+  .admin-enforcement-modal.admin-enforcement-modal
+) h2,
+.cali-picker-dialog.cali-picker-dialog h3 {
+  font-family: Fredoka, sans-serif;
+  font-size: var(--modal-title-size);
+  font-weight: 500;
+  letter-spacing: -.025em;
+  line-height: 1.18;
+}
+
+:is(
+  .signout-dialog-content,
+  .task-confirm-dialog > div,
+  .study-confirm-dialog > div,
+  .schedule-dialog--confirmation .schedule-dialog-content,
+  .calendar-event-confirm,
+  .schedule-remove-dialog,
+  .schedule-scan-confirm,
+  .admin-dialog
+) > p:not(.workspace-overline):not([role="alert"]),
+.admin-dialog.admin-dialog .admin-dialog-description {
+  color: var(--color-cali-slate);
+  font-size: var(--modal-body-size);
+  line-height: 1.6;
+}
+
+:is(
+  .signout-dialog,
+  .task-confirm-dialog,
+  .study-confirm-dialog,
+  .schedule-dialog--confirmation,
+  .calendar-event-dialog.is-confirmation,
+  .schedule-remove-dialog,
+  .schedule-scan-confirm,
+  .admin-dialog
+) :is(.workspace-overline, .signout-dialog-kicker, .admin-eyebrow) {
+  font-size: var(--modal-caption-size);
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+:is(
+  .task-close.task-close,
+  .schedule-close.schedule-close,
+  .study-dialog-close.study-dialog-close,
+  .calendar-event-dialog.calendar-event-dialog header > button,
+  .calendar-preview.calendar-preview > header > button,
+  .cali-picker-dialog.cali-picker-dialog header button,
+  .admin-dialog-close.admin-dialog-close,
+  .admin-preview-header.admin-preview-header > button,
+  .admin-user-profile-modal.admin-user-profile-modal > header button,
+  .admin-enforcement-modal.admin-enforcement-modal > header button
+) {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-cali-border);
+  border-radius: var(--modal-control-radius);
+  background: var(--color-cali-surface);
+  color: var(--color-cali-slate);
+}
+
+:is(
+  .task-close.task-close,
+  .schedule-close.schedule-close,
+  .study-dialog-close.study-dialog-close,
+  .calendar-event-dialog.calendar-event-dialog header > button,
+  .calendar-preview.calendar-preview > header > button,
+  .cali-picker-dialog.cali-picker-dialog header button,
+  .admin-dialog-close.admin-dialog-close,
+  .admin-preview-header.admin-preview-header > button,
+  .admin-user-profile-modal.admin-user-profile-modal > header button,
+  .admin-enforcement-modal.admin-enforcement-modal > header button
+):hover {
+  border-color: color-mix(in srgb, var(--color-cali-accent) 42%, var(--color-cali-border));
+  background: var(--color-cali-pale);
+  color: var(--color-cali-action-text);
+}
+
+:is(
+  .task-close,
+  .schedule-close,
+  .study-dialog-close,
+  .calendar-event-dialog header > button,
+  .calendar-preview > header > button,
+  .cali-picker-dialog header button,
+  .admin-dialog-close,
+  .admin-preview-header > button,
+  .admin-user-profile-modal > header button,
+  .admin-enforcement-modal > header button
+) svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+
+:is(
+  .signout-dialog-actions,
+  .task-confirm-dialog footer,
+  .task-editor > footer,
+  .task-detail-footer,
+  .calendar-event-dialog form > footer,
+  .calendar-preview > footer,
+  .schedule-dialog-actions,
+  .schedule-dialog-footer,
+  .schedule-remove-dialog > div,
+  .schedule-scan-confirm > div,
+  .study-confirm-dialog footer,
+  .study-dialog-shell > footer,
+  .reviewer-share-dialog footer,
+  .cali-picker-dialog footer,
+  .admin-dialog-actions,
+  .admin-user-profile-modal > footer,
+  .admin-enforcement-modal > footer,
+  .admin-preview-footer
+) :is(button, .button-primary, .admin-button) {
+  min-height: var(--modal-action-height);
+  border-radius: var(--modal-control-radius);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+:is(
+  button.study-danger.study-danger,
+  button.task-danger.task-danger,
+  button.schedule-danger.schedule-danger,
+  button.calendar-event-danger.calendar-event-danger,
+  button.admin-button--danger.admin-button--danger
+) {
+  border-color: var(--semantic-critical-ink);
+  background: var(--semantic-critical-ink);
+  color: #fff;
+}
+
+:is(
+  button.study-danger.study-danger,
+  button.task-danger.task-danger,
+  button.schedule-danger.schedule-danger,
+  button.calendar-event-danger.calendar-event-danger,
+  button.admin-button--danger.admin-button--danger
+):hover:not(:disabled) {
+  filter: brightness(.9);
+}
+
+:is(
+  button.study-leave-button.study-leave-button,
+  button.calendar-event-delete.calendar-event-delete,
+  button.admin-button--danger-quiet.admin-button--danger-quiet
+) {
+  border-color: color-mix(in srgb, var(--semantic-critical-ink) 42%, var(--color-cali-border));
+  background: var(--semantic-critical-surface);
+  color: var(--semantic-critical-ink);
+}
+
+:is(
+  button.study-leave-button.study-leave-button,
+  button.calendar-event-delete.calendar-event-delete,
+  button.admin-button--danger-quiet.admin-button--danger-quiet
+):hover:not(:disabled) {
+  border-color: var(--semantic-critical-ink);
+  background: color-mix(in srgb, var(--semantic-critical-ink) 12%, var(--semantic-critical-surface));
+}
+
+:is(
+  button.study-secondary.study-secondary,
+  button.task-secondary.task-secondary,
+  button.schedule-secondary.schedule-secondary,
+  button.cali-picker-secondary.cali-picker-secondary,
+  button.signout-cancel.signout-cancel,
+  button.admin-dialog-cancel.admin-dialog-cancel
+) {
+  border-color: var(--color-cali-border);
+  background: var(--color-cali-surface);
+  color: var(--color-cali-ink);
+}
+
+:is(
+  button.study-secondary.study-secondary,
+  button.task-secondary.task-secondary,
+  button.schedule-secondary.schedule-secondary,
+  button.cali-picker-secondary.cali-picker-secondary,
+  button.signout-cancel.signout-cancel,
+  button.admin-dialog-cancel.admin-dialog-cancel
+):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-cali-accent) 35%, var(--color-cali-border));
+  background: var(--color-cali-pale);
+  color: var(--color-cali-action-text);
+}
+
+:is(.button-primary, .admin-button, .study-danger, .study-leave-button, .task-danger, .task-secondary, .schedule-danger, .schedule-secondary) > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+@media (max-width: 560px) {
+  :root {
+    --modal-title-size: 24px;
+    --modal-body-size: 13px;
+    --modal-action-height: 42px;
+  }
+
+  :is(
+    dialog.signout-dialog,
+    dialog.task-confirm-dialog,
+    dialog.study-confirm-dialog,
+    dialog.calendar-event-dialog,
+    dialog.schedule-dialog,
+    dialog.cali-picker-dialog
+  ) {
+    border-radius: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.confirmation-icon, .confirmation-icon svg) {
+    animation: none;
+    transition: none;
+  }
+}

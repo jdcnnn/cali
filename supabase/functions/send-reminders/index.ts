@@ -13,10 +13,14 @@ type QueueItem = {
 
 type PushSubscriptionRow = {
   id: string
+  user_id: string
   endpoint: string
   p256dh: string
   auth: string
 }
+
+type ReminderDeliveryRow = { reminder_id: string; subscription_id: string }
+type CommunityDeliveryRow = { notification_id: string; subscription_id: string }
 
 type CommunityQueueItem = {
   id: string
@@ -95,20 +99,49 @@ Deno.serve(async request => {
     if (suspendedError) throw suspendedError
     const suspendedUsers = new Set((suspendedRows ?? []).map(row => row.user_id as string))
 
+    const { data: subscriptionRows, error: subscriptionsError } = claimedUserIds.length
+      ? await admin.from('push_subscriptions').select('id,user_id,endpoint,p256dh,auth').in('user_id', claimedUserIds).eq('is_active', true)
+      : { data: [], error: null }
+    if (subscriptionsError) throw subscriptionsError
+    const subscriptionsByUser = new Map<string, PushSubscriptionRow[]>()
+    for (const row of (subscriptionRows ?? []) as PushSubscriptionRow[]) {
+      const subscriptions = subscriptionsByUser.get(row.user_id) ?? []
+      subscriptions.push(row)
+      subscriptionsByUser.set(row.user_id, subscriptions)
+    }
+
+    const reminderIds = reminders.map(item => item.id)
+    const { data: reminderDeliveryRows, error: reminderDeliveriesError } = reminderIds.length
+      ? await admin.from('reminder_deliveries').select('reminder_id,subscription_id').in('reminder_id', reminderIds)
+      : { data: [], error: null }
+    if (reminderDeliveriesError) throw reminderDeliveriesError
+    const reminderDeliveries = new Map<string, Set<string>>()
+    for (const row of (reminderDeliveryRows ?? []) as ReminderDeliveryRow[]) {
+      const delivered = reminderDeliveries.get(row.reminder_id) ?? new Set<string>()
+      delivered.add(row.subscription_id)
+      reminderDeliveries.set(row.reminder_id, delivered)
+    }
+
+    const communityNotificationIds = communityNotifications.map(item => item.id)
+    const { data: communityDeliveryRows, error: communityDeliveriesError } = communityNotificationIds.length
+      ? await admin.from('community_notification_deliveries').select('notification_id,subscription_id').in('notification_id', communityNotificationIds)
+      : { data: [], error: null }
+    if (communityDeliveriesError) throw communityDeliveriesError
+    const communityDeliveries = new Map<string, Set<string>>()
+    for (const row of (communityDeliveryRows ?? []) as CommunityDeliveryRow[]) {
+      const delivered = communityDeliveries.get(row.notification_id) ?? new Set<string>()
+      delivered.add(row.subscription_id)
+      communityDeliveries.set(row.notification_id, delivered)
+    }
+
     for (const reminder of reminders) {
       if (suspendedUsers.has(reminder.user_id)) {
         await admin.from('reminder_queue').update({ status: 'missed', claim_token: null, last_error: 'Account suspended' }).eq('id', reminder.id)
         missed++
         continue
       }
-      const { data: subscriptions, error: subscriptionsError } = await admin.from('push_subscriptions')
-        .select('id,endpoint,p256dh,auth').eq('user_id', reminder.user_id).eq('is_active', true)
-      if (subscriptionsError) throw subscriptionsError
-
-      const { data: deliveredRows, error: deliveredError } = await admin.from('reminder_deliveries')
-        .select('subscription_id').eq('reminder_id', reminder.id)
-      if (deliveredError) throw deliveredError
-      const delivered = new Set((deliveredRows ?? []).map(row => row.subscription_id as string))
+      const subscriptions = subscriptionsByUser.get(reminder.user_id) ?? []
+      const delivered = new Set(reminderDeliveries.get(reminder.id) ?? [])
 
       let title = 'Cali reminder'
       let body = `Scheduled for ${manilaTime(reminder.occurrence_at)}`
@@ -154,7 +187,7 @@ Deno.serve(async request => {
         actionLabel = 'View event'
       }
 
-      const pendingSubscriptions = (subscriptions as PushSubscriptionRow[]).filter(subscription => !delivered.has(subscription.id))
+      const pendingSubscriptions = subscriptions.filter(subscription => !delivered.has(subscription.id))
       let transientFailure = false
       let longestDelay = 60_000
 
@@ -198,7 +231,7 @@ Deno.serve(async request => {
         status: terminalStatus,
         sent_at: terminalStatus === 'sent' ? new Date().toISOString() : null,
         claim_token: null,
-        last_error: terminalStatus === 'missed' ? (subscriptions?.length ? 'Push delivery failed' : 'No active push subscriptions') : null,
+        last_error: terminalStatus === 'missed' ? (subscriptions.length ? 'Push delivery failed' : 'No active push subscriptions') : null,
       }).eq('id', reminder.id)
       if (terminalStatus === 'sent') sent++
       else missed++
@@ -211,16 +244,11 @@ Deno.serve(async request => {
         communityMissed++
         continue
       }
-      const { data: subscriptions, error: subscriptionsError } = await admin.from('push_subscriptions')
-        .select('id,endpoint,p256dh,auth').eq('user_id', notification.user_id).eq('is_active', true)
-      if (subscriptionsError) throw subscriptionsError
-      const { data: deliveredRows, error: deliveredError } = await admin.from('community_notification_deliveries')
-        .select('subscription_id').eq('notification_id', notification.id)
-      if (deliveredError) throw deliveredError
-      const delivered = new Set((deliveredRows ?? []).map(row => row.subscription_id as string))
+      const subscriptions = subscriptionsByUser.get(notification.user_id) ?? []
+      const delivered = new Set(communityDeliveries.get(notification.id) ?? [])
       let transientFailure = false
       let longestDelay = 60_000
-      for (const subscription of (subscriptions as PushSubscriptionRow[]).filter(item => !delivered.has(item.id))) {
+      for (const subscription of subscriptions.filter(item => !delivered.has(item.id))) {
         try {
           await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify({
             title: notification.title,
@@ -245,7 +273,7 @@ Deno.serve(async request => {
         continue
       }
       const terminalStatus = delivered.size > 0 ? 'sent' : 'missed'
-      await admin.from('community_notifications').update({ push_status: terminalStatus, push_sent_at: terminalStatus === 'sent' ? new Date().toISOString() : null, push_claimed_at: null, push_last_error: terminalStatus === 'missed' ? (subscriptions?.length ? 'Push delivery failed' : 'No active push subscriptions') : null }).eq('id', notification.id)
+      await admin.from('community_notifications').update({ push_status: terminalStatus, push_sent_at: terminalStatus === 'sent' ? new Date().toISOString() : null, push_claimed_at: null, push_last_error: terminalStatus === 'missed' ? (subscriptions.length ? 'Push delivery failed' : 'No active push subscriptions') : null }).eq('id', notification.id)
       if (terminalStatus === 'sent') communitySent++
       else communityMissed++
     }
@@ -260,6 +288,6 @@ Deno.serve(async request => {
       code: String(failure?.code ?? '').slice(0, 40),
       status: Number(failure?.statusCode) || undefined,
     }))
-    return new Response(JSON.stringify({ error: cause instanceof Error ? cause.message : 'Reminder dispatch failed' }), { status: 500, headers: corsHeaders })
+    return new Response(JSON.stringify({ error: 'Reminder dispatch failed' }), { status: 500, headers: corsHeaders })
   }
 })
