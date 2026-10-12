@@ -49,6 +49,7 @@ export type QuizChoice = { id: string; text: string }
 export type QuizQuestion = {
   id: string
   type: 'multiple_choice' | 'true_false'
+  topic?: string
   prompt: JSONContent
   promptText: string
   choices: QuizChoice[]
@@ -72,20 +73,35 @@ export type Quiz = {
   updated_at: string
 }
 
+export type QuizMode = 'practice' | 'test'
+export type QuizPhase = 'first_pass' | 'review'
 export type QuizSnapshot = { questions: QuizQuestion[]; shuffleQuestions: boolean; shuffleChoices: boolean }
 export type QuizAttempt = {
   id: string
   quiz_id: string
   user_id: string
   status: 'active' | 'completed' | 'abandoned'
+  mode: QuizMode
+  phase: QuizPhase
   snapshot: QuizSnapshot
   answers: Record<string, string>
+  first_answers: Record<string, string>
   current_index: number
   score: number | null
+  first_try_score: number | null
   total: number | null
   started_at: string
   updated_at: string
   completed_at: string | null
+}
+
+export type QuizTopicInsight = {
+  topic: string
+  mastery: number | null
+  exposures: number
+  correct: number
+  accuracy: number
+  quizId?: string
 }
 
 export const SKIPPED_QUIZ_ANSWER = '__cali_skipped__'
@@ -178,8 +194,68 @@ export function quizSnapshotMatchesQuestions(snapshot: QuizSnapshot, questions: 
   return JSON.stringify(current) === JSON.stringify(saved)
 }
 
+export function quizSnapshotMatchesQuestionSubset(snapshot: QuizSnapshot, questions: QuizQuestion[]): boolean {
+  const snapshotIds = new Set(snapshot.questions.map(question => question.id))
+  return quizSnapshotMatchesQuestions(snapshot, questions.filter(question => snapshotIds.has(question.id)))
+}
+
 export function scoreQuiz(snapshot: QuizSnapshot, answers: Record<string, string>): number {
   return snapshot.questions.reduce((score, question) => score + Number(answers[question.id] === question.correctChoiceId), 0)
+}
+
+export function quizTopic(question: QuizQuestion, quizTitle: string): string {
+  return question.topic?.trim() || quizTitle.trim() || 'General review'
+}
+
+export function quizAttemptMetrics(attempt: QuizAttempt) {
+  const questions = attempt.snapshot.questions
+  const firstAnswers = attempt.first_answers ?? attempt.answers
+  const firstTryCorrect = scoreQuiz(attempt.snapshot, firstAnswers)
+  const finalCorrect = scoreQuiz(attempt.snapshot, attempt.answers)
+  const skipped = questions.filter(question => !firstAnswers[question.id] || firstAnswers[question.id] === SKIPPED_QUIZ_ANSWER).length
+  return {
+    total: questions.length,
+    firstTryCorrect,
+    finalCorrect,
+    recovered: Math.max(0, finalCorrect - firstTryCorrect),
+    skipped,
+  }
+}
+
+export function quizTopicInsights(attempts: QuizAttempt[], quizTitles: Record<string, string> = {}): QuizTopicInsight[] {
+  const outcomes = new Map<string, Array<{ value: number; correct: boolean; quizId: string }>>()
+  const completed = attempts
+    .filter(attempt => attempt.status === 'completed')
+    .sort((left, right) => new Date(right.completed_at ?? right.updated_at).getTime() - new Date(left.completed_at ?? left.updated_at).getTime())
+  for (const attempt of completed) {
+    const firstAnswers = attempt.first_answers ?? attempt.answers
+    for (const question of attempt.snapshot.questions) {
+      const topic = quizTopic(question, quizTitles[attempt.quiz_id] ?? 'General review')
+      const firstCorrect = firstAnswers[question.id] === question.correctChoiceId
+      const finalCorrect = attempt.answers[question.id] === question.correctChoiceId
+      const entries = outcomes.get(topic) ?? []
+      if (entries.length < 5) entries.push({ value: firstCorrect ? 100 : finalCorrect ? 60 : 0, correct: finalCorrect, quizId: attempt.quiz_id })
+      outcomes.set(topic, entries)
+    }
+  }
+  return [...outcomes.entries()].map(([topic, entries]) => {
+    const correct = entries.filter(entry => entry.correct).length
+    return {
+      topic,
+      exposures: entries.length,
+      correct,
+      accuracy: Math.round((correct / entries.length) * 100),
+      mastery: entries.length < 2 ? null : Math.round(entries.reduce((sum, entry) => sum + entry.value, 0) / entries.length),
+      quizId: entries[0]?.quizId,
+    }
+  }).sort((left, right) => left.accuracy - right.accuracy || right.exposures - left.exposures)
+}
+
+export function quizReviewQuestionIds(attempt: QuizAttempt): string[] {
+  const firstAnswers = attempt.first_answers ?? attempt.answers
+  return attempt.snapshot.questions
+    .filter(question => firstAnswers[question.id] !== question.correctChoiceId)
+    .map(question => question.id)
 }
 
 export function nextQuizQuestionIndex(questions: QuizQuestion[], answers: Record<string, string>, currentIndex: number): number | null {

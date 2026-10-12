@@ -1,4 +1,4 @@
-import './skeleton.css'
+import '../styles/skeleton.css'
 
 export function StudyLibraryCountSkeleton() {
   return <span className="reviewer-count reviewer-count--loading" aria-label="Loading item count"><span className="cali-skeleton" aria-hidden="true" /></span>

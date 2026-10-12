@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, ReactNode } from 'react'
-import './cali-select.css'
+import '../styles/cali-select.css'
 
 export type CaliSelectOption = {
   value: string
@@ -14,13 +14,15 @@ function SelectChevronIcon() {
   return <svg className="cali-select-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 7.5 5 5 5-5" /></svg>
 }
 
-export function CaliSelect({ value, options, onChange, ariaLabel, className = '', leading }: {
+export function CaliSelect({ value, options, onChange, ariaLabel, className = '', leading, disabled = false, id }: {
   value: string
   options: CaliSelectOption[]
   onChange: (value: string) => void
   ariaLabel: string
   className?: string
   leading?: ReactNode
+  disabled?: boolean
+  id?: string
 }) {
   const [open, setOpen] = useState(false)
   const [portalHost, setPortalHost] = useState<HTMLElement | null>(null)
@@ -38,11 +40,17 @@ export function CaliSelect({ value, options, onChange, ariaLabel, className = ''
       const target = event.target as Node
       if (!rootRef.current?.contains(target) && !listRef.current?.contains(target)) setOpen(false)
     }
+    const closeAfterFocusLeaves = (event: FocusEvent) => {
+      const target = event.target as Node
+      if (!rootRef.current?.contains(target) && !listRef.current?.contains(target)) setOpen(false)
+    }
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); triggerRef.current?.focus() } }
     document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('focusin', closeAfterFocusLeaves)
     document.addEventListener('keydown', closeOnEscape)
     return () => {
       document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('focusin', closeAfterFocusLeaves)
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [open])
@@ -89,6 +97,7 @@ export function CaliSelect({ value, options, onChange, ariaLabel, className = ''
   }, [open, portalHost, positionMenu])
 
   const openMenu = (focusIndex?: number) => {
+    if (disabled) return
     const trigger = triggerRef.current
     if (!trigger) return
     const host = trigger.closest('dialog') ?? document.body
@@ -98,15 +107,15 @@ export function CaliSelect({ value, options, onChange, ariaLabel, className = ''
     if (focusIndex !== undefined) window.requestAnimationFrame(() => optionRefs.current[focusIndex]?.focus())
   }
 
-  return <div ref={rootRef} className={`cali-select${open ? ' is-open' : ''}${className ? ` ${className}` : ''}`}>
-    <button ref={triggerRef} type="button" className="cali-select-trigger" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open} onClick={() => { if (open) setOpen(false); else openMenu() }} onKeyDown={event => {
+  return <div ref={rootRef} className={`cali-select${open && !disabled ? ' is-open' : ''}${disabled ? ' is-disabled' : ''}${className ? ` ${className}` : ''}`}>
+    <button id={id} ref={triggerRef} type="button" className="cali-select-trigger" disabled={disabled} aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open && !disabled} onClick={() => { if (open) setOpen(false); else openMenu() }} onKeyDown={event => {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); openMenu(event.key === 'ArrowDown' ? selectedIndex : Math.max(0, selectedIndex - 1)) }
     }}>
       {leading && <span className="cali-select-leading">{leading}</span>}
       <span className="cali-select-value">{selected?.triggerLabel ?? selected?.label}</span>
       <SelectChevronIcon />
     </button>
-    {open && portalHost && createPortal(<div ref={listRef} className="cali-select-options cali-select-options--portal" style={menuStyle} role="listbox" aria-label={ariaLabel}>
+    {open && !disabled && portalHost && createPortal(<div ref={listRef} className={`cali-select-options cali-select-options--portal${className ? ` ${className}` : ''}`} style={menuStyle} role="listbox" aria-label={ariaLabel}>
       {options.map((option, index) => <button
         ref={element => { optionRefs.current[index] = element }}
         key={option.value || 'default'}

@@ -27,8 +27,8 @@ import { CaliSelect, type CaliSelectOption } from './CaliSelect'
 import { BackArrowIcon } from './BackArrowIcon'
 import { ConfirmationIcon } from './ConfirmationIcon'
 import { StudyLibraryCardsSkeleton, StudyLibraryCountSkeleton, StudyLibraryFiltersSkeleton } from './StudyLibrarySkeleton'
-import './study.css'
-import './skeleton.css'
+import '../styles/study.css'
+import '../styles/skeleton.css'
 
 type Notice = { kind: 'error' | 'success'; text: string } | null
 type ReviewerSaveState = 'saved' | 'dirty' | 'saving' | 'error'

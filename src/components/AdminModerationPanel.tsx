@@ -13,7 +13,7 @@ import {
 import type { AdminCommunityItem, AdminReport, CommunitySearch } from '../lib/admin'
 import { formatYearLevel } from '../lib/academic'
 import { ProfileAvatar } from './CaliWordmark'
-import './admin-moderation.css'
+import '../styles/admin-moderation.css'
 
 type ActionRequest = {
   title: string

@@ -40,7 +40,7 @@ import type {
   VoteValue,
 } from '../lib/community'
 import { formatYearLevel } from '../lib/academic'
-import './community.css'
+import '../styles/community.css'
 
 type Notice = { tone: 'success' | 'error'; text: string } | null
 type ConfirmAction = {
@@ -56,6 +56,34 @@ type ConfirmAction = {
 const yearLabels = Array.from({ length: 5 }, (_, index) => formatYearLevel(index + 1))
 const standardCommunityCategories = ['General', 'General Science', 'Mathematics', 'Programming', 'Engineering', 'Health Sciences', 'Business', 'Social Sciences', 'Humanities', 'Languages']
 const compactCount = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 })
+const profileReportOptions: CaliSelectOption[] = [
+  { value: 'impersonation', label: 'Impersonation or false identity' },
+  { value: 'harassment', label: 'Harassment or targeted abuse' },
+  { value: 'inappropriate', label: 'Inappropriate profile information' },
+  { value: 'spam', label: 'Spam or scam account' },
+  { value: 'privacy', label: 'Privacy or personal safety concern' },
+  { value: 'other', label: 'Something else' },
+]
+const reviewerReportOptions: CaliSelectOption[] = [
+  { value: 'misleading', label: 'Misleading or inaccurate' },
+  { value: 'spam', label: 'Spam' },
+  { value: 'inappropriate', label: 'Inappropriate content' },
+  { value: 'copyright', label: 'Copyright concern' },
+  { value: 'other', label: 'Other' },
+]
+const yearFilterOptions: CaliSelectOption[] = [{ value: '', label: 'All year levels' }, ...yearLabels.map((label, index) => ({ value: String(index + 1), label }))]
+const visibilityFilterOptions: CaliSelectOption[] = [
+  { value: '', label: 'Public + Preview' },
+  { value: 'public', label: 'Public only', detail: 'Fully readable reviewers' },
+  { value: 'preview', label: 'Preview only', detail: 'Access-controlled reviewers' },
+]
+const communitySortOptions: CaliSelectOption[] = [
+  { value: 'relevance', label: 'Most relevant' },
+  { value: 'trending', label: 'Trending' },
+  { value: 'top', label: 'Most liked' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'most_used', label: 'Most used' },
+]
 
 function StudentsIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>
@@ -255,7 +283,7 @@ function ReportDialog({ target, onClose, onReported }: { target: { type: 'review
   return <dialog ref={ref} className="signout-dialog community-report-dialog" onCancel={event => { if (busy) event.preventDefault(); else onClose() }}>
     <form className="signout-dialog-content" onSubmit={submit}>
       <ConfirmationIcon kind={busy ? 'loading' : 'warning'} /><p className="signout-dialog-kicker">COMMUNITY SAFETY</p><h2>Report {target.label}?</h2><p>{isProfile ? 'Use this for a concern involving the public identity, avatar, bio, or account behavior. Report study content from the reviewer itself.' : 'Report a concern with this reviewer’s shared study content.'}</p>
-      <label className="community-dialog-field"><span>{isProfile ? 'Profile concern' : 'Reason'}</span><select value={reason} onChange={event => setReason(event.target.value)} disabled={busy}>{isProfile ? <><option value="impersonation">Impersonation or false identity</option><option value="harassment">Harassment or targeted abuse</option><option value="inappropriate">Inappropriate profile information</option><option value="spam">Spam or scam account</option><option value="privacy">Privacy or personal safety concern</option><option value="other">Something else</option></> : <><option value="misleading">Misleading or inaccurate</option><option value="spam">Spam</option><option value="inappropriate">Inappropriate content</option><option value="copyright">Copyright concern</option><option value="other">Other</option></>}</select></label>
+      <div className="community-dialog-field"><span>{isProfile ? 'Profile concern' : 'Reason'}</span><CaliSelect value={reason} options={isProfile ? profileReportOptions : reviewerReportOptions} onChange={setReason} ariaLabel={isProfile ? 'Profile concern' : 'Report reason'} className="cali-select--community-dialog" disabled={busy} /></div>
       <label className="community-dialog-field"><span>What should moderators know? {detailsRequired ? '(required)' : '(optional)'}</span><textarea maxLength={1000} minLength={detailsRequired ? 10 : undefined} required={detailsRequired} value={details} onChange={event => setDetails(event.target.value)} placeholder={isProfile ? 'Describe what you noticed. Do not include passwords or unnecessary personal information.' : 'Add context that will help moderators review this reviewer.'} disabled={busy} /></label>
       {isProfile && <p className="community-report-guidance">Reporting does not automatically suspend the account. An administrator will review the evidence and decide whether action is warranted.</p>}
       {error && <p className="signout-dialog-error" role="alert">{error}</p>}
@@ -440,7 +468,7 @@ function CommunityDashboard({ onNotice, inboxCount }: { onNotice: (notice: Notic
       <div className="community-search-shell">
         <label className="community-search"><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search reviewers or content" aria-label="Search Community reviewers" /></label>
         <button type="button" className="community-mobile-filter-toggle" aria-expanded={filtersOpen} aria-controls="community-filter-panel" aria-label={`${filtersOpen ? 'Hide' : 'Show'} reviewer filters`} onClick={() => setFiltersOpen(open => !open)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg><span>Filters</span>{activeFilterCount > 0 && <b>{activeFilterCount}</b>}<svg className="community-filter-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m7 10 5 5 5-5" /></svg></button>
-        <div id="community-filter-panel" className={`community-filters${filtersOpen ? ' is-open' : ''}`}><CaliSelect value={category} options={categoryOptions} onChange={setCategory} ariaLabel="Filter reviewers by category" className="community-category-select" /><select value={yearLevel} onChange={event => setYearLevel(event.target.value)} aria-label="Filter by year level"><option value="">All year levels</option>{yearLabels.map((label, index) => <option value={index + 1} key={label}>{label}</option>)}</select><select value={visibility} onChange={event => setVisibility(event.target.value as '' | 'public' | 'preview')} aria-label="Filter by visibility"><option value="">Public + Preview</option><option value="public">Public only</option><option value="preview">Preview only</option></select><select value={sort} onChange={event => setSort(event.target.value as typeof sort)} aria-label="Sort reviewers"><option value="relevance">Most relevant</option><option value="trending">Trending</option><option value="top">Most liked</option><option value="newest">Newest</option><option value="most_used">Most used</option></select><button type="button" className="community-filter-clear" disabled={!activeFilterCount} onClick={() => { setCategory(''); setYearLevel(''); setVisibility(''); setSort('relevance') }}>Clear filters</button></div>
+        <div id="community-filter-panel" className={`community-filters${filtersOpen ? ' is-open' : ''}`}><CaliSelect value={category} options={categoryOptions} onChange={setCategory} ariaLabel="Filter reviewers by category" className="community-filter-select" /><CaliSelect value={yearLevel} options={yearFilterOptions} onChange={setYearLevel} ariaLabel="Filter by year level" className="community-filter-select" /><CaliSelect value={visibility} options={visibilityFilterOptions} onChange={next => setVisibility(next as typeof visibility)} ariaLabel="Filter by visibility" className="community-filter-select" /><CaliSelect value={sort} options={communitySortOptions} onChange={next => setSort(next as typeof sort)} ariaLabel="Sort reviewers" className="community-filter-select" /><button type="button" className="community-filter-clear" disabled={!activeFilterCount} onClick={() => { setCategory(''); setYearLevel(''); setVisibility(''); setSort('relevance') }}>Clear filters</button></div>
       </div>
       <div className="community-results-head"><p className="community-result-count" aria-live="polite">{loadingResults ? 'Searching reviewers…' : <>Showing <strong>{results.length}</strong> {results.length === 1 ? 'reviewer' : 'reviewers'}</>}</p>{hasActiveSearch && <button type="button" onClick={() => { setQuery(''); setCategory(''); setYearLevel(''); setVisibility(''); setSort('relevance') }}>Clear all</button>}</div>
       {loadingResults ? <CardSkeleton count={6} /> : results.length ? <div className="community-card-grid">{results.map(reviewer => <ReviewerCard key={reviewer.id} reviewer={reviewer} />)}</div> : <div className="community-empty"><strong>No reviewers found.</strong><p>Try a broader search or clear a filter. Locked Preview content stays private.</p></div>}

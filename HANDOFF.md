@@ -1,6 +1,6 @@
 # Cali handoff
 
-Updated: 2026-10-08
+Updated: 2026-10-12
 
 ## What this repository is
 
@@ -8,8 +8,9 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ## Phase status
 
-- The reminder and notification phase is complete and deployed. Class, task, and event reminders use the 30-minute, 1-hour, 3-hour, and 5-hour presets or a non-zero Custom lead time. The $0 delivery stack is native browser permission and Web Push, Supabase Postgres/RLS, the deployed `send-reminders` Edge Function with pinned `web-push@3.6.7`, and an enabled authenticated cron-job.org request once per minute. Device subscriptions, delivery, notification actions/deep links, banner instructions, and account-deletion cleanup are implemented.
-- Study now includes private manual and AI-assisted reviewers, notebook-photo OCR, digital-PDF extraction, flashcard sets, quizzes, persisted flashcard mastery, immediate quiz feedback, shuffled/resumable quiz attempts, and compact attempt summaries. Broader Learning analytics, Community, and final release review remain, as tracked in `cali.md`.
+- Cali's agreed core scope is feature-complete and is now a release candidate. Auth/onboarding, Dashboard, Schedules and local scanning, Tasks, Calendar, reminders, Study, Community, Profile, and administration are implemented.
+- All repository migrations through `20261011180000_learning_focused_quizzes.sql` match the linked Supabase database. On 2026-10-12, 84 tests across 12 files passed, lint passed, and the type-checked production build, deployment-variable check, and client-bundle secret scan passed.
+- Remaining work is release verification rather than a missing core module: deploy the current working tree, exercise authenticated student/admin journeys on desktop and mobile, complete accessibility/device review, add browser-level authorization coverage, and run the live Study AI provider and deployed-flow checks.
 
 ## Completed work
 
@@ -33,7 +34,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ### Visual system, footer, and team
 
-- Changed the palette from blue/indigo to cooler dodger-blue, aqua, and sky tones, and changed the body typeface to DM Sans. Theme tokens live in `src/index.css`.
+- Changed the palette from blue/indigo to cooler dodger-blue, aqua, and sky tones, and changed the body typeface to DM Sans. Theme tokens live in `src/styles/index.css`.
 - Added System (default), Light, and Dark preferences, persisted under `cali-theme`. The external `public/theme-init.js` script applies the initial theme before the app loads and remains compatible with the production Content Security Policy. Dark mode covers the page, header, footer, cards, menus, splash, and account pages.
 - Synchronized theme transition timing at 260 ms; the two wordmark variants crossfade with the surfaces rather than switching in a later React render.
 - Redesigned the footer in the same light or dark theme as the page, with a smaller mobile wordmark, improved spacing, a “Meet the Cali team” link, and hover-only link underlines. The same footer is shared by the landing and team pages.
@@ -160,23 +161,33 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Reviewer owners receive neutral notices when a new report is filed and when a reviewer is hidden. Report counts are signals only and do not suspend accounts automatically.
 - Standardized year-level display through `src/lib/academic.ts` so values read `1st Year`, `2nd Year`, `3rd Year`, and so on.
 - Replaced modal-like access/error screens with a centered full-screen responsive status system using the Cali wordmark and neutral identifiers (`403`, `404`, `500`, `AUTH`, and `OFFLINE`). Suspended users see the recorded reason and can open a prefilled Gmail support ticket for review before sending.
-- Added migrations through `20261010104500_access_status_support_identity.sql`. They must be checked and applied to the linked project before the local Community/admin/support behavior is considered deployed.
+- Added Community and administration migrations through `20261010181500_secure_preview_content_and_contributor_access.sql`. They are applied to the linked project; authenticated release acceptance remains outstanding.
 - Latest verification on 2026-10-10: 81 tests across 12 files passed, lint passed, the production build and client-secret scan passed. Existing OpenCV externalization and bundle-size warnings remain non-blocking.
+
+### Core completion and UI reliability pass (2026-10-11 to 2026-10-12)
+
+- Refined mobile spacing and hierarchy across policy pages, the student guide, saved reviewers, Community inbox, Profile, Settings, and sidebar navigation. The student guide now has a back action and a simpler topic structure without redundant numbering or summary labels.
+- Reworked the schedule scanner dialog into a contained desktop and mobile layout while preserving local OCR, cancellation, validation, review, and save behavior. Mobile upload content now stacks without clipping or horizontal overflow.
+- Stabilized the Settings notification control so an already-enabled device does not briefly appear disabled while subscription state is being resolved.
+- Reworked quizzes around a focused Practice/Test flow. Practice provides immediate feedback and a review round; Test withholds feedback until submission; Needs review starts Practice with questions missed in the latest completed session. Results, semantic answer states, library cards, and progress labels now use saved counts and activity instead of ambiguous labels.
+- Added `20261011180000_learning_focused_quizzes.sql` for quiz mode, phase, first-response storage, scoped sessions, and revision-safe activity updates. It is applied to the linked project.
+- Standardized active application dropdowns on Cali's custom responsive control. Menus clamp to the viewport, work above or below the trigger, and avoid native select overflow on desktop and mobile. The Admin handbook search and topic navigation now use the same compact visual system.
+- Verification on 2026-10-12: 84 tests across 12 files passed, lint passed, the production build passed, required deployment variables were present, the browser bundle contained no server secrets, and local/remote Supabase migration histories matched through the latest migration. OpenCV externalization and large-chunk notices remain non-blocking build warnings.
 
 ## Current behavior and known follow-ups
 
 - The last proposed mobile theme popover overlay was **reverted** at the user's request. In the current mobile menu, expanding the theme options takes up space and moves the “Try Cali for free” button down.
 - Core schedule management and intake are complete: manual creation, editing, cascading subject deletion from scheduled or unscheduled views, local web/PWA form scanning, cancellable recognition, editable review, validation, and atomic replacement are working.
 - The scanner fixes and modal enhancements are complete. No scanner-specific follow-up is currently planned.
-- All migrations through `20261008093705_enhanced_academic_reviewers.sql` are applied to the linked Cali Supabase project.
+- All migrations through `20261011180000_learning_focused_quizzes.sql` are applied to the linked Cali Supabase project.
 - Vercel project `jadeee/cali` is connected to `https://github.com/jdcnnn/cali.git`, configured for Vite with `dist` output, and aliased to `https://cali-class-ally.vercel.app`. The live deployment contains the Phase 8 AI-generation baseline; pushes to `main` continue to create production deployments. Use `npx vercel ls cali` to verify future deployments.
 - Production intentionally remains Cali's live testing and iteration environment. The ngrok workflow below provides an additional way to inspect local progress between production pushes; it does not replace or change the production deployment workflow.
 - Commit `79074c0` (2026-10-08, "Updated UI/UX for AI reviewer generation") contains the reviewer-generation reliability, quota-dialog, TypeScript, theme-script, and security-header fixes. Local `main` and its `origin/main` tracking reference point to this commit. Additional reviewer-generation enhancements and UI changes are now local working-tree changes; they have not been committed or deployed. Confirm the production deployment's commit before assuming it includes the latest fixes. Required reviewer-generation variables were configured in both Vercel Production and Preview; environment updates apply to subsequent deployments.
 - A Vercel Preview verified the Node endpoint, Linux function compilation, security headers, unauthenticated `401`, unsupported-method `405`, and static theme script. On 2026-10-08, Vercel inspection confirmed production deployment `cali-oqluyh7hv-jadeee.vercel.app` is Ready and aliased to `cali-class-ally.vercel.app`; its configuration includes the security headers and a Node.js 24 reviewer-generation function with a 120-second limit. The inspection did not expose a Git commit, so exact correspondence to `79074c0` remains unconfirmed. Before calling the AI phase fully production-verified, run one authenticated eligible-student flow on the live deployment: note/PDF extraction → generation → draft editing → save, plus a separate discard check.
 - Closed-tab Web Push reminders are implemented, deployed, scheduled, and verified on desktop and an installed Android PWA. Notification-body clicks and item-specific actions deep-link to the correct class, task, or event.
 - The PWA manifest and service worker include Push display and notification-click handlers without application or personal-data caching. Only versioned public OCR runtime/model assets enter Cache Storage.
-- Study provides implemented manual reviewers, flashcard sets, and quizzes. Its current analytics are intentionally limited to meaningful saved counts, mastery state, completed-attempt scores, and recent attempts; the separate broader Learning analytics phase remains planned. Community reviewer sharing and administration are implemented locally but still require migration/deployment and authenticated acceptance verification. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
-- The selected quiz dropdown behavior is in-card expansion. Do not restore clipped/overlay menus unless requirements change; the user preferred the expanding version because its options remain immediately visible.
+- Study provides implemented manual reviewers, flashcard sets, and quizzes. Quiz insights are intentionally limited to meaningful saved activity: completed sessions, latest score, questions to review, topic results, and recent history. Community reviewer sharing and administration are implemented and their migrations are applied; current frontend deployment and authenticated acceptance still require verification. Schedules and Tasks are implemented, and the dashboard shows live upcoming classes and task deadlines.
+- Active application dropdowns use the shared Cali control. Preserve its viewport clamping, above/below placement, keyboard behavior, and responsive width; do not reintroduce native selects in active screens.
 - Confirmation dialogs are reserved for major, destructive, or state-replacing actions. Quiz choice deletion is deliberately immediate. Keep new dialog copy factual and tied to data the application actually knows.
 - The independent Calendar, selected-date creation, direct event targeting, and event editing/deletion are implemented.
 - Scanner behavior has been verified by the user in both the regular web app and installed PWA. The student planner passes `npm test`, `npm.cmd run build`, and `npm.cmd run lint`; its desktop/mobile CSS and dark-mode states are implemented, but live planner interaction and a full device matrix still require manual verification because browser automation was unavailable in this environment.
@@ -186,27 +197,27 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 | Area | Files |
 | --- | --- |
-| Routes, onboarding, and dashboard | `src/App.tsx`, `src/components/DashboardSchedules.tsx`, `src/components/dashboard-schedules.css` |
-| Schedule page and scanner | `src/components/SchedulesPage.tsx`, `src/components/schedules.css`, `src/components/ScheduleScanner.tsx`, `src/components/schedule-scan.css`, `src/lib/scheduleOcr.ts`, `src/lib/rtuScheduleParser.ts` |
-| Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/DashboardTasks.tsx`, `src/components/tasks.css`, `src/lib/tasks.ts` |
-| Independent calendar | `src/components/CalendarPage.tsx`, `src/components/calendar.css` |
-| Study reviewers, flashcards, and quizzes | `src/components/StudyPage.tsx`, `src/components/StudySetsPage.tsx`, `src/components/study.css`, `src/lib/studySets.ts`, `src/lib/studySets.test.ts`, `supabase/migrations/20261003000000_study_reviewers.sql`, `supabase/migrations/20261005000000_flashcards_and_quizzes.sql`, `supabase/migrations/20261006000000_study_set_save_functions.sql` through `20261006050000_change_study_set_reviewer.sql` |
+| Routes, onboarding, and dashboard | `src/App.tsx`, `src/components/DashboardSchedules.tsx`, `src/styles/dashboard-schedules.css` |
+| Schedule page and scanner | `src/components/SchedulesPage.tsx`, `src/styles/schedules.css`, `src/components/ScheduleScanner.tsx`, `src/styles/schedule-scan.css`, `src/lib/scheduleOcr.ts`, `src/lib/rtuScheduleParser.ts` |
+| Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/DashboardTasks.tsx`, `src/styles/tasks.css`, `src/lib/tasks.ts` |
+| Independent calendar | `src/components/CalendarPage.tsx`, `src/styles/calendar.css` |
+| Study reviewers, flashcards, and quizzes | `src/components/StudyPage.tsx`, `src/components/StudySetsPage.tsx`, `src/styles/study.css`, `src/lib/studySets.ts`, `src/lib/studySets.test.ts`, `supabase/migrations/20261003000000_study_reviewers.sql`, `supabase/migrations/20261005000000_flashcards_and_quizzes.sql`, `supabase/migrations/20261006000000_study_set_save_functions.sql` through `20261006050000_change_study_set_reviewer.sql`, `supabase/migrations/20261011180000_learning_focused_quizzes.sql` |
 | AI reviewer intake and generation | `src/lib/noteScanner.ts`, `src/lib/reviewerPdf.ts`, `src/lib/reviewerPdfText.ts`, their focused tests, `api/study/reviewer-generation.ts`, `server/reviewerGeneration.ts`, `server/reviewerGeneration.test.ts`, `scripts/verify-study-ai.mjs`, `supabase/migrations/20261007000000_reliable_ai_reviewers.sql` |
-| Shared confirmation/status visuals | `src/components/ConfirmationIcon.tsx`, `src/index.css` |
+| Shared confirmation/status visuals | `src/components/ConfirmationIcon.tsx`, `src/styles/index.css` |
 | Landing, team, policies, footer, and splash | `src/components/LandingPage.tsx`, `TeamPage.tsx`, `PolicyPage.tsx`, `SiteFooter.tsx`, `SplashScreen.tsx` |
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
-| Visual styles | `src/index.css`, `src/components/entry.css`, `src/theme/theme.css` |
+| Visual styles | `src/styles/index.css`, `src/styles/entry.css`, `src/styles/theme.css` |
 | Theme state and picker | `src/theme/ThemeProvider.tsx`, `ThemeContext.ts`, `ThemePicker.tsx`, `index.html` |
 | PWA, installation, connection, and reminders | `public/manifest.webmanifest`, `public/sw.js`, `src/components/InstallCali.tsx`, `src/components/ConnectionNotice.tsx`, `src/components/ReminderField.tsx`, `src/lib/pwaInstall.ts`, `src/lib/pushNotifications.ts`, `src/lib/reminders.ts`, `supabase/functions/send-reminders/index.ts` |
 | Authentication and database | `src/auth/`, `src/lib/supabase.ts`, `supabase/migrations/` |
-| Community sharing and access | `src/components/CommunityPage.tsx`, `src/components/CommunityNotificationsProvider.tsx`, `src/components/community.css`, `src/lib/community.ts` |
-| Administration and moderation | `src/components/AdminDashboard.tsx`, `src/components/AdminModerationPanel.tsx`, `src/components/admin-overview.css`, `src/components/admin-users.css`, `src/components/admin-moderation.css`, `src/lib/admin.ts` |
-| Full-screen status and support-ticket pages | `src/App.tsx`, `src/components/status-pages-refined.css`, `src/auth/AuthProvider.tsx`, `supabase/migrations/20261010104500_access_status_support_identity.sql` |
+| Community sharing and access | `src/components/CommunityPage.tsx`, `src/components/CommunityNotificationsProvider.tsx`, `src/styles/community.css`, `src/lib/community.ts` |
+| Administration and moderation | `src/components/AdminDashboard.tsx`, `src/components/AdminModerationPanel.tsx`, `src/styles/admin-overview.css`, `src/styles/admin-users.css`, `src/styles/admin-moderation.css`, `src/lib/admin.ts` |
+| Full-screen status and support-ticket pages | `src/App.tsx`, `src/styles/status-pages-refined.css`, `src/auth/AuthProvider.tsx`, `supabase/migrations/20261010104500_access_status_support_identity.sql` |
 | Product plan and setup | `cali.md`, `README.md` |
 
 ## Run and verify
 
-Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, `npm run lint`, and `npm run verify:study-ai` before shipping. The build checks all required deployment variables and rejects a client bundle containing server secrets. Apply the complete Supabase migration sequence through `20261010104500_access_status_support_identity.sql` before testing the current local frontend; only migrations through `20261008093705_enhanced_academic_reviewers.sql` are currently confirmed on the linked project. The local/Vercel frontend environment must define `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_VAPID_PUBLIC_KEY`; `.env` is ignored by Git. Reviewer generation additionally requires the server-only `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel. Edge Function secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`. cron-job.org sends `POST <SUPABASE_URL>/functions/v1/send-reminders` every minute with the matching `X-Cali-Cron-Secret` header. Keep private keys, cron secrets, the service role, and `SUPABASE_DB_PASSWORD` out of browser-facing Vite variables. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
+Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, `npm run lint`, and `npm run verify:study-ai` before shipping. The build checks all required deployment variables and rejects a client bundle containing server secrets. Apply the complete Supabase migration sequence through `20261011180000_learning_focused_quizzes.sql` before testing the current frontend; that complete sequence is confirmed on the linked project as of 2026-10-12. The local/Vercel frontend environment must define `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_VAPID_PUBLIC_KEY`; `.env` is ignored by Git. Reviewer generation additionally requires the server-only `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel. Edge Function secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`. cron-job.org sends `POST <SUPABASE_URL>/functions/v1/send-reminders` every minute with the matching `X-Cali-Cron-Secret` header. Keep private keys, cron secrets, the service role, and `SUPABASE_DB_PASSWORD` out of browser-facing Vite variables. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
 
 For production-backed local or phone testing without another Vercel deployment, run Vite on port 5173 and expose it with `ngrok http --url=afternoon-shame-petite.ngrok-free.dev 5173`. Supabase Auth must allow `https://afternoon-shame-petite.ngrok-free.dev/**`; the Site URL remains `https://cali-class-ally.vercel.app`. The tunnel uses the Supabase project from `.env`, so test actions can affect live data. Incognito avoids an existing production session masking the tunnel's OAuth flow.
 

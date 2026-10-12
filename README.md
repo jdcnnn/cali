@@ -4,6 +4,12 @@ CALI is a web-based academic workspace for Rizal Technological University studen
 
 For the product scope, confirmed decisions, and development sequence, read cali.md.
 
+## Current status
+
+Cali's core product is feature-complete and is treated as a release candidate. Authentication and onboarding, Dashboard, Schedules and local form scanning, Tasks, Calendar, reminders, Study, Community, Profile, and the administration workspace are implemented. The linked Supabase database matches every repository migration through `20261011180000_learning_focused_quizzes.sql`.
+
+The repository-level release gates pass as of 2026-10-12: 84 tests across 12 files, lint, the type-checked production build, deployment-variable validation, and the client-bundle secret scan. This status does not replace final authenticated acceptance testing on the deployed app. Before a production handoff, run the critical student/admin journeys on desktop and mobile, complete the accessibility/device pass, and run the live Study AI provider check described below.
+
 ## Local development
 
 Use a compatible Node.js version, then run:
@@ -63,13 +69,15 @@ The three libraries share compact, responsive preview cards with consistent subj
 
 Flashcards use Front and Back fields, resumable sequential or shuffled sessions, and mastery after two consecutive successful recalls. Set details show real card counts and saved mastery progress without an invented percentage. The completion summary reports **Remembered** and **Still learning** counts. Starting another session preserves mastery; retrying an unfinished session requires confirmation because its current responses are replaced.
 
-Quizzes support multiple-choice and true/false questions with an optional explanation. Only complete questions enter a quiz attempt. Saving a quiz with incomplete draft questions shows a warning that identifies the missing requirement for each affected question. Choice deletion and question-type changes are immediate editor actions; changing type resets that question's choices and correct answer. Deleting a question, discarding unsaved work, restarting an attempt, and deleting a quiz remain confirmed actions.
+Quizzes support multiple-choice and true/false questions with an optional topic and explanation. Only complete questions enter a quiz session. Saving a quiz with incomplete draft questions shows a warning that identifies the missing requirement for each affected question. Choice deletion and question-type changes are immediate editor actions; changing type resets that question's choices and correct answer. Deleting a question, discarding unsaved work, restarting a session, and deleting a quiz remain confirmed actions.
 
-In the editor, the selected correct answer has a clear active style and an explicit **Remove selection** action. During an attempt, each submitted answer is evaluated immediately: the selected option and feedback panel use high-contrast semantic states, and the correct answer and optional explanation are shown. The same Correct and Incorrect treatment carries into result counts and per-question review. A student can skip an item; skipped items return after the last untouched question and must be answered before completion. Question and choice shuffling are applied to the immutable attempt snapshot and covered by focused tests. Results show Correct, Incorrect, and Total questions as counts rather than a percentage, followed by per-question Correct, Incorrect, or Skipped review labels. The overview keeps completed attempts as immutable history. Restarting marks the unfinished attempt abandoned before creating a new one, while deleting a quiz cascades to all its attempts.
+In the editor, the selected correct answer has a clear active style and an explicit **Remove selection** action. A quiz can run as **Practice**, with feedback after each answer and a review round, or **Test**, with feedback withheld until submission. **Needs review** starts a focused Practice session from questions missed in the latest completed session. A student can choose **Not sure**; those questions return in the review round. Question and choice shuffling are applied to the immutable session snapshot and covered by focused tests.
+
+Results show the final score and missed-question count, followed by a per-question review. The quiz overview uses saved activity rather than invented analytics: completed sessions, latest score, questions to review, topic results calculated from completed responses, and recent session history. Library cards show question count, latest score, and draft count. Completed sessions remain immutable; restarting abandons the unfinished session before creating a new one, while deleting a quiz cascades to all its sessions.
 
 Reviewer changes autosave after 1.2 seconds, and Done saves before closing the editor. If a save fails, Save now offers an explicit retry; leaving with unsaved work also offers Save and leave. All of those controls converge on one save function. A single in-flight promise prevents overlapping RPC calls, successful saves advance the editor's current revision, and later edits remain dirty for the next save. The `cali_update_own_reviewer` RPC rejects a stale expected revision with application error code `P0001`; it does not use retryable transaction code `40001`, and the client does not automatically retry conflicts.
 
-Apply the Study migrations from `20261003000000_study_reviewers.sql` through `20261008093705_enhanced_academic_reviewers.sql` before using Study. Together they add private reviewer, flashcard, quiz, progress, attempt, generation-request, and short-lived draft storage; owner-only policies; atomic revision-checked saves; monthly AI quotas; reference-reviewer switching; and account-deletion coverage.
+Apply the Study migrations from `20261003000000_study_reviewers.sql` through `20261011180000_learning_focused_quizzes.sql` before using Study. Together they add private reviewer, flashcard, quiz, progress, session, generation-request, and short-lived draft storage; owner-only policies; atomic revision-checked saves; monthly AI quotas; reference-reviewer switching; Practice/Test quiz modes; focused review sessions; and account-deletion coverage.
 
 Major actions and status dialogs across Study, Tasks, Calendar, Schedules, Schedule Scanner, sign-out, and account deletion use the shared Cali confirmation treatment. It provides branded confirmation/default, warning, loading, success, error, and blue information states with non-broken inline SVG icons. Dialog copy stays specific to the action and does not add unsupported details.
 
@@ -81,7 +89,7 @@ Community moderation applies to shared reviewers only. Public profiles are not t
 
 The responsive admin workspace contains Overview, Users, Moderation, and System areas. Overview prioritizes work that needs attention and summarizes active accounts, shared reviewers, sign-in policy, and recent audited changes without decorative analytics. Users supports server-paginated search, account-type and status filters, public-profile inspection inside the admin workspace, reviewer/report signals, and deliberate suspension/restoration with a recorded reason. Moderation exposes the reported reviewer, report reason/details, owner, reporter, and content preview before action. System controls whether verified personal Google accounts may sign in and provides paginated audit history.
 
-Apply the Community and admin migrations beginning with `20261009010000_cali_community.sql` through `20261010104500_access_status_support_identity.sql` before testing these flows. The later migrations restrict moderation to reviewers, correct reviewer totals, add owner-level report signals and notices, and include the signed-in username in a suspended account's support ticket.
+Apply the Community and admin migrations beginning with `20261009010000_cali_community.sql` through `20261010181500_secure_preview_content_and_contributor_access.sql` before testing these flows. The later migrations restrict moderation to reviewers, correct reviewer totals, add owner-level report signals and notices, include the signed-in username in a suspended account's support ticket, and refine access and notification behavior.
 
 ## Error and access states
 
@@ -145,13 +153,13 @@ The web and installed-app icon uses the exact graduation-cap structure from Cali
 
 Auth, onboarding, manual weekly schedule management, local schedule scanning, student task planning, the independent Calendar, closed-tab reminders, Study, reviewer sharing, Community access workflows, moderation, and the administration workspace are implemented. Deployment and release follow-ups are described in cali.md.
 
-## Next implementations
+## Release follow-ups
 
-1. Apply all pending Community/admin migrations through `20261010104500_access_status_support_identity.sql` to the linked Supabase project, then deploy the matching frontend together with them.
-2. Run authenticated desktop and mobile acceptance checks for Community sharing/access, admin search and filters, reviewer report review, suspension/restoration, public-profile inspection, audit pagination, and the prefilled Gmail support ticket.
-3. Add end-to-end authorization coverage for student/admin route separation and every privileged RPC. Keep report counts advisory until a documented threshold, appeal path, false-positive policy, and human-review safeguard are approved; automatic suspension is intentionally not implemented.
-4. Complete the release accessibility pass: keyboard order, focus visibility, screen-reader labels, dialog behavior, contrast, reduced motion, and compact phone/short-viewport layouts.
-5. Define the Learning analytics phase using only actionable study and quiz measures. Avoid decorative dashboards or unsupported performance claims.
+1. Deploy the current frontend together with the already-applied database migrations, then confirm the production deployment commit.
+2. Run authenticated desktop and mobile acceptance checks for the critical student and admin journeys: OAuth/onboarding, schedule import and save, task/calendar changes, reminders, Study sessions, Community access, moderation, account status, and deletion.
+3. Add browser-level authorization coverage for student/admin route separation and privileged RPCs. Keep report totals advisory; automatic suspension remains intentionally excluded.
+4. Complete the release accessibility and device pass: keyboard order, focus visibility, screen-reader labels, dialog behavior, contrast, reduced motion, compact phone/short-viewport layouts, and supported PWA browsers.
+5. Run `npm run verify:study-ai` against the configured live provider, then complete one eligible-student generation/save/discard smoke test on the deployed app.
 
 ## Vercel deployment
 
@@ -163,7 +171,7 @@ Production intentionally remains Cali's live testing and iteration environment. 
 
 Before deployment, run `npm test`, `npm run lint`, and `npm run build`. The production build now fails when a required client or reviewer-generation variable is missing and scans `dist` to prevent server secrets from entering the browser bundle. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production. The `send-reminders` Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`; cron-job.org calls it once per minute with `X-Cali-Cron-Secret`. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, the VAPID private key, or the cron secret as Vite environment variables.
 
-Repository migrations through `20261008093705_enhanced_academic_reviewers.sql` are confirmed applied to the currently linked Cali Supabase project. Community and administration migrations beginning with `20261009010000_cali_community.sql` require an explicit migration check/apply before the corresponding local frontend changes are deployed. A different Supabase project needs the complete migration sequence.
+Repository migrations through `20261011180000_learning_focused_quizzes.sql` are confirmed applied to the currently linked Cali Supabase project as of 2026-10-12. A different Supabase project needs the complete migration sequence.
 
 ## Progressive web app
 

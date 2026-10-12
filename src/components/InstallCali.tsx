@@ -34,14 +34,14 @@ export function InstallCali() {
     }
   }
 
-  let detail = 'Install Cali for quick access from your home screen, dock, or taskbar.'
+  let detail = 'Open Cali faster from your device.'
   if (installState.installed) detail = 'Cali is installed on this device.'
-  else if (installState.isIos) detail = 'Install Cali from Safari to open it from your Home Screen.'
-  else if (!installState.canPrompt) detail = 'Use your browser menu to install Cali on this device when installation is available.'
+  else if (installState.isIos) detail = 'Add Cali from Safari to your Home Screen.'
+  else if (!installState.canPrompt) detail = 'Install from your browser menu when available.'
 
   return <>
     <section className="workspace-install-card" aria-labelledby="install-cali-title">
-      <div className="workspace-install-copy"><p className="workspace-overline">APP INSTALLATION</p><h2 id="install-cali-title">{installState.installed ? 'Cali is installed' : 'Install Cali'}</h2><p>{detail}</p>{error && <p className="workspace-install-error" role="alert">{error}</p>}</div>
+      <div className="workspace-install-copy"><h2 id="install-cali-title">{installState.installed ? 'Cali is installed' : 'Install Cali'}</h2><p>{detail}</p>{error && <p className="workspace-install-error" role="alert">{error}</p>}</div>
       {!installState.installed && installState.canPrompt && <button type="button" className="button-primary workspace-install-action" onClick={() => { void install() }} disabled={busy}>{busy ? 'Opening...' : 'Install Cali'}</button>}
       {!installState.installed && installState.isIos && <button ref={triggerRef} type="button" className="button-primary workspace-install-action" onClick={() => setInstructionsOpen(true)}>How to install</button>}
     </section>

@@ -25,8 +25,8 @@ import { ConfirmationIcon, type ConfirmationIconKind } from './ConfirmationIcon'
 import { ReminderField } from './ReminderField'
 import { reminderLabel } from '../lib/reminders'
 import { enablePushNotifications } from '../lib/pushNotifications'
-import './tasks.css'
-import './skeleton.css'
+import '../styles/tasks.css'
+import '../styles/skeleton.css'
 
 type EditorState = { taskId: string | null; draft: TaskDraft; initial: TaskDraft }
 type TaskView = 'today' | 'upcoming' | 'completed'

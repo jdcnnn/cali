@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router'
 import { CaliWordmark } from './CaliWordmark'
 import { SiteFooter } from './SiteFooter'
-import './entry.css'
+import '../styles/entry.css'
 
 type PolicyKind = 'terms' | 'privacy' | 'community'
 type PolicySection = { id: string; title: string; paragraphs?: string[]; bullets?: string[] }

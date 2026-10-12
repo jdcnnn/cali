@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router'
 import { CaliWordmark } from './CaliWordmark'
 import { useAuth } from '../auth/AuthContext'
-import './entry.css'
+import '../styles/entry.css'
 import { useLoginMode } from '../auth/LoginModeContext'
 
 export function SiteFooter() {

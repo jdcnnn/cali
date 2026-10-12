@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
-import './guide-pages.css'
+import { BackArrowIcon } from './BackArrowIcon'
+import { CaliSelect, type CaliSelectOption } from './CaliSelect'
+import '../styles/guide-pages.css'
 
 type GuidePoint = { title: string; detail: string }
 type GuideAction = { label: string; to: string }
@@ -170,12 +172,17 @@ function SearchIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
 }
 
+function ClearIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
+}
+
 function ArrowUpIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 10 6-6 6 6"/><path d="M12 4v16"/></svg>
 }
 
 function GuidePage({ kind }: { kind: 'student' | 'admin' }) {
   const [query, setQuery] = useState('')
+  const [selectedTopic, setSelectedTopic] = useState('')
   const [showBackToTop, setShowBackToTop] = useState(false)
   const isAdmin = kind === 'admin'
   const sections = isAdmin ? adminSections : studentSections
@@ -184,6 +191,10 @@ function GuidePage({ kind }: { kind: 'student' | 'admin' }) {
     if (!needle) return sections
     return sections.filter(section => [section.label, section.title, section.summary, section.note, ...section.points.flatMap(point => [point.title, point.detail])].some(value => value?.toLocaleLowerCase().includes(needle)))
   }, [query, sections])
+  const topicOptions = useMemo<CaliSelectOption[]>(() => [
+    { value: '', label: 'Choose a topic', detail: `Browse ${isAdmin ? 'handbook' : 'guide'} sections` },
+    ...sections.map(section => ({ value: section.id, label: section.title, detail: section.label })),
+  ], [isAdmin, sections])
 
   useEffect(() => {
     if (isAdmin) return
@@ -198,22 +209,33 @@ function GuidePage({ kind }: { kind: 'student' | 'admin' }) {
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
   }
 
+  function jumpToSection(sectionId: string) {
+    if (!sectionId) return
+    if (query) setQuery('')
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const target = document.getElementById(`${kind}-${sectionId}`)
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      target?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+      target?.focus({ preventScroll: true })
+    }))
+  }
+
   return <div className={`cali-guide${isAdmin ? ' cali-guide--admin' : ''}`}>
+    {!isAdmin && <nav className="cali-guide-back" aria-label="Guide navigation"><Link className="cali-back-link" to="/settings"><BackArrowIcon /><span>Back to Settings</span></Link></nav>}
     <header className="cali-guide-hero">
-      <div className="cali-guide-heading"><div><p>{isAdmin ? 'OPERATE CALI WITH CONTEXT' : 'MAKE CALI WORK FOR YOU'}</p><h1>{isAdmin ? 'Admin Console Handbook' : 'Cali Guide'}</h1><span>{isAdmin ? 'Features, decision logic, and safe administration practices in one reference.' : 'A clear guide to every workspace module, sharing control, and important account behavior.'}</span></div><aside><strong>{sections.length}</strong><span>guide topics</span><small>Current Cali workflows</small></aside></div>
-      <label className="cali-guide-search"><SearchIcon/><span className="sr-only">Search {isAdmin ? 'the admin handbook' : 'the Cali guide'}</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={isAdmin ? 'Search features, reports, or policies' : 'Search modules, sharing, or account help'}/>{query && <button type="button" onClick={() => setQuery('')}>Clear</button>}</label>
+      <div className="cali-guide-heading">{isAdmin && <p>OPERATE CALI WITH CONTEXT</p>}<h1>{isAdmin ? 'Admin Console Handbook' : 'Cali Guide'}</h1><span>{isAdmin ? 'Features, decision logic, and safe administration practices in one reference.' : 'Find clear answers about your workspace, study tools, sharing, and account.'}</span></div>
+      <label className="cali-guide-search"><SearchIcon/><span className="sr-only">Search {isAdmin ? 'the admin handbook' : 'the Cali guide'}</span><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={isAdmin ? 'Search handbook' : 'Search the guide'}/>{query && <button type="button" aria-label="Clear search" onClick={() => setQuery('')}><ClearIcon/></button>}</label>
     </header>
 
-    <div className="cali-guide-layout">
-      <aside className="cali-guide-index" aria-label={`${isAdmin ? 'Handbook' : 'Guide'} contents`}>
-        <p>ON THIS PAGE</p>
-        <nav>{sections.map((section, index) => <a key={section.id} href={`#${kind}-${section.id}`} className={visible.includes(section) ? '' : 'is-filtered'}><span>{String(index + 1).padStart(2, '0')}</span>{section.title}</a>)}</nav>
-        <div><strong>{isAdmin ? 'Core safeguard' : 'Need to remember'}</strong><p>{isAdmin ? 'A report is a signal. Only reviewed and confirmed evidence should influence account enforcement.' : 'You control what you publish. Preview content stays locked unless access is granted.'}</p></div>
-      </aside>
+    <nav className="cali-guide-toolbar" aria-label={`${isAdmin ? 'Handbook' : 'Guide'} topic navigation`}>
+      <div className="cali-guide-topic-picker"><span>Jump to a topic</span><CaliSelect value={selectedTopic} options={topicOptions} ariaLabel={`Jump to a ${isAdmin ? 'handbook' : 'guide'} topic`} className="cali-select--guide-topic" onChange={sectionId => { if (!sectionId) return; setSelectedTopic(sectionId); jumpToSection(sectionId) }} /></div>
+      {query && <p aria-live="polite">{visible.length} {visible.length === 1 ? 'topic' : 'topics'} found</p>}
+    </nav>
 
+    <div className="cali-guide-layout">
       <main className="cali-guide-content">
-        {visible.length ? visible.map(section => <section id={`${kind}-${section.id}`} className="cali-guide-section" key={section.id}>
-          <header><div><p>{section.label}</p><h2>{section.title}</h2><span>{section.summary}</span></div></header>
+        {visible.length ? visible.map(section => <section id={`${kind}-${section.id}`} className="cali-guide-section" key={section.id} tabIndex={-1}>
+          <header><p>{section.label}</p><h2>{section.title}</h2><span>{section.summary}</span></header>
           <div className="cali-guide-points">{section.points.map(point => <article key={point.title}><h3>{point.title}</h3><p>{point.detail}</p></article>)}</div>
           {section.note && <div className="cali-guide-note"><strong>{isAdmin ? 'Operational note' : 'Important'}</strong><p>{section.note}</p></div>}
           {section.actions && <footer>{section.actions.map(action => <Link key={action.to} to={action.to} state={action.to === '/community-guidelines' ? { from: '/guide', backLabel: 'Back to Cali Guide', view: 'student' } : undefined}>{action.label}<span aria-hidden="true">→</span></Link>)}</footer>}

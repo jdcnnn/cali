@@ -7,14 +7,16 @@ import { getImportedScheduleIssues, parseRtuSchedule } from '../lib/rtuScheduleP
 import type { ImportedMeetingDraft, ImportedScheduleDraft, ImportedSubjectDraft, ScheduleDayCode } from '../lib/rtuScheduleParser'
 import { preloadScheduleOcr, runScheduleOcr } from '../lib/scheduleOcr'
 import { CalendarColorPicker } from './CalendarColorPicker'
+import { CaliSelect, type CaliSelectOption } from './CaliSelect'
 import { ConfirmationIcon } from './ConfirmationIcon'
-import './schedule-scan.css'
+import '../styles/schedule-scan.css'
 
 const days: { code: ScheduleDayCode; name: string }[] = [
   { code: 'M', name: 'Monday' }, { code: 'T', name: 'Tuesday' }, { code: 'W', name: 'Wednesday' },
   { code: 'H', name: 'Thursday' }, { code: 'F', name: 'Friday' }, { code: 'S', name: 'Saturday' },
   { code: 'U', name: 'Sunday' },
 ]
+const dayOptions: CaliSelectOption[] = days.map(day => ({ value: day.code, label: day.name }))
 
 type Stage = 'select' | 'processing' | 'review' | 'saving'
 type ReviewSubjectDraft = ImportedSubjectDraft & { colorKey: CalendarColorKey }
@@ -312,16 +314,25 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
 
       {stage === 'select' && <div className="schedule-scan-body">
         <p className="schedule-scan-intro">Add a clear photo or scan of your RTU registration form. Cali reads the class table and lets you correct every field before saving.</p>
-        <div className="schedule-scan-privacy"><span aria-hidden="true">✓</span><div><strong>Private and free</strong><p>The image stays on this device. It is never uploaded or stored.</p></div></div>
-        <p className={`schedule-scan-preload schedule-scan-preload--${preloadStatus}`} role="status" aria-live="polite">
-          {preloadStatus === 'ready' ? 'Scanner ready.' : preloadStatus === 'failed' ? 'Scanner setup paused. Choose an image and Scan schedule to retry.' : 'Preparing the scanner in the background… You can choose an image now.'}
-        </p>
-        <input ref={inputRef} className="schedule-scan-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event: ChangeEvent<HTMLInputElement>) => chooseFile(event.target.files?.[0] ?? null)} />
-        <button type="button" className={`schedule-scan-picker${previewUrl ? ' schedule-scan-picker--selected' : ''}`} onClick={() => inputRef.current?.click()}>
-          {previewUrl ? <><img src={previewUrl} alt="Selected registration form preview" /><span className="schedule-scan-change">Choose a different image</span></> : <span className="schedule-scan-picker-empty"><span className="schedule-scan-picker-icon" aria-hidden="true">＋</span><strong>Choose a registration form image</strong><small>JPG, PNG, or WebP · up to 12 MB</small></span>}
-        </button>
-        {file && <div className="schedule-scan-file"><span><strong>Ready to scan:</strong> {file.name}</span><button type="button" onClick={() => chooseFile(null)}>Remove</button></div>}
-        <p className="schedule-scan-tip"><strong>For the best result:</strong> show the full page, use even lighting, and keep the class table straight and readable.</p>
+        <div className="schedule-scan-upload-layout">
+          <div className="schedule-scan-upload-main">
+            <input ref={inputRef} className="schedule-scan-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event: ChangeEvent<HTMLInputElement>) => chooseFile(event.target.files?.[0] ?? null)} />
+            <button type="button" className={`schedule-scan-picker${previewUrl ? ' schedule-scan-picker--selected' : ''}`} onClick={() => inputRef.current?.click()}>
+              {previewUrl ? <><img src={previewUrl} alt="Selected registration form preview" /><span className="schedule-scan-change">Choose a different image</span></> : <span className="schedule-scan-picker-empty"><span className="schedule-scan-picker-icon" aria-hidden="true">＋</span><strong>Select your registration form</strong><small>JPG, PNG, or WebP · up to 12 MB</small><span className="schedule-scan-picker-action">Choose image</span></span>}
+            </button>
+            {file && <div className="schedule-scan-file"><span><strong>Ready to scan:</strong> {file.name}</span><button type="button" onClick={() => chooseFile(null)}>Remove</button></div>}
+          </div>
+          <aside className="schedule-scan-support" aria-label="Scanner information">
+            <div className="schedule-scan-privacy"><span aria-hidden="true">✓</span><div><strong>Private on your device</strong><p>Your image is processed locally and is never uploaded or stored.</p></div></div>
+            <div className="schedule-scan-support-item">
+              <p className={`schedule-scan-preload schedule-scan-preload--${preloadStatus}`} role="status" aria-live="polite">
+                {preloadStatus === 'ready' ? 'Scanner ready' : preloadStatus === 'failed' ? 'Scanner setup paused' : 'Preparing scanner'}
+              </p>
+              <span>{preloadStatus === 'failed' ? 'Choose an image and scan to retry.' : preloadStatus === 'ready' ? 'Select an image when you are ready.' : 'You can select an image while this finishes.'}</span>
+            </div>
+            <div className="schedule-scan-support-item"><strong>For a reliable scan</strong><p>Show the full page, use even lighting, and keep the class table straight and readable.</p></div>
+          </aside>
+        </div>
         {error && (updateRequired
           ? <div className="schedule-scan-error schedule-scan-update" role="alert"><strong>Update required</strong><p>{error}</p><button type="button" onClick={() => window.location.reload()}>Reload Cali</button></div>
           : <p className="schedule-scan-error" role="alert">{error}</p>)}
@@ -372,7 +383,7 @@ export function ScheduleScanner({ currentSubjectCount, onSaved }: { currentSubje
           <CalendarColorPicker label="Subject color" value={subject.colorKey} onChange={colorKey => updateSubject(subject.id, { colorKey })} disabled={busy} />
           <div className="schedule-scan-meetings-head"><strong>Meetings</strong><button type="button" onClick={() => addMeeting(subject.id)} disabled={busy}>+ Add meeting</button></div>
           {subject.meetings.length === 0 ? <p className="schedule-scan-unscheduled">No class time was found. Add a meeting if the subject has one; otherwise it will be saved as unscheduled.</p> : <div className="schedule-scan-meetings">{subject.meetings.map(meeting => <div id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}`} tabIndex={-1} className={`schedule-scan-meeting${meeting.confidence < 0.85 ? ' schedule-scan-meeting--check' : ''}${meetingNeedsAttention(meeting) ? ' schedule-scan-meeting--invalid' : ''}`} key={meeting.id}>
-            <label>Day<select id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-day`} value={meeting.dayCode} onChange={event => updateMeeting(subject.id, meeting.id, { dayCode: event.target.value as ScheduleDayCode })} disabled={busy}>{days.map(day => <option value={day.code} key={day.code}>{day.name}</option>)}</select></label>
+            <div className="schedule-scan-select-field"><span>Day</span><CaliSelect id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-day`} value={meeting.dayCode} options={dayOptions} onChange={dayCode => updateMeeting(subject.id, meeting.id, { dayCode: dayCode as ScheduleDayCode })} ariaLabel={`Meeting day for ${subject.subjectCode || `subject ${subjectIndex + 1}`}`} className="cali-select--schedule-day" disabled={busy} /></div>
             <label>Starts<input id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-starts`} type="time" value={meeting.startsAt} aria-invalid={!/^\d{2}:\d{2}$/.test(meeting.startsAt) || meeting.startsAt >= meeting.endsAt} onChange={event => updateMeeting(subject.id, meeting.id, { startsAt: event.target.value })} disabled={busy} /></label>
             <label>Ends<input id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-ends`} type="time" value={meeting.endsAt} aria-invalid={!/^\d{2}:\d{2}$/.test(meeting.endsAt) || meeting.startsAt >= meeting.endsAt} onChange={event => updateMeeting(subject.id, meeting.id, { endsAt: event.target.value })} disabled={busy} /></label>
             <label>Room<input id={`schedule-scan-subject-${subject.id}-meeting-${meeting.id}-room`} value={meeting.room} maxLength={120} placeholder="Optional" onChange={event => updateMeeting(subject.id, meeting.id, { room: event.target.value.toUpperCase() })} disabled={busy} /></label>

@@ -3,9 +3,9 @@ import type { FormEvent, ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
 import {
-  applySessionRatings, buildFlashcardSession, buildQuizSnapshot, EMPTY_RICH_TEXT, nextQuizQuestionIndex, quizSnapshotMatchesQuestions, richTextFromText, scoreQuiz, SKIPPED_QUIZ_ANSWER,
+  applySessionRatings, buildFlashcardSession, buildQuizSnapshot, EMPTY_RICH_TEXT, quizAttemptMetrics, quizReviewQuestionIds, quizSnapshotMatchesQuestionSubset, quizTopicInsights, richTextFromText, SKIPPED_QUIZ_ANSWER,
   validFlashcard, validQuizQuestion, type Flashcard, type FlashcardRating,
-  type FlashcardSession, type FlashcardSet, type FlashcardStudyOptions, type Quiz, type QuizAttempt, type QuizChoice, type QuizQuestion,
+  type FlashcardSession, type FlashcardSet, type FlashcardStudyOptions, type Quiz, type QuizAttempt, type QuizChoice, type QuizMode, type QuizQuestion,
 } from '../lib/studySets'
 import type { ReviewerSubject } from '../lib/reviewers'
 import { CaliSelect, type CaliSelectOption } from './CaliSelect'
@@ -409,6 +409,7 @@ function QuizEditor({ initial, subjects, reviewers, onSaved, onBack }: { initial
           <div className="set-item-head"><strong>Question {index + 1}</strong><span>{validQuizQuestion(question) ? 'Ready' : 'Draft'}</span><button type="button" onClick={() => setRemoveTarget(question)}>Remove</button></div>
           <div className="quiz-compose-grid">
             <div className="quiz-type-field"><span>Type</span><CaliSelect value={question.type} options={questionTypeOptions} ariaLabel={`Question ${index + 1} type`} className="cali-select--question-type" onChange={nextValue => { const type = nextValue as QuizQuestion['type']; if (type !== question.type) applyQuestionType(question.id, type) }} /></div>
+            <label className="quiz-topic-field"><span>Topic <small>Optional</small></span><input value={question.topic ?? ''} maxLength={120} placeholder="e.g. Cell division" onChange={event => change(question.id, { topic: event.target.value })} /></label>
             <label className="quiz-question-field"><span>Question</span><textarea autoFocus={index === questions.length - 1 && !question.promptText} value={question.promptText} maxLength={20000} placeholder="Write a clear question" onChange={event => change(question.id, { prompt: richTextFromText(event.target.value), promptText: event.target.value })} /></label>
           </div>
           <fieldset className="quiz-choice-editor"><legend>Choices</legend><p>Choose the correct answer. This is required before the question can appear in the quiz.</p>{question.choices.map((choice, choiceIndex) => <label key={choice.id} className={question.correctChoiceId === choice.id ? 'is-correct-choice' : ''}><input type="radio" name={`correct-${question.id}`} aria-label={`Mark choice ${choiceIndex + 1} as the correct answer`} checked={question.correctChoiceId === choice.id} onChange={() => change(question.id, { correctChoiceId: choice.id })} />{question.type === 'true_false' ? <span className="quiz-choice-label">{choice.text}</span> : <input value={choice.text} maxLength={500} aria-label={`Choice ${choiceIndex + 1}`} placeholder={`Choice ${choiceIndex + 1}`} onChange={event => change(question.id, { choices: question.choices.map(item => item.id === choice.id ? { ...item, text: event.target.value } : item) })} />}{question.type === 'multiple_choice' && question.choices.length > 2 && <button type="button" aria-label={`Remove choice ${choiceIndex + 1}`} onClick={() => change(question.id, { choices: question.choices.filter(item => item.id !== choice.id), correctChoiceId: question.correctChoiceId === choice.id ? '' : question.correctChoiceId })}>×</button>}</label>)}<div className={`quiz-correct-state${question.correctChoiceId ? ' is-selected' : ' is-missing'}`}><small>{question.correctChoiceId ? 'Correct answer selected' : 'Select a correct answer'}</small>{question.correctChoiceId && <button type="button" onClick={() => change(question.id, { correctChoiceId: '' })}>Remove selection</button>}</div>{question.type === 'multiple_choice' && question.choices.length < 6 && <button type="button" className="study-secondary" onClick={() => change(question.id, { choices: [...question.choices, newChoice()] })}>+ Add choice</button>}</fieldset>
@@ -425,8 +426,13 @@ function QuizEditor({ initial, subjects, reviewers, onSaved, onBack }: { initial
 function QuizRunner({ quiz, attempt: initialAttempt, onAttempt, onBack }: { quiz: Quiz; attempt: QuizAttempt; onAttempt: (attempt: QuizAttempt) => void; onBack: () => void }) {
   const [attempt, setAttempt] = useState(initialAttempt)
   const [saveError, setSaveError] = useState('')
+  const [completing, setCompleting] = useState(false)
+  const [confirmSubmit, setConfirmSubmit] = useState(false)
   const attemptRef = useRef(initialAttempt), saveQueue = useRef<Promise<void>>(Promise.resolve())
   const questions = attempt.snapshot.questions, question = questions[attempt.current_index]
+  const mode = attempt.mode ?? 'practice'
+  const phase = attempt.phase ?? 'first_pass'
+  const firstAnswers = attempt.first_answers ?? {}
   const answered = questions.filter(item => attempt.answers[item.id] && attempt.answers[item.id] !== SKIPPED_QUIZ_ANSWER).length
   const save = (values: Partial<QuizAttempt>) => {
     if (!supabase) return
@@ -434,25 +440,48 @@ function QuizRunner({ quiz, attempt: initialAttempt, onAttempt, onBack }: { quiz
     const next = { ...attemptRef.current, ...values }; attemptRef.current = next; setAttempt(next); onAttempt(next)
     saveQueue.current = saveQueue.current.then(async () => {
       if (!supabase) return
-      const { error } = await supabase.from('quiz_attempts').update(values).eq('id', next.id)
+      const { error } = await supabase.rpc('cali_save_quiz_attempt', {
+        p_id: next.id,
+        p_answers: next.answers,
+        p_first_answers: next.first_answers ?? {},
+        p_current_index: next.current_index,
+        p_phase: next.phase ?? 'first_pass',
+      })
       if (error) throw error
     }).catch(() => setSaveError('Your answer could not be saved. Check your connection before continuing.'))
   }
-  const complete = () => { const completedAt = new Date().toISOString(); save({ status: 'completed', score: scoreQuiz(attempt.snapshot, attempt.answers), total: questions.length, completed_at: completedAt }) }
+  const complete = () => {
+    if (!supabase || completing) return
+    setCompleting(true); setSaveError('')
+    saveQueue.current.then(async () => {
+      if (!supabase) return
+      const current = attemptRef.current
+      const { data, error } = await supabase.rpc('cali_complete_quiz_attempt', {
+        p_id: current.id,
+        p_answers: current.answers,
+        p_first_answers: current.first_answers ?? {},
+        p_phase: current.phase ?? 'first_pass',
+      }).single()
+      if (error || !data) throw error ?? new Error('Quiz completion failed')
+      const completed = data as QuizAttempt
+      attemptRef.current = completed; setAttempt(completed); onAttempt(completed); setConfirmSubmit(false)
+    }).catch(() => setSaveError('Cali could not finish this attempt. Check your connection and try again.')).finally(() => setCompleting(false))
+  }
 
   if (attempt.status === 'completed') {
-    const score = attempt.score ?? 0, total = Math.max(1, attempt.total ?? questions.length)
-    const skippedTotal = questions.filter(item => !attempt.answers[item.id] || attempt.answers[item.id] === SKIPPED_QUIZ_ANSWER).length
-    const incorrectTotal = Math.max(0, total - score - skippedTotal)
-    return <section className="set-study-shell quiz-session-shell quiz-results-page">
+    const metrics = quizAttemptMetrics(attempt), score = metrics.finalCorrect, total = Math.max(1, metrics.total)
+    const percent = Math.round((score / total) * 100)
+    const needsReview = Math.max(0, total - score)
+    return <section className={`set-study-shell quiz-session-shell quiz-results-page is-${mode}-results`}>
       <nav className="quiz-session-nav"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Back to quiz</span></button><span>{quiz.title}</span></nav>
-      <header className="quiz-result"><div><p className="workspace-overline">ATTEMPT COMPLETE</p><h1>Quiz complete</h1><p>{quiz.title}</p></div></header>
-      <div className="quiz-result-summary"><div className="is-correct"><strong>{score}</strong><span>Correct</span></div><div className="is-incorrect"><strong>{incorrectTotal}</strong><span>Incorrect</span></div><div><strong>{total}</strong><span>Total questions</span></div></div>
+      <header className="quiz-result"><div><p className="workspace-overline">{mode === 'practice' ? 'PRACTICE RESULTS' : 'TEST RESULTS'}</p><h1>{mode === 'practice' ? 'Practice complete' : 'Test complete'}</h1><p>{quiz.title}</p></div><div className="quiz-result-grade"><strong>{percent}%</strong><span>{score} of {total} correct</span></div></header>
+      {mode === 'test' && <div className="quiz-result-summary is-test"><div className="is-correct"><strong>{score}</strong><span>Correct answers</span><small>Out of {total} questions</small></div><div className={needsReview ? 'is-incorrect' : ''}><strong>{needsReview}</strong><span>Missed questions</span><small>{needsReview ? 'Review before your next test' : 'Nothing to review'}</small></div></div>}
+      <aside className="quiz-result-guidance"><strong>{needsReview ? 'Review these next' : 'Ready to move on'}</strong><p>{needsReview ? mode === 'practice' ? `${needsReview} ${needsReview === 1 ? 'question still needs' : 'questions still need'} practice. Start a Needs Review session from the quiz page.` : `Review the ${needsReview} missed ${needsReview === 1 ? 'question' : 'questions'}, then use Practice mode for feedback.` : 'You answered every question correctly. Revisit this quiz later to keep it fresh.'}</p><button type="button" className="button-primary" onClick={onBack}>{needsReview ? 'Review missed questions' : 'Back to quiz'}</button></aside>
       <section className="quiz-review"><header><div><p className="workspace-overline">ANSWER BREAKDOWN</p><h2>Results by question</h2></div></header>{questions.map((item, index) => {
         const selected = attempt.answers[item.id], correct = selected === item.correctChoiceId, correctChoice = item.choices.find(choice => choice.id === item.correctChoiceId)
         const selectedChoice = item.choices.find(choice => choice.id === selected)
         const skipped = !selected || selected === SKIPPED_QUIZ_ANSWER
-        return <article key={item.id} className={correct ? 'is-correct' : 'is-wrong'}><div className="quiz-review-head"><span>{index + 1}</span><div><strong>{item.promptText}</strong><small>{skipped ? 'Skipped' : correct ? 'Correct' : 'Incorrect'}</small></div></div><div className="quiz-review-responses">{!correct && <div className="quiz-review-answer is-student-answer"><span>Your answer</span><strong>{selectedChoice?.text ?? 'Skipped'}</strong></div>}<div className="quiz-review-answer"><span>Correct answer</span><strong>{correctChoice?.text}</strong></div></div>{item.explanationText && <div className="quiz-explanation"><strong>Explanation</strong><p>{item.explanationText}</p></div>}</article>
+        return <article key={item.id} className={correct ? 'is-correct' : 'is-wrong'}><div className="quiz-review-head"><span>{index + 1}</span><div>{item.topic?.trim() && <small className="quiz-review-topic">{item.topic.trim()}</small>}<strong>{item.promptText}</strong><small className="quiz-review-status">{skipped ? 'Skipped' : correct ? 'Correct' : 'Incorrect'}</small></div></div><div className="quiz-review-responses">{!correct && <div className="quiz-review-answer is-student-answer"><span>Your answer</span><strong>{selectedChoice?.text ?? 'Skipped'}</strong></div>}<div className={`quiz-review-answer${correct ? ' is-correct-answer' : ''}`}><span>{correct ? 'Your answer' : 'Correct answer'}</span><strong>{correctChoice?.text}</strong></div></div>{item.explanationText && <div className="quiz-explanation"><strong>Explanation</strong><p>{item.explanationText}</p></div>}</article>
       })}</section>
     </section>
   }
@@ -464,35 +493,71 @@ function QuizRunner({ quiz, attempt: initialAttempt, onAttempt, onBack }: { quiz
   const isSkipped = selectedChoiceId === SKIPPED_QUIZ_ANSWER
   const isAnswered = Boolean(selectedChoiceId) && !isSkipped
   const isCorrect = selectedChoiceId === question.correctChoiceId
-  const progress = (answered / questions.length) * 100
-  const nextIndex = isAnswered ? nextQuizQuestionIndex(questions, attempt.answers, attempt.current_index) : null
-  const moveForward = () => { if (nextIndex === null) complete(); else save({ current_index: nextIndex }) }
+  const progress = phase === 'review'
+    ? ((quizReviewQuestionIds(attempt).findIndex(id => id === question.id) + Number(isAnswered)) / Math.max(1, quizReviewQuestionIds(attempt).length)) * 100
+    : (answered / questions.length) * 100
+  const chooseAnswer = (choiceId: string) => {
+    if (mode === 'practice' && isAnswered) return
+    const first = phase === 'first_pass' && !firstAnswers[question.id] ? { ...firstAnswers, [question.id]: choiceId } : firstAnswers
+    save({ answers: { ...attempt.answers, [question.id]: choiceId }, first_answers: first })
+  }
+  const moveForward = () => {
+    const current = attemptRef.current
+    if (current.phase === 'review') {
+      const reviewIds = quizReviewQuestionIds(current)
+      const reviewPosition = reviewIds.indexOf(current.snapshot.questions[current.current_index]?.id)
+      const nextId = reviewIds[reviewPosition + 1]
+      if (nextId) save({ current_index: current.snapshot.questions.findIndex(item => item.id === nextId) })
+      else complete()
+      return
+    }
+    if (current.current_index < current.snapshot.questions.length - 1) { save({ current_index: current.current_index + 1 }); return }
+    if (current.mode === 'practice') {
+      const reviewIds = quizReviewQuestionIds(current)
+      if (reviewIds.length) {
+        const reviewAnswers = { ...current.answers }
+        reviewIds.forEach(id => { delete reviewAnswers[id] })
+        save({ phase: 'review', current_index: current.snapshot.questions.findIndex(item => item.id === reviewIds[0]), answers: reviewAnswers })
+      } else complete()
+      return
+    }
+    const incomplete = current.snapshot.questions.some(item => !current.answers[item.id] || current.answers[item.id] === SKIPPED_QUIZ_ANSWER)
+    if (incomplete) setConfirmSubmit(true); else complete()
+  }
   const skipQuestion = () => {
     const answers = { ...attempt.answers, [question.id]: SKIPPED_QUIZ_ANSWER }
-    const next = nextQuizQuestionIndex(questions, answers, attempt.current_index)
-    save({ answers, current_index: next ?? attempt.current_index })
+    const first = phase === 'first_pass' && !firstAnswers[question.id] ? { ...firstAnswers, [question.id]: SKIPPED_QUIZ_ANSWER } : firstAnswers
+    save({ answers, first_answers: first })
+    if (attempt.current_index < questions.length - 1) save({ current_index: attempt.current_index + 1 })
+    else moveForward()
   }
+  const showFeedback = mode === 'practice' && isAnswered
+  const reviewIds = quizReviewQuestionIds(attempt)
+  const unanswered = questions.filter(item => !attempt.answers[item.id] || attempt.answers[item.id] === SKIPPED_QUIZ_ANSWER).length
+  const sessionLabel = phase === 'review' ? 'Review round' : mode === 'practice' ? 'Practice' : 'Test'
   return <section className="set-study-shell quiz-session-shell">
-    <nav className="quiz-session-nav"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Save and leave</span></button><span>{quiz.title}</span><small>{answered}/{questions.length} answered</small></nav>
+    <nav className="quiz-session-nav"><button type="button" className="cali-back-link" onClick={onBack}><BackArrowIcon /><span>Save and leave</span></button><span>{quiz.title}</span><small>{phase === 'review' ? `${Math.max(0, reviewIds.indexOf(question.id)) + 1}/${reviewIds.length} review` : `${answered}/${questions.length} answered`}</small></nav>
     <div className="quiz-session-progress" aria-label={`${answered} of ${questions.length} questions answered`}><span style={{ width: `${progress}%` }} /></div>
-    <article key={question.id} className={`quiz-runner${isAnswered ? ' has-feedback' : ''}`}>
-      <header className="quiz-question-head"><div><span>Question {attempt.current_index + 1}</span><small>{isSkipped ? 'Skipped earlier' : question.type === 'true_false' ? 'True or false' : 'Multiple choice'}</small></div><strong>{String(attempt.current_index + 1).padStart(2, '0')}<i>/</i>{String(questions.length).padStart(2, '0')}</strong></header>
+    <article key={`${phase}-${question.id}`} className={`quiz-runner${showFeedback ? ' has-feedback' : ''}`}>
+      <header className="quiz-question-head"><div><span>{sessionLabel}{question.topic?.trim() ? ` · ${question.topic.trim()}` : ''}</span><small>{isSkipped ? 'Skipped earlier' : question.type === 'true_false' ? 'True or false' : 'Multiple choice'}</small></div><strong>{String(attempt.current_index + 1).padStart(2, '0')}<i>/</i>{String(questions.length).padStart(2, '0')}</strong></header>
       <h1 className="quiz-runner-question">{question.promptText}</h1>
       <div className="quiz-runner-choices" role="radiogroup" aria-label="Answer choices">{question.choices.map((choice, index) => {
-        const selected = choice.id === selectedChoiceId, correct = isAnswered && choice.id === question.correctChoiceId, incorrect = isAnswered && selected && !correct
-        return <button key={choice.id} type="button" role="radio" aria-checked={selected} disabled={isAnswered} className={`${selected ? 'is-selected' : ''}${correct ? ' is-correct' : ''}${incorrect ? ' is-incorrect' : ''}`} onClick={() => save({ answers: { ...attempt.answers, [question.id]: choice.id } })}><span>{String.fromCharCode(65 + index)}</span><strong>{choice.text}</strong></button>
+        const selected = choice.id === selectedChoiceId, correct = showFeedback && choice.id === question.correctChoiceId, incorrect = showFeedback && selected && !correct
+        return <button key={choice.id} type="button" role="radio" aria-checked={selected} disabled={mode === 'practice' && isAnswered} className={`${selected ? 'is-selected' : ''}${correct ? ' is-correct' : ''}${incorrect ? ' is-incorrect' : ''}`} onClick={() => chooseAnswer(choice.id)}><span>{String.fromCharCode(65 + index)}</span><strong>{choice.text}</strong></button>
       })}</div>
-      {isAnswered && <section className={`quiz-answer-feedback ${isCorrect ? 'is-correct' : 'is-incorrect'}`} aria-live="polite"><div><span>{isCorrect ? 'Correct' : 'Incorrect'}</span><h2>Correct answer: {correctChoice?.text}</h2>{!isCorrect && <p>You chose {selectedChoice?.text}.</p>}{question.explanationText && <p>{question.explanationText}</p>}</div></section>}
+      {showFeedback && <section className={`quiz-answer-feedback ${isCorrect ? 'is-correct' : 'is-incorrect'}`} aria-live="polite"><div><span>{isCorrect ? phase === 'review' ? 'Learned' : 'Correct' : 'Review this'}</span><h2>{isCorrect ? 'That’s right.' : `Correct answer: ${correctChoice?.text}`}</h2>{!isCorrect && <p>Your answer: {selectedChoice?.text}.</p>}{question.explanationText && <p>{question.explanationText}</p>}{!isCorrect && phase === 'first_pass' && <small>You’ll see this question again in the review round.</small>}</div></section>}
       {saveError && <p className="study-form-error" role="alert">{saveError}</p>}
-      <footer className="quiz-runner-actions"><button type="button" className="study-secondary" disabled={attempt.current_index === 0} onClick={() => save({ current_index: attempt.current_index - 1 })}>Previous</button><div>{!isAnswered && !isSkipped && <button type="button" className="study-secondary quiz-skip-action" onClick={skipQuestion}>Skip item</button>}{isAnswered && <button type="button" className="button-primary" onClick={moveForward}>{nextIndex === null ? 'Finish quiz' : attempt.answers[questions[nextIndex].id] === SKIPPED_QUIZ_ANSWER ? 'Review skipped item' : 'Next question'}</button>}</div></footer>
+      <footer className="quiz-runner-actions"><button type="button" className="study-secondary" disabled={attempt.current_index === 0 || phase === 'review'} onClick={() => save({ current_index: attempt.current_index - 1 })}>Previous</button><div>{!isAnswered && !isSkipped && phase === 'first_pass' && <button type="button" className="study-secondary quiz-skip-action" onClick={skipQuestion}>Not sure</button>}{(isAnswered || (mode === 'test' && isSkipped)) && <button type="button" className="button-primary" disabled={completing} onClick={moveForward}>{completing ? 'Finishing…' : phase === 'review' ? 'Continue review' : attempt.current_index === questions.length - 1 ? mode === 'practice' ? 'Start review' : 'Submit test' : 'Next question'}</button>}</div></footer>
     </article>
+    {confirmSubmit && <ConfirmDialog eyebrow="SUBMIT TEST" title="Submit with unanswered questions?" body={`${unanswered} ${unanswered === 1 ? 'question is' : 'questions are'} unanswered. You can submit now or return and complete them.`} confirmLabel="Submit test" kind="warning" onCancel={() => setConfirmSubmit(false)} onConfirm={complete} />}
   </section>
 }
 
 export function StudySetsPage({ studentId, tool }: { studentId: string; tool: Tool }) {
-  const [params, setParams] = useSearchParams(), [subjects, setSubjects] = useState<ReviewerSubject[]>([]), [reviewers, setReviewers] = useState<SourceReviewer[]>([]), [summaries, setSummaries] = useState<SetSummary[]>([]), [loading, setLoading] = useState(true), [query, setQuery] = useState(''), [subjectFilter, setSubjectFilter] = useState(''), [detail, setDetail] = useState<FlashcardSet | Quiz | null>(null), [attempts, setAttempts] = useState<QuizAttempt[]>([]), [activeAttempt, setActiveAttempt] = useState<QuizAttempt | null>(null), [creating, setCreating] = useState(false), [newTitle, setNewTitle] = useState(''), [newSubject, setNewSubject] = useState(''), [newSource, setNewSource] = useState(params.get('source') ?? '')
+  const [params, setParams] = useSearchParams(), [subjects, setSubjects] = useState<ReviewerSubject[]>([]), [reviewers, setReviewers] = useState<SourceReviewer[]>([]), [summaries, setSummaries] = useState<SetSummary[]>([]), [libraryAttempts, setLibraryAttempts] = useState<QuizAttempt[]>([]), [loading, setLoading] = useState(true), [query, setQuery] = useState(''), [subjectFilter, setSubjectFilter] = useState(''), [detail, setDetail] = useState<FlashcardSet | Quiz | null>(null), [attempts, setAttempts] = useState<QuizAttempt[]>([]), [activeAttempt, setActiveAttempt] = useState<QuizAttempt | null>(null), [creating, setCreating] = useState(false), [newTitle, setNewTitle] = useState(''), [newSubject, setNewSubject] = useState(''), [newSource, setNewSource] = useState(params.get('source') ?? '')
   const [confirmAction, setConfirmAction] = useState<'delete' | 'restart-attempt' | null>(null)
-  const [quizOptions, setQuizOptions] = useState({ shuffleQuestions: false, shuffleChoices: false })
+  const [quizOptions, setQuizOptions] = useState<{ mode: QuizMode; scope: 'all' | 'review'; shuffleQuestions: boolean; shuffleChoices: boolean }>({ mode: 'practice', scope: 'all', shuffleQuestions: false, shuffleChoices: false })
+  const [startingQuiz, setStartingQuiz] = useState(false), [quizStartError, setQuizStartError] = useState('')
   const table = tool === 'flashcards' ? 'flashcard_sets' : 'quizzes', idParam = tool === 'flashcards' ? 'set' : 'quiz', selectedId = params.get(idParam), editing = params.get('edit') === '1', studying = params.get('study') === '1'
   const navigate = (changes: Record<string, string | null>) => { const next = new URLSearchParams(params); for (const [key, value] of Object.entries(changes)) { if (value === null) next.delete(key); else next.set(key, value) } setParams(next) }
   const loadLibrary = useCallback(async () => {
@@ -501,10 +566,11 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
     const setFields = tool === 'flashcards'
       ? `id,subject_id,source_reviewer_title,title,revision,${countField},cards,progress,updated_at`
       : `id,subject_id,source_reviewer_title,title,revision,${countField},questions,updated_at`
-    const [setResult, subjectResult, reviewerResult] = await Promise.all([
+    const [setResult, subjectResult, reviewerResult, attemptResult] = await Promise.all([
       supabase.from(table).select(setFields).eq('user_id', studentId).order('updated_at', { ascending: false }),
       supabase.from('schedule_subjects').select('id,subject_code,title,color_key').eq('user_id', studentId).order('subject_code'),
       supabase.from('reviewers').select('id,title,subject_id').eq('user_id', studentId).order('updated_at', { ascending: false }),
+      tool === 'quizzes' ? supabase.from('quiz_attempts').select('*').eq('user_id', studentId).order('updated_at', { ascending: false }).limit(100) : Promise.resolve({ data: [] }),
     ])
     setSummaries((setResult.data ?? []).map(raw => {
       const row = raw as unknown as Record<string, unknown>
@@ -516,7 +582,7 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
       const mastered = tool === 'flashcards' && Array.isArray(row.cards) ? (row.cards as Flashcard[]).filter(card => validFlashcard(card) && progress[card.id]?.mastered).length : 0
       return { id: String(row.id), subject_id: row.subject_id as string | null, source_reviewer_title: row.source_reviewer_title as string | null, title: String(row.title), revision: Number(row.revision), count: ready, draftCount: total - ready, mastered, updated_at: String(row.updated_at) }
     }))
-    setSubjects((subjectResult.data ?? []) as ReviewerSubject[]); setReviewers((reviewerResult.data ?? []) as SourceReviewer[]); setLoading(false)
+    setSubjects((subjectResult.data ?? []) as ReviewerSubject[]); setReviewers((reviewerResult.data ?? []) as SourceReviewer[]); setLibraryAttempts((attemptResult.data ?? []) as QuizAttempt[]); setLoading(false)
   }, [studentId, table, tool])
   // Loading remote library state is the synchronization performed by this effect.
   // oxlint-disable-next-line react/set-state-in-effect
@@ -563,42 +629,49 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
   const visible = summaries.filter(item => (!subjectFilter || item.subject_id === subjectFilter) && item.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const subjectFilterOptions: CaliSelectOption[] = [{ value: '', label: 'All subjects' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title }))]
   const reviewerOptions: CaliSelectOption[] = [{ value: '', label: 'Blank', detail: 'Start without a reviewer' }, ...reviewers.map(reviewer => ({ value: reviewer.id, label: reviewer.title }))]
+  const completedLibraryAttempts = libraryAttempts.filter(item => item.status === 'completed')
 
   if (detail && tool === 'flashcards' && editing) return <FlashcardEditor initial={detail as FlashcardSet} subjects={subjects} reviewers={reviewers} onSaved={acceptSavedSet} onBack={() => navigate({ edit: null })} />
   if (detail && tool === 'flashcards' && studying) return <FlashcardStudy initial={detail as FlashcardSet} onChange={acceptSavedSet} onBack={() => navigate({ study: null })} />
   if (detail && tool === 'quizzes' && editing) return <QuizEditor initial={detail as Quiz} subjects={subjects} reviewers={reviewers} onSaved={acceptSavedSet} onBack={() => navigate({ edit: null })} />
   const activeAttemptMatchesQuiz = detail && tool === 'quizzes' && activeAttempt?.status === 'active'
-    ? quizSnapshotMatchesQuestions(activeAttempt.snapshot, (detail as Quiz).questions)
+    ? quizSnapshotMatchesQuestionSubset(activeAttempt.snapshot, (detail as Quiz).questions)
     : false
   if (detail && tool === 'quizzes' && studying && activeAttempt && (activeAttempt.status === 'completed' || activeAttemptMatchesQuiz)) return <QuizRunner quiz={detail as Quiz} attempt={activeAttempt} onAttempt={changed => { setActiveAttempt(changed); if (changed.status === 'completed') setAttempts(current => current.some(item => item.id === changed.id) ? current : [changed, ...current]) }} onBack={() => navigate({ study: null })} />
   if (detail) {
     const ready = tool === 'flashcards' ? (detail as FlashcardSet).cards.filter(validFlashcard).length : (detail as Quiz).questions.filter(validQuizQuestion).length
     const drafts = tool === 'quizzes' ? (detail as Quiz).questions.length - ready : 0
-    const completed = attempts.filter(item => item.status === 'completed'), latest = completed[0], best = completed.reduce<QuizAttempt | null>((winner, item) => !winner || (item.score ?? 0) / Math.max(1, item.total ?? 1) > (winner.score ?? 0) / Math.max(1, winner.total ?? 1) ? item : winner, null)
+    const completed = attempts.filter(item => item.status === 'completed'), latest = completed[0]
+    const latestMetrics = latest ? quizAttemptMetrics(latest) : null
+    const needsReviewIds = latest ? quizReviewQuestionIds(latest).filter(id => (detail as Quiz).questions.some(question => question.id === id)) : []
+    const topicInsights = quizTopicInsights(completed.map(item => ({ ...item, snapshot: { ...item.snapshot, questions: item.snapshot.questions.filter(question => question.topic?.trim()) } })))
     const startQuiz = async (restart = false) => {
-      if (!supabase || tool !== 'quizzes') return
+      if (!supabase || tool !== 'quizzes' || startingQuiz) return
       if (activeAttemptMatchesQuiz && !restart) { navigate({ study: '1' }); return }
-      if (activeAttempt?.status === 'active') {
-        const { error } = await supabase.from('quiz_attempts').update({ status: 'abandoned' }).eq('id', activeAttempt.id)
-        if (error) return
-      }
-      const snapshot = buildQuizSnapshot((detail as Quiz).questions, quizOptions.shuffleQuestions, quizOptions.shuffleChoices), id = newId()
-      const { data } = await supabase.from('quiz_attempts').insert({ id, quiz_id: detail.id, user_id: studentId, snapshot, answers: {} }).select().single()
-      if (data) { setActiveAttempt(data as QuizAttempt); navigate({ study: '1' }) }
+      setStartingQuiz(true); setQuizStartError('')
+      const allQuestions = (detail as Quiz).questions
+      const selectedQuestions = quizOptions.scope === 'review' && needsReviewIds.length ? allQuestions.filter(question => needsReviewIds.includes(question.id)) : allQuestions
+      const snapshot = buildQuizSnapshot(selectedQuestions, quizOptions.shuffleQuestions, quizOptions.shuffleChoices)
+      const { data, error } = await supabase.rpc('cali_start_quiz_attempt', { p_quiz_id: detail.id, p_mode: quizOptions.mode, p_snapshot: snapshot }).single()
+      setStartingQuiz(false)
+      if (error || !data) { setQuizStartError('Cali could not start this session. Please try again.'); return }
+      setActiveAttempt(data as QuizAttempt); navigate({ study: '1' })
     }
     if (isFlashcardTool(tool)) return <section className="set-detail-page"><nav className="reviewer-page-nav flashcard-detail-nav"><button type="button" className="cali-back-link" onClick={() => navigate({ [idParam]: null })}><BackArrowIcon /><span>Back to flashcards</span></button><details className="set-detail-menu"><summary aria-label="More flashcard set actions" title="More actions"><MoreIcon /></summary><div><button type="button" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; navigate({ edit: '1' }) }}>Edit</button><button type="button" className="is-danger" onClick={event => { const menu = event.currentTarget.closest('details') as HTMLDetailsElement | null; if (menu) menu.open = false; setConfirmAction('delete') }}>Delete</button></div></details></nav><FlashcardOverview flashcardSet={detail as FlashcardSet} onChange={acceptSavedSet} onStudy={() => navigate({ study: '1' })} />{confirmAction === 'delete' && <ConfirmDialog title={`Delete “${detail.title}”?`} body="This permanently removes the flashcard set and its progress. This cannot be undone." confirmLabel="Delete set" danger onCancel={() => setConfirmAction(null)} onConfirm={() => void remove()} />}</section>
     return <section className="set-detail-page">
       <nav className="reviewer-page-nav"><button type="button" className="cali-back-link" onClick={() => navigate({ [idParam]: null })}><BackArrowIcon /><span>Back to {tool}</span></button><div><button type="button" className="study-secondary" onClick={() => navigate({ edit: '1' })}>Edit</button><button type="button" className="study-danger" onClick={() => setConfirmAction('delete')}>Delete</button></div></nav>
       <article className="quiz-overview">
-        <header className="quiz-overview-hero"><div><p className="workspace-overline">QUIZ</p><h1>{detail.title}</h1>{detail.source_reviewer_title && <p>Based on {detail.source_reviewer_title}</p>}</div><div className="quiz-question-total"><strong>{ready}</strong><span>{ready === 1 ? 'ready question' : 'ready questions'}</span></div></header>
+        <header className="quiz-overview-hero"><div><p className="workspace-overline">QUIZ</p><h1>{detail.title}</h1>{detail.source_reviewer_title && <p>Based on {detail.source_reviewer_title}</p>}</div><div className="quiz-question-total"><strong>{ready}</strong><span>{ready === 1 ? 'question' : 'questions'}</span></div></header>
         <div className="quiz-overview-body">
-          <section className="quiz-launch-panel"><div><span className="quiz-launch-eyebrow">{activeAttemptMatchesQuiz ? 'ATTEMPT IN PROGRESS' : 'NEW ATTEMPT'}</span><h2>{activeAttemptMatchesQuiz ? 'Resume quiz' : 'Start quiz'}</h2><p>The correct answer is shown after each response. Explanations appear when they are included in the question.</p></div>
+          <section className="quiz-launch-panel"><div><span className="quiz-launch-eyebrow">{activeAttemptMatchesQuiz ? 'SESSION IN PROGRESS' : 'CHOOSE A SESSION'}</span><h2>{activeAttemptMatchesQuiz ? 'Continue where you left off' : 'Start a focused session'}</h2><p>{activeAttemptMatchesQuiz ? 'Your answers are saved. Continue from the same question when you are ready.' : quizOptions.mode === 'practice' ? 'Learn with feedback after every answer, then retry anything you missed.' : 'Check what you know without feedback until you submit.'}</p></div>
             {drafts > 0 && <div className="quiz-draft-notice" role="status"><strong>{drafts} {drafts === 1 ? 'question is' : 'questions are'} still a draft.</strong><span>Select a correct answer in Edit to include {drafts === 1 ? 'it' : 'them'}.</span></div>}
-            {!activeAttemptMatchesQuiz && <div className="quiz-start-options"><span>Order</span><label><input type="checkbox" checked={quizOptions.shuffleQuestions} onChange={event => setQuizOptions(value => ({ ...value, shuffleQuestions: event.target.checked }))} /> Shuffle questions</label><label><input type="checkbox" checked={quizOptions.shuffleChoices} onChange={event => setQuizOptions(value => ({ ...value, shuffleChoices: event.target.checked }))} /> Shuffle choices</label></div>}
-            <div className="set-primary-actions"><button type="button" className="button-primary quiz-start-button" disabled={!ready} onClick={() => void startQuiz()}><span>{activeAttemptMatchesQuiz ? 'Resume attempt' : 'Start quiz'}</span><strong aria-hidden="true">→</strong></button>{activeAttemptMatchesQuiz && <button type="button" className="study-secondary" onClick={() => setConfirmAction('restart-attempt')}>Restart</button>}</div>
+            {!activeAttemptMatchesQuiz && <><div className="quiz-mode-picker" role="radiogroup" aria-label="Quiz mode"><button type="button" role="radio" aria-checked={quizOptions.mode === 'practice'} className={quizOptions.mode === 'practice' ? 'is-selected' : ''} onClick={() => setQuizOptions(value => ({ ...value, mode: 'practice' }))}><strong>Practice</strong><span>Feedback and a review round</span></button><button type="button" role="radio" aria-checked={quizOptions.mode === 'test'} className={quizOptions.mode === 'test' ? 'is-selected' : ''} onClick={() => setQuizOptions(value => ({ ...value, mode: 'test', scope: 'all' }))}><strong>Test</strong><span>Results after you submit</span></button></div><div className="quiz-start-options"><span>Questions</span><label><input type="radio" name="quiz-scope" checked={quizOptions.scope === 'all'} onChange={() => setQuizOptions(value => ({ ...value, scope: 'all' }))} /> All ready questions</label>{needsReviewIds.length > 0 && <label><input type="radio" name="quiz-scope" checked={quizOptions.scope === 'review'} onChange={() => setQuizOptions(value => ({ ...value, scope: 'review', mode: 'practice' }))} /> Needs review ({needsReviewIds.length})</label>}<label><input type="checkbox" checked={quizOptions.shuffleQuestions} onChange={event => setQuizOptions(value => ({ ...value, shuffleQuestions: event.target.checked }))} /> Shuffle order</label></div></>}
+            {quizStartError && <p className="study-form-error" role="alert">{quizStartError}</p>}
+            <div className="set-primary-actions"><button type="button" className="button-primary quiz-start-button" disabled={!ready || startingQuiz} onClick={() => void startQuiz()}><span>{startingQuiz ? 'Starting…' : activeAttemptMatchesQuiz ? 'Continue session' : quizOptions.mode === 'practice' ? 'Start practice' : 'Start test'}</span><strong aria-hidden="true">→</strong></button>{activeAttemptMatchesQuiz && <button type="button" className="study-secondary" disabled={startingQuiz} onClick={() => setConfirmAction('restart-attempt')}>Start over</button>}</div>
           </section>
-          <aside className="quiz-performance-panel"><header><h2>Attempt summary</h2></header><div className="quiz-performance-grid"><div><span>Attempts</span><strong>{completed.length}</strong><small>Completed</small></div><div><span>Latest score</span><strong>{latest ? `${latest.score}/${latest.total}` : '—'}</strong><small>{latest ? 'Correct answers' : 'No attempts'}</small></div><div><span>Best score</span><strong>{best ? `${best.score}/${best.total}` : '—'}</strong><small>{best ? 'Correct answers' : 'No attempts'}</small></div></div>
-            {completed.length > 0 ? <section className="attempt-history"><header><h2>Recent attempts</h2><span>{completed.length} total</span></header>{completed.slice(0, 3).map(item => <button type="button" key={item.id} onClick={() => { setActiveAttempt(item); navigate({ study: '1' }) }}><span>{formatDate(item.completed_at ?? item.started_at)}</span><span>{item.score} of {item.total} correct</span></button>)}</section> : <p className="quiz-no-attempts">No completed attempts.</p>}
+          <aside className="quiz-performance-panel"><header><span className="quiz-launch-eyebrow">PROGRESS</span><h2>{completed.length ? 'Your quiz activity' : 'Complete a session to see progress'}</h2></header><div className="quiz-performance-grid"><div><span>Sessions</span><strong>{completed.length}</strong><small>Completed</small></div><div><span>Latest score</span><strong>{latestMetrics ? `${latestMetrics.finalCorrect}/${latestMetrics.total}` : '—'}</strong><small>{latestMetrics ? 'Most recent session' : 'No score yet'}</small></div><div><span>To review</span><strong>{latestMetrics ? needsReviewIds.length : '—'}</strong><small>{latestMetrics ? `${needsReviewIds.length === 1 ? 'Question' : 'Questions'} from latest` : 'No session yet'}</small></div></div>
+            {topicInsights.length > 0 && <section className="quiz-topic-insights"><header><h2>Topic results</h2></header>{topicInsights.slice(0, 3).map(insight => <div key={insight.topic}><div><strong>{insight.topic}</strong><span>{insight.correct} of {insight.exposures} correct</span></div><div className="quiz-mastery-meter" aria-label={`${insight.topic}: ${insight.correct} of ${insight.exposures} recent answers correct`}><span style={{ width: `${insight.accuracy}%` }} /></div></div>)}</section>}
+            {completed.length > 0 ? <section className="attempt-history"><header><h2>Recent sessions</h2><span>{completed.length} total</span></header>{completed.slice(0, 3).map(item => { const metrics = quizAttemptMetrics(item); return <button type="button" key={item.id} onClick={() => { setActiveAttempt(item); navigate({ study: '1' }) }}><span>{item.mode === 'test' ? 'Test' : 'Practice'} · {formatDate(item.completed_at ?? item.started_at)}</span><span>{metrics.finalCorrect} of {metrics.total}</span></button> })}</section> : <p className="quiz-no-attempts">Your latest score and review list will appear here after a session.</p>}
           </aside>
         </div>
       </article>
@@ -610,11 +683,11 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
     <header className="study-heading"><div><p className="workspace-overline">STUDY SPACE</p><h1>{tool === 'flashcards' ? <>Practice active <em>recall.</em></> : <>Check your <em>understanding.</em></>}</h1><p>{tool === 'flashcards' ? 'Build focused card sets and track what you have mastered.' : 'Create quizzes, answer each question, and review completed attempts.'}</p></div><div className="study-heading-actions"><button type="button" className="button-primary" onClick={() => navigate({ new: '1' })}><span>+</span> New {tool === 'flashcards' ? 'flashcard set' : 'quiz'}</button></div></header>
     <ToolTabs tool={tool} navigate={navigate} />
     <section className={`reviewer-library${tool === 'quizzes' ? ' quiz-library' : ''}`} aria-busy={loading}>
-      <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>{tool === 'flashcards' ? 'Flashcard sets' : 'Quizzes'}</h2></div>{tool === 'quizzes' && <p>The correct answer is shown after each question.</p>}</div>
+      <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>{tool === 'flashcards' ? 'Flashcard sets' : 'Quizzes'}</h2></div>{tool === 'quizzes' && <p>Practice with feedback or take a test when you are ready.</p>}</div>
       {loading ? <StudyLibraryFiltersSkeleton /> : <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={`Search ${tool}`} aria-label={`Search ${tool}`} /></label><CaliSelect value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} ariaLabel="Filter by subject" className="cali-select--filter" /></div>}
       {loading ? <StudyLibraryCardsSkeleton containerClassName="study-set-grid" label={`Loading ${tool}`} /> : <div className="study-set-grid">{visible.length ? visible.map(item => {
         const subject = subjects.find(value => value.id === item.subject_id)
-        if (tool === 'quizzes') return <button key={item.id} type="button" className="study-set-card quiz-set-card" onClick={() => navigate({ [idParam]: item.id })}><span className="study-set-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time></span><strong className="study-set-preview-title">{item.title}</strong><span className="study-set-preview-content"><span className="quiz-set-card-footer"><span><b>{item.count}</b> ready</span>{item.draftCount > 0 && <span className="has-drafts"><b>{item.draftCount}</b> {item.draftCount === 1 ? 'draft' : 'drafts'}</span>}</span></span></button>
+        if (tool === 'quizzes') { const latestAttempt = completedLibraryAttempts.find(attempt => attempt.quiz_id === item.id); const metrics = latestAttempt ? quizAttemptMetrics(latestAttempt) : null; return <button key={item.id} type="button" className="study-set-card quiz-set-card" onClick={() => navigate({ [idParam]: item.id })}><span className="study-set-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time></span><strong className="study-set-preview-title">{item.title}</strong><span className="study-set-preview-content"><span className="quiz-set-card-footer"><span><b>{item.count}</b> {item.count === 1 ? 'question' : 'questions'}</span>{metrics ? <span>Last score: <b>{metrics.finalCorrect}/{metrics.total}</b></span> : <span>No attempts yet</span>}{item.draftCount > 0 && <span className="has-drafts"><b>{item.draftCount}</b> {item.draftCount === 1 ? 'draft' : 'drafts'}</span>}</span></span></button> }
         const mastery = item.count ? (item.mastered / item.count) * 100 : 0
         return <button key={item.id} type="button" className="study-set-card flashcard-set-card" onClick={() => navigate({ [idParam]: item.id })}><span className="study-set-preview-meta"><span>{subject?.subject_code ?? 'General'}</span><time dateTime={item.updated_at}>{formatDate(item.updated_at)}</time></span><strong className="study-set-preview-title">{item.title}</strong><span className="study-set-preview-content"><span className="flashcard-library-summary"><small>{item.count} {item.count === 1 ? 'card' : 'cards'}</small><small>{item.mastered} mastered</small></span><span className="flashcard-library-meter" aria-hidden="true"><span style={{ width: `${mastery}%` }} /></span></span></button>
       }) : <div className="reviewer-empty-list"><strong>Your first {tool === 'flashcards' ? 'flashcard set' : 'quiz'} starts here</strong><p>Create one from scratch or derive it from an existing reviewer.</p><button type="button" className="button-primary" onClick={() => navigate({ new: '1' })}>Create {tool === 'flashcards' ? 'set' : 'quiz'}</button></div>}</div>}

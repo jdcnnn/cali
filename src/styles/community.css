@@ -643,15 +643,15 @@
 
 .community-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 10px; }
 .community-filters input,
-.community-filters select,
 .community-filters .cali-select-trigger,
-.community-dialog-field select,
+.community-dialog-field .cali-select-trigger,
 .community-dialog-field textarea { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--color-cali-border); border-radius: 9px; outline: 0; background: var(--color-cali-surface); color: var(--color-cali-ink); font-size: 11px; }
 .community-filters input:focus,
-.community-filters select:focus,
 .community-filters .cali-select-trigger:focus-visible,
-.community-dialog-field select:focus,
+.community-dialog-field .cali-select-trigger:focus-visible,
 .community-dialog-field textarea:focus { border-color: var(--color-cali-accent); box-shadow: 0 0 0 2px var(--color-cali-pale); }
+.community-filter-select,
+.cali-select--community-dialog { width: 100%; min-width: 0; }
 .community-filter-clear { display: none; }
 
 .community-results-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 36px; margin-top: 16px; }
@@ -941,11 +941,12 @@
   .community-mobile-filter-toggle[aria-expanded="true"] .community-filter-chevron { transform: rotate(180deg); }
   .community-filters { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-top: 2px; }
   .community-filters.is-open { display: grid; }
-  .community-filters select:last-of-type { grid-column: auto; }
   .community-filter-clear { display: inline-flex; min-height: 38px; grid-column: 1 / -1; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: var(--color-cali-pale); color: var(--color-cali-action-text); font-size: 10px; font-weight: 800; }
   .community-filter-clear:disabled { cursor: default; opacity: .45; }
   .community-search { grid-template-columns: 22px minmax(0, 1fr); }
-  .community-reader-nav { margin-top: 8px; }
+  .community-reader-nav { margin-top: 8px; margin-bottom: 0; }
+  .community-inbox-page>header,
+  .community-saved-page>header { padding-top: 12px; }
   .community-reader-hero { padding: 30px 23px; border-radius: 21px 21px 0 0; }
   .community-reader-hero h1 { margin-top: 15px; font-size: clamp(35px, 10vw, 46px); }
   .community-reader-hero>p { font-size: 13px; }

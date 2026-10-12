@@ -12,8 +12,8 @@ import { ConfirmationIcon } from './ConfirmationIcon'
 import { ReminderField } from './ReminderField'
 import { reminderLabel } from '../lib/reminders'
 import { enablePushNotifications } from '../lib/pushNotifications'
-import './calendar.css'
-import './skeleton.css'
+import '../styles/calendar.css'
+import '../styles/skeleton.css'
 
 type DayCode = 'M' | 'T' | 'W' | 'H' | 'F' | 'S' | 'U'
 type Subject = { id: string; subject_code: string; title: string; block_section: string; color_key: CalendarColorKey }

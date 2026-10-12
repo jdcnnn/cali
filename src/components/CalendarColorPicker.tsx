@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { calendarColors, calendarColorValue } from '../lib/calendarColors'
 import type { CalendarColorKey } from '../lib/calendarColors'
-import './calendar-color-picker.css'
+import '../styles/calendar-color-picker.css'
 
 export function CalendarColorPicker({ value, onChange, disabled = false, label = 'Color' }: { value: CalendarColorKey; onChange: (value: CalendarColorKey) => void; disabled?: boolean; label?: string }) {
   return <fieldset className="calendar-color-picker" disabled={disabled}>

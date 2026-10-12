@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { formatTaskDue, isTaskOverdue, nextTaskStep, sortForDashboard } from '../lib/tasks'
 import type { Task, TaskStep } from '../lib/tasks'
 import { StatusIcon } from './StatusIcon'
-import './skeleton.css'
+import '../styles/skeleton.css'
 
 export function DashboardTasks({ studentId, now }: { studentId: string; now: Date }) {
   const [tasks, setTasks] = useState<Task[]>([])

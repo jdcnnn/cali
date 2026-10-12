@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router'
 import { supabase } from '../lib/supabase'
 import { StatusIcon } from './StatusIcon'
-import './dashboard-schedules.css'
-import './skeleton.css'
+import '../styles/dashboard-schedules.css'
+import '../styles/skeleton.css'
 
 type DayCode = 'M' | 'T' | 'W' | 'H' | 'F' | 'S' | 'U'
 type Subject = { id: string; subject_code: string; title: string; block_section: string }

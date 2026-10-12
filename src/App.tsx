@@ -21,10 +21,10 @@ import { ConnectionNotice } from './components/ConnectionNotice'
 import { CommunityNotificationsProvider } from './components/CommunityNotificationsProvider'
 import { ConfirmationIcon } from './components/ConfirmationIcon'
 import { StudentGuide } from './components/GuidePages'
-import './components/skeleton.css'
-import './components/status-pages-refined.css'
+import './styles/skeleton.css'
+import './styles/status-pages-refined.css'
 import { ThemePicker } from './theme/ThemePicker'
-import { disablePushNotifications, enablePushNotifications, getPushStatus } from './lib/pushNotifications'
+import { disablePushNotifications, enablePushNotifications, getCachedPushStatus, getPushStatus } from './lib/pushNotifications'
 import type { PushStatus } from './lib/pushNotifications'
 import { formatYearLevel, yearLevelOptions } from './lib/academic'
 
@@ -505,12 +505,11 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
   return <div className="workspace-profile-page">
     <header className="workspace-profile-heading"><p className="workspace-overline">YOUR CALI ACCOUNT</p><h1>Profile</h1><p>Manage the identity and academic details connected to your workspace.</p></header>
     <section className="workspace-profile-identity" aria-label="Profile summary">
-      <ProfileAvatar name={student.full_name || student.username} src={student.avatar_url} className="workspace-profile-avatar" />
-      <div className="workspace-profile-identity-copy"><p>COMMUNITY IDENTITY</p><h2>@{student.username}</h2><span>{student.full_name || 'Google account name unavailable'}</span><div className="workspace-profile-summary-meta"><span>{student.program}</span><span>{year}</span></div></div>
+      <div className="workspace-profile-identity-main"><ProfileAvatar name={student.full_name || student.username} src={student.avatar_url} className="workspace-profile-avatar" /><div className="workspace-profile-identity-copy"><p>COMMUNITY IDENTITY</p><h2>@{student.username}</h2><span>{student.full_name || 'Google account name unavailable'}</span></div></div>
+      <dl className="workspace-profile-summary-meta" aria-label="Community identity details"><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div></dl>
       <Link className="workspace-public-profile-link" to={`/community/profile/${student.username}`}><span>View public profile</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></Link>
     </section>
     <div className="workspace-profile-details">
-        <section className="workspace-profile-section workspace-profile-account" aria-labelledby="profile-account-title"><header><p className="workspace-overline">SIGN-IN IDENTITY</p><h2 id="profile-account-title">Google account</h2><span>This information comes from the account used to sign in.</span></header><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Email address</dt><dd>{email}</dd></div></dl></section>
         <section className="workspace-profile-section" aria-labelledby="profile-academic-title">
           <div className="workspace-profile-section-head"><div><p className="workspace-overline">PUBLIC DETAILS</p><h2 id="profile-academic-title">Academic profile</h2><span>Used across your workspace and Community profile.</span></div>{!editing && <button type="button" className="workspace-profile-edit" onClick={startEditing}>Edit profile</button>}</div>
           {editing ? <form className="workspace-profile-form" onSubmit={saveProfileDetails} noValidate>
@@ -522,6 +521,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
             <div className="workspace-profile-form-actions"><button type="button" className="workspace-profile-cancel" onClick={() => { setEditing(false); setSaveError('') }} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy}>{busy ? 'Saving...' : 'Save changes'}</button></div>
           </form> : <><dl><div><dt>Username</dt><dd>{student.username}</dd></div><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div><div><dt>Public bio</dt><dd>{student.bio || 'Add a short introduction for your Community profile.'}</dd></div></dl>{saved && <p className="workspace-profile-saved" role="status">Profile details saved.</p>}</>}
         </section>
+        <section className="workspace-profile-section workspace-profile-account" aria-labelledby="profile-account-title"><header><p className="workspace-overline">SIGN-IN IDENTITY</p><h2 id="profile-account-title">Google account</h2><span>This information comes from the account used to sign in.</span></header><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Email address</dt><dd>{email}</dd></div></dl></section>
     </div>
     <Link to="/settings" className="workspace-settings-entry">
       <span className="workspace-settings-entry-icon"><WorkspaceIcon section="settings" /></span>
@@ -564,36 +564,31 @@ function SettingsScreen() {
 
   return <div className="workspace-settings-page">
     <Link to="/profile" className="cali-back-link workspace-settings-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg><span>Back to Profile</span></Link>
-    <header className="workspace-settings-page-heading"><p className="workspace-overline">CALI SETTINGS</p><h1>Settings</h1><p>Control how Cali works on this device, review its policies, and manage your account.</p></header>
+    <header className="workspace-settings-page-heading"><h1>Settings</h1><p>Manage Cali on this device and review your account.</p></header>
     <div className="workspace-settings-stack">
       <section className="workspace-settings-group" aria-labelledby="workspace-device-title">
-        <header className="workspace-settings-group-head"><div><p className="workspace-overline">YOUR DEVICE</p><h2 id="workspace-device-title">App and reminders</h2></div><p>Choose how Cali reaches you and whether it is installed for quicker access.</p></header>
+        <header className="workspace-settings-group-head"><h2 id="workspace-device-title">Device</h2><p>Notifications and app installation</p></header>
         <div className="workspace-settings-panel"><NotificationSettings /><InstallCali /></div>
       </section>
-      <section className="workspace-settings-group" aria-labelledby="workspace-help-title">
-        <header className="workspace-settings-group-head"><div><p className="workspace-overline">HELP</p><h2 id="workspace-help-title">Help and information</h2></div><p>Learn how Cali’s modules, sharing controls, and account features work.</p></header>
-        <div className="workspace-help-card"><Link to="/guide" className="workspace-help-link"><span className="workspace-help-icon"><WorkspaceIcon section="guide" /></span><span><strong>Cali Guide</strong><small>Browse feature explanations, privacy guidance, and important workflows.</small></span><svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></Link></div>
-      </section>
-      <section className="workspace-settings-group" aria-labelledby="workspace-legal-title">
-        <header className="workspace-settings-group-head"><div><p className="workspace-overline">LEGAL</p><h2 id="workspace-legal-title">Policies and terms</h2></div><p>Understand the rules for using Cali and how your information is handled.</p></header>
-        <div className="workspace-legal-card">
-          <nav aria-label="Cali policies">
+      <section className="workspace-settings-group" aria-labelledby="workspace-resources-title">
+        <header className="workspace-settings-group-head"><h2 id="workspace-resources-title">Support &amp; legal</h2><p>Guides and policies</p></header>
+        <nav className="workspace-settings-resources" aria-label="Help and policies">
+            <Link to="/guide" className="workspace-help-link"><span className="workspace-help-icon"><WorkspaceIcon section="guide" /></span><span><strong>Cali Guide</strong><small>How Cali works</small></span><svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></Link>
             <Link to="/terms-and-conditions" state={{ from: '/settings', backLabel: 'Back to Settings', view: 'student' }} className="workspace-legal-link">
               <span className="workspace-legal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5M10 12h5M10 16h5"/></svg></span>
-              <span><strong>Terms &amp; Conditions</strong><small>Rules and responsibilities for using Cali.</small></span>
+              <span><strong>Terms &amp; Conditions</strong><small>Service rules</small></span>
               <svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
             </Link>
             <Link to="/privacy-policy" state={{ from: '/settings', backLabel: 'Back to Settings', view: 'student' }} className="workspace-legal-link">
               <span className="workspace-legal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 19 6v5c0 4.6-2.8 8.1-7 10-4.2-1.9-7-5.4-7-10V6z"/><path d="m9.5 12 1.7 1.7 3.6-4"/></svg></span>
-              <span><strong>Privacy Policy</strong><small>What information Cali uses and how it is protected.</small></span>
+              <span><strong>Privacy Policy</strong><small>Your data</small></span>
               <svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
             </Link>
-          </nav>
-        </div>
+        </nav>
       </section>
       <section className="workspace-settings-group" aria-labelledby="workspace-account-title">
-        <header className="workspace-settings-group-head"><div><p className="workspace-overline">ACCOUNT</p><h2 id="workspace-account-title">Account data</h2></div><p>Permanent account actions are kept separate to prevent accidental changes.</p></header>
-        <div className="workspace-danger-zone"><div><p className="workspace-danger-label">PERMANENT ACTION</p><h3>Delete account</h3><p>Delete your account and all profile, schedule, task, event, reminder, and notification data stored in Cali.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></div>
+        <header className="workspace-settings-group-head"><h2 id="workspace-account-title">Account</h2><p>Permanent actions</p></header>
+        <div className="workspace-danger-zone"><div><h3>Delete account</h3><p>Permanently remove your Cali account and stored data.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></div>
       </section>
     </div>
     <dialog ref={deleteDialogRef} className="signout-dialog workspace-delete-dialog" aria-labelledby="delete-account-title" aria-describedby="delete-account-description" onCancel={event => { if (deleting) event.preventDefault() }} onClose={() => { setDeleteOpen(false); deleteTriggerRef.current?.focus() }}>
@@ -608,20 +603,19 @@ function SettingsScreen() {
 }
 
 function NotificationSettings() {
-  const [status, setStatus] = useState<PushStatus | 'loading'>('loading')
+  const [status, setStatus] = useState<PushStatus | 'loading'>(() => getCachedPushStatus() ?? 'loading')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [guideOpen, setGuideOpen] = useState(false)
 
   useEffect(() => {
     let active = true
-    void getPushStatus().then(async next => {
-      if (next === 'enabled') await enablePushNotifications()
+    void getPushStatus().then(next => {
       if (active) {
         setStatus(next)
         if (next === 'denied') setGuideOpen(true)
       }
-    }).catch(() => { if (active) setStatus('unsupported') })
+    }).catch(() => { if (active && !getCachedPushStatus()) setStatus('unsupported') })
     return () => { active = false }
   }, [])
 
@@ -642,18 +636,21 @@ function NotificationSettings() {
   }
 
   const enabled = status === 'enabled'
-  const description = status === 'unsupported'
-    ? 'This browser does not support Web Push notifications.'
+  const checking = status === 'loading'
+  const description = checking
+    ? 'Checking notification status...'
+    : status === 'unsupported'
+    ? 'Push notifications are unavailable in this browser.'
     : status === 'denied'
-      ? 'Notifications are unavailable in private browsing or are blocked in your browser or device settings.'
+      ? 'Notifications are blocked in your browser settings.'
       : enabled
-        ? 'This device receives reminders selected on your classes, tasks, and events.'
-        : 'Enable reminders on this device. Each schedule item keeps its own lead time.'
+        ? 'Reminders are enabled on this device.'
+        : 'Get reminder alerts on this device.'
 
   return <section className="workspace-notification-card" aria-labelledby="notification-settings-title">
-    <div className="workspace-notification-main"><div className="workspace-install-copy"><p className="workspace-overline">REMINDERS</p><h2 id="notification-settings-title">Push notifications</h2><p>{description}</p>{error && <p className="workspace-install-error" role="alert">{error}</p>}</div><button type="button" className={enabled ? 'workspace-notification-disable' : 'button-primary workspace-install-action'} onClick={() => { void toggle() }} disabled={busy || status === 'loading' || status === 'unsupported' || status === 'denied'}>{busy ? 'Updating...' : enabled ? 'Disable notifications' : status === 'denied' ? 'Notifications blocked' : 'Enable notifications'}</button></div>
+    <div className="workspace-notification-main" aria-busy={busy || checking}><div className="workspace-install-copy"><h2 id="notification-settings-title">Push notifications</h2><p>{description}</p>{error && <p className="workspace-install-error" role="alert">{error}</p>}</div><button type="button" className={enabled || checking ? 'workspace-notification-disable' : 'button-primary workspace-install-action'} onClick={() => { void toggle() }} disabled={busy || checking || status === 'unsupported' || status === 'denied'}>{busy ? 'Updating...' : checking ? 'Checking...' : enabled ? 'Disable' : status === 'denied' ? 'Blocked' : 'Enable'}</button></div>
     <details className="workspace-notification-guide" open={guideOpen} onToggle={event => setGuideOpen(event.currentTarget.open)}>
-      <summary>Notification setup and banners</summary>
+      <summary>Notification help</summary>
       <div className="workspace-notification-guide-body">
         <p className="workspace-notification-guide-intro">Complete the Cali setup first, then check your device only if reminders are not appearing as banners.</p>
         <div className="workspace-notification-steps" aria-label="Notification setup steps">

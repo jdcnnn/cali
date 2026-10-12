@@ -8,7 +8,7 @@ import jadePhoto from '../assets/jade-cunanan-temp.png'
 import ramPhoto from '../assets/ram.jpg'
 import carlPhoto from '../assets/carl.jpg'
 import carloPhoto from '../assets/carlo.jpg'
-import './entry.css'
+import '../styles/entry.css'
 import { useLoginMode } from '../auth/LoginModeContext'
 
 type TeamMember = {

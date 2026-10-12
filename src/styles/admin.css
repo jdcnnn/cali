@@ -124,7 +124,7 @@
 }
 
 .admin-filters input,
-.admin-filters select,
+.admin-filters .cali-select-trigger,
 .admin-section-head input {
     border: 1px solid #ccd3cd;
     border-radius: 8px;
@@ -132,6 +132,8 @@
     background: #fff;
     min-width: 160px
 }
+
+.admin-filter-select { min-width: 160px; }
 
 .admin-filters input,
 .admin-section-head input {

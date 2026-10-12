@@ -4,6 +4,16 @@ import { supabase } from './supabase'
 export type PushStatus = 'unsupported' | 'denied' | 'disabled' | 'enabled'
 
 let enablingNotifications: Promise<void> | null = null
+let cachedPushStatus: PushStatus | null = null
+
+function rememberPushStatus(status: PushStatus) {
+  cachedPushStatus = status
+  return status
+}
+
+export function getCachedPushStatus() {
+  return cachedPushStatus
+}
 
 function urlBase64ToUint8Array(value: string) {
   const padding = '='.repeat((4 - value.length % 4) % 4)
@@ -44,10 +54,10 @@ async function subscribeToPush(registration: ServiceWorkerRegistration, applicat
 }
 
 export async function getPushStatus(): Promise<PushStatus> {
-  if (!supportsPush()) return 'unsupported'
-  if (Notification.permission === 'denied') return 'denied'
+  if (!supportsPush()) return rememberPushStatus('unsupported')
+  if (Notification.permission === 'denied') return rememberPushStatus('denied')
   const registration = await navigator.serviceWorker.ready
-  return await registration.pushManager.getSubscription() ? 'enabled' : 'disabled'
+  return rememberPushStatus(await registration.pushManager.getSubscription() ? 'enabled' : 'disabled')
 }
 
 async function enablePushNotificationsOnce(): Promise<void> {
@@ -71,8 +81,10 @@ async function enablePushNotificationsOnce(): Promise<void> {
   })
   if (error) {
     await subscription.unsubscribe().catch(() => false)
+    rememberPushStatus('disabled')
     throw error
   }
+  rememberPushStatus('enabled')
   announcePushStatusChange()
 }
 
@@ -83,16 +95,17 @@ export function enablePushNotifications(): Promise<void> {
 }
 
 export async function disablePushNotifications(): Promise<void> {
-  if (!supportsPush()) return
+  if (!supportsPush()) { rememberPushStatus('unsupported'); return }
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
-  if (!subscription) return
+  if (!subscription) { rememberPushStatus('disabled'); return }
   if (supabase) {
     const { error } = await supabase.rpc('cali_remove_own_push_subscription', { p_endpoint: subscription.endpoint })
     if (error) throw error
   }
   const removed = await subscription.unsubscribe()
   if (!removed) throw new Error('The browser could not disable notifications. Please try again.')
+  rememberPushStatus('disabled')
   announcePushStatusChange()
 }
 
@@ -103,6 +116,7 @@ export async function removePushSubscriptionOnSignOut() {
   if (!subscription) return
   if (supabase) await supabase.rpc('cali_remove_own_push_subscription', { p_endpoint: subscription.endpoint })
   await subscription.unsubscribe().catch(() => false)
+  rememberPushStatus('disabled')
   announcePushStatusChange()
 }
 
@@ -119,5 +133,6 @@ export async function clearLocalAccountData() {
   const subscription = await registration?.pushManager.getSubscription()
   if (!subscription) return
   await subscription.unsubscribe().catch(() => false)
+  rememberPushStatus('disabled')
   announcePushStatusChange()
 }

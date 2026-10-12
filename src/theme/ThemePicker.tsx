@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTheme } from './ThemeContext'
 import type { ThemePreference } from './ThemeContext'
-import './theme.css'
+import '../styles/theme.css'
 
 const choices: { value: ThemePreference; label: string; hint: string }[] = [
   { value: 'system', label: 'System', hint: 'Match your device' },

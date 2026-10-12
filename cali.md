@@ -269,7 +269,7 @@ Student profiles, schedule meetings and their class reminders, push subscription
 
 The confirmed font pairing uses **Fredoka** for CALI branding and major headings, and **DM Sans** for navigation, forms, buttons, and body text. Proposed brand colors are primary blue `#1E90FF`, action blue `#0758B8`, deep ink `#172B42`, slate `#526579`, pale blue `#EAF4FF`, canvas `#F6FAFE`, border `#D7E5F3`, and white `#FFFFFF`.
 
-The design prioritizes readable academic information and quick access to work. Study uses compact equal-size previews, restrained borders, deliberate whitespace, responsive one- and two-column layouts, and count-based progress summaries rather than decorative or unsupported analytics. Major actions across the application share Cali-branded confirmation/default, warning, loading, success, error, and blue information states. Their inline SVG icons inherit the intended state color, copy stays scoped to the action, and minor reversible editor actions do not create unnecessary confirmation friction. Final release-level component and accessibility review remains planned.
+The design prioritizes readable academic information and quick access to work. Study uses compact equal-size previews, restrained borders, deliberate whitespace, responsive one- and two-column layouts, and activity-derived progress summaries rather than decorative or unsupported analytics. Major actions across the application share Cali-branded confirmation/default, warning, loading, success, error, and blue information states. Their inline SVG icons inherit the intended state color, copy stays scoped to the action, and minor reversible editor actions do not create unnecessary confirmation friction. Shared custom dropdowns are viewport-aware and replace native selects across the active application. Final release-level component and accessibility review remains planned.
 
 ## 10. Development status and sequence
 
@@ -283,19 +283,19 @@ The design prioritizes readable academic information and quick access to work. S
 | 6. Tasks | **Complete** | Focused responsive Today, Upcoming, and Completed planning, guided checklist steps, planned work dates, secure ownership policies, and dashboard integration. |
 | 7. Calendar | **Complete** | Independent Cali-branded monthly calendar for class meetings, task deadlines, and Events, with a responsive selected-day detail panel, preview modals, selected-date creation, notification targeting, Event editing/deletion, a three-way create menu, and ten theme-aware named colors. Weekly browsing remains in Schedules. |
 | 8. Study | **Complete** | Private reviewers, notebook-photo OCR, digital-PDF extraction, AI-assisted reviewer drafts, flashcards, quizzes, mastery, and attempt history are implemented. OCR for scanned PDFs, `.docx` import, and AI-generated flashcards/quizzes are outside this phase. |
-| 9. Learning analytics | **Planned** | Progress measures derived from study activity and quiz attempts. |
-| 10. Community and administration | **Implemented locally; deployment verification pending** | Reviewer publishing/discovery, attribution, voting/use signals, view/edit requests and grants, copies, realtime/paginated notifications, reviewer-only reports and moderation, responsive admin Overview/Users/Moderation/System areas, public-profile inspection, suspension controls, report signals, sign-in policy, and audit history. |
-| 11. Release review | **Planned** | Key journey, authorization, data handling, accessibility, performance, and deployment verification. |
+| 9. Learning insights | **Complete for the core quiz flow** | Saved quiz sessions provide latest score, questions to review, topic results, and recent history. Practice provides immediate feedback and a review round; Test withholds feedback until submission. Broader predictive or decorative analytics are intentionally excluded. |
+| 10. Community and administration | **Complete; release acceptance pending** | Reviewer publishing/discovery, attribution, voting/use signals, view/edit requests and grants, copies, realtime/paginated notifications, reviewer-only reports and moderation, responsive admin Overview/Users/Moderation/System areas, public-profile inspection, suspension controls, report signals, sign-in policy, and audit history. All repository migrations are applied to the linked project. |
+| 11. Release review | **In progress** | Repository gates pass; authenticated key-journey, authorization, accessibility, performance, device-matrix, and deployed-version verification remain release checks. |
 
-### Next implementation sequence
+### Release sequence
 
-1. Apply and verify the Community/admin migrations from `20261009010000_cali_community.sql` through `20261010104500_access_status_support_identity.sql`, then deploy the matching frontend.
-2. Perform authenticated desktop/mobile acceptance testing of reviewer publishing, access grants, notifications, report review, user inspection, suspension/restoration, audit pagination, and the support-ticket draft.
-3. Add end-to-end authorization tests for student/admin routes and privileged RPCs. Report totals remain signals only; automatic suspension requires a separately approved threshold, appeal path, false-positive policy, and human-review safeguard.
-4. Complete release accessibility, keyboard, focus, contrast, reduced-motion, performance, and device-matrix review.
-5. Specify Learning analytics around actionable saved study activity and quiz outcomes, without decorative or unsupported analytics.
+1. Deploy the current frontend with the matching migration set and confirm the production commit.
+2. Perform authenticated desktop/mobile acceptance testing across the critical student and admin journeys.
+3. Add browser-level authorization tests for student/admin routes and privileged RPCs. Report totals remain signals only; automatic suspension requires a separately approved threshold, appeal path, false-positive policy, and human-review safeguard.
+4. Complete accessibility, keyboard, focus, contrast, reduced-motion, performance, and supported-device review.
+5. Run the live Study AI provider verification and one eligible-student generation/save/discard smoke test.
 
-Each remaining phase should receive its own user flow, data contract, validation rules, failure states, and acceptance criteria before development begins. Completed phases remain subject to release-level accessibility, performance, and deployment verification.
+The core scope is feature-complete as of 2026-10-12. Completed phases remain subject to release-level acceptance, accessibility, performance, and deployment verification.
 
 ## 11. Open architecture decisions
 

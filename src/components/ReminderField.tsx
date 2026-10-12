@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react'
 import { reminderLabel, reminderPresets } from '../lib/reminders'
 import { getPushStatus } from '../lib/pushNotifications'
 import type { PushStatus } from '../lib/pushNotifications'
-import './reminder-field.css'
+import { CaliSelect, type CaliSelectOption } from './CaliSelect'
+import '../styles/reminder-field.css'
 
 function BellIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>
 }
 
-function ChevronIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-}
+const reminderOptions: CaliSelectOption[] = [
+  ...reminderPresets.map(option => ({ value: option.value, label: option.label })),
+  { value: 'custom', label: 'Custom lead time', detail: 'Choose hours and minutes' },
+]
 
 function TimePart({ label, value, max, step, onChange }: { label: string; value: number; max: number; step: number; onChange: (value: number) => void }) {
   return <div className="reminder-time-part"><span>{label}</span><div>
@@ -51,16 +53,11 @@ export function ReminderField({ value, onChange, disabled = false, id = 'reminde
   return <div className={`reminder-field${disabled ? ' is-disabled' : ''}`}>
     <label className="reminder-field-label" htmlFor={id}><span>Reminder</span><small>Notify me before</small></label>
     <div className="reminder-select-shell">
-      <span className="reminder-select-icon" aria-hidden="true"><BellIcon /></span>
-      <select id={id} value={customVisible ? 'custom' : value === null ? '' : String(value)} disabled={disabled} onChange={event => {
-        if (event.target.value === 'custom') { setCustom(true); onChange(value ?? 30); return }
+      <CaliSelect id={id} value={customVisible ? 'custom' : value === null ? '' : String(value)} options={reminderOptions} ariaLabel="Reminder lead time" className="cali-select--reminder" leading={<BellIcon />} disabled={disabled} onChange={nextValue => {
+        if (nextValue === 'custom') { setCustom(true); onChange(value ?? 30); return }
         setCustom(false)
-        onChange(event.target.value ? Number(event.target.value) : null)
-      }}>
-        {reminderPresets.map(option => <option value={option.value} key={option.value || 'none'}>{option.label}</option>)}
-        <option value="custom">Custom lead time</option>
-      </select>
-      <span className="reminder-select-chevron" aria-hidden="true"><ChevronIcon /></span>
+        onChange(nextValue ? Number(nextValue) : null)
+      }} />
     </div>
     {customVisible && !disabled && <section className="reminder-custom" aria-label="Custom reminder lead time">
       <header><span>Custom lead time</span><strong>{reminderLabel(value)}</strong></header>

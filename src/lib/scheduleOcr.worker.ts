@@ -1,9 +1,15 @@
 import { PaddleOCR } from '@paddleocr/paddleocr-js'
 import type { OcrResult, PaddleOCRCreateOptions } from '@paddleocr/paddleocr-js'
 import type { Mat } from '@techstark/opencv-js'
+import { env as ortEnvironment } from 'onnxruntime-web'
 import type { ScheduleOcrWorkerRequest, ScheduleOcrWorkerResponse } from './scheduleOcrProtocol'
 
 const OCR_ASSET_ROOT = '/ocr/v1'
+
+// PaddleOCR's exported models contain harmless unused initializers. ONNX Runtime
+// otherwise emits one warning per initializer while building each local session.
+// Keep actual runtime errors visible without flooding the browser console.
+ortEnvironment.logLevel = 'error'
 
 type OcrInstance = {
   initialize(): Promise<{ elapsedMs: number }>

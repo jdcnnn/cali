@@ -39,15 +39,35 @@ import type {
 import { formatYearLevel } from "../lib/academic";
 import { ThemePicker } from "../theme/ThemePicker";
 import { CaliWordmark, ProfileAvatar } from "./CaliWordmark";
+import { CaliSelect, type CaliSelectOption } from "./CaliSelect";
 import { ConfirmationIcon } from "./ConfirmationIcon";
 import type { ConfirmationIconKind } from "./ConfirmationIcon";
 import { AdminModerationPanel } from "./AdminModerationPanel";
 import { AdminHandbook } from "./GuidePages";
-import "./admin-dashboard.css";
-import "./admin-dashboard-identity.css";
-import "./admin-readability.css";
-import "./admin-overview.css";
-import "./admin-users.css";
+import "../styles/admin-dashboard.css";
+import "../styles/admin-dashboard-identity.css";
+import "../styles/admin-readability.css";
+import "../styles/admin-overview.css";
+import "../styles/admin-users.css";
+
+const adminUserStatusOptions: CaliSelectOption[] = [
+  { value: "all", label: "Any status" },
+  { value: "active", label: "Active accounts" },
+  { value: "suspended", label: "Suspended accounts" },
+  { value: "admin", label: "Administrators" },
+];
+const adminAccountTypeOptions: CaliSelectOption[] = [
+  { value: "all", label: "Any account type" },
+  { value: "institutional", label: "RTU school accounts" },
+  { value: "personal", label: "Personal Google accounts" },
+];
+const adminReportStatusOptions: CaliSelectOption[] = [
+  { value: "all", label: "Any report status" },
+  { value: "pending", label: "Awaiting admin review" },
+  { value: "confirmed", label: "Confirmed violations" },
+  { value: "reported", label: "Any actionable report" },
+  { value: "none", label: "No actionable reports" },
+];
 
 type Section = "overview" | "moderation" | "users" | "system" | "handbook";
 type IconName =
@@ -1435,60 +1455,18 @@ function Users({
       >
         <div className="admin-user-toolbar">
           <div className="admin-user-filters">
-            <label>
+            <div className="admin-user-filter">
               <span>Account status</span>
-              <div>
-                <select
-                  value={status}
-                  onChange={(event) => {
-                    setStatus(event.target.value);
-                    setPage(1);
-                  }}
-                >
-                  <option value="all">Any status</option>
-                  <option value="active">Active accounts</option>
-                  <option value="suspended">Suspended accounts</option>
-                  <option value="admin">Administrators</option>
-                </select>
-                <Icon name="chevron" />
-              </div>
-            </label>
-            <label>
+              <CaliSelect value={status} options={adminUserStatusOptions} ariaLabel="Filter by account status" className="admin-user-select" onChange={next => { setStatus(next); setPage(1); }} />
+            </div>
+            <div className="admin-user-filter">
               <span>Sign-in account</span>
-              <div>
-                <select
-                  value={account}
-                  onChange={(event) => {
-                    setAccount(event.target.value);
-                    setPage(1);
-                  }}
-                >
-                  <option value="all">Any account type</option>
-                  <option value="institutional">RTU school accounts</option>
-                  <option value="personal">Personal Google accounts</option>
-                </select>
-                <Icon name="chevron" />
-              </div>
-            </label>
-            <label>
+              <CaliSelect value={account} options={adminAccountTypeOptions} ariaLabel="Filter by sign-in account" className="admin-user-select" onChange={next => { setAccount(next); setPage(1); }} />
+            </div>
+            <div className="admin-user-filter">
               <span>Reviewer reports</span>
-              <div>
-                <select
-                  value={reportStatus}
-                  onChange={(event) => {
-                    setReportStatus(event.target.value);
-                    setPage(1);
-                  }}
-                >
-                  <option value="all">Any report status</option>
-                  <option value="pending">Awaiting admin review</option>
-                  <option value="confirmed">Confirmed violations</option>
-                  <option value="reported">Any actionable report</option>
-                  <option value="none">No actionable reports</option>
-                </select>
-                <Icon name="chevron" />
-              </div>
-            </label>
+              <CaliSelect value={reportStatus} options={adminReportStatusOptions} ariaLabel="Filter by reviewer report status" className="admin-user-select" onChange={next => { setReportStatus(next); setPage(1); }} />
+            </div>
             {filtersActive && (
               <button
                 className="admin-user-clear-filters"

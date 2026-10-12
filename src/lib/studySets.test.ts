@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applySessionRatings, buildFlashcardSession, buildQuizSnapshot, flashcardContentChanged, flashcardsForSession, nextQuizQuestionIndex, quizSnapshotMatchesQuestions, reconcileFlashcardProgress, richTextFromText, scoreQuiz, SKIPPED_QUIZ_ANSWER, validFlashcard, validQuizQuestion, type CardProgress, type Flashcard, type QuizQuestion } from './studySets'
+import { applySessionRatings, buildFlashcardSession, buildQuizSnapshot, flashcardContentChanged, flashcardsForSession, nextQuizQuestionIndex, quizAttemptMetrics, quizReviewQuestionIds, quizSnapshotMatchesQuestions, quizSnapshotMatchesQuestionSubset, quizTopicInsights, reconcileFlashcardProgress, richTextFromText, scoreQuiz, SKIPPED_QUIZ_ANSWER, validFlashcard, validQuizQuestion, type CardProgress, type Flashcard, type QuizAttempt, type QuizQuestion } from './studySets'
 
 const question = (id: string): QuizQuestion => ({
   id,
@@ -22,6 +22,14 @@ const card = (id: string, front = `Front ${id}`, back = `Back ${id}`): Flashcard
 
 const learned = (mastered: boolean): CardProgress => ({ goodStreak: mastered ? 2 : 1, mastered, lastRating: 'good', updatedAt: '2026-01-01' })
 
+const attempt = (values: Partial<QuizAttempt> = {}): QuizAttempt => ({
+  id: 'attempt', quiz_id: 'quiz', user_id: 'student', status: 'completed', mode: 'practice', phase: 'review',
+  snapshot: buildQuizSnapshot([{ ...question('q1'), topic: 'Foundations' }, { ...question('q2'), topic: 'Foundations' }], false, false),
+  answers: { q1: 'q1-b', q2: 'q2-b' }, first_answers: { q1: 'q1-a', q2: 'q2-b' }, current_index: 1,
+  score: 2, first_try_score: 1, total: 2, started_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:05:00Z', completed_at: '2026-01-01T00:05:00Z',
+  ...values,
+})
+
 describe('study set helpers', () => {
   it('excludes incomplete cards and questions', () => {
     expect(validFlashcard({ id: '1', front: richTextFromText('Front'), back: richTextFromText(''), frontText: 'Front', backText: '' })).toBe(false)
@@ -31,6 +39,19 @@ describe('study set helpers', () => {
   it('scores immutable quiz snapshots', () => {
     const snapshot = buildQuizSnapshot([question('q1'), question('q2')], false, false)
     expect(scoreQuiz(snapshot, { q1: 'q1-b', q2: 'q2-a' })).toBe(1)
+  })
+
+  it('distinguishes first-try learning from recovered answers', () => {
+    expect(quizAttemptMetrics(attempt())).toMatchObject({ total: 2, firstTryCorrect: 1, finalCorrect: 2, recovered: 1 })
+    expect(quizReviewQuestionIds(attempt())).toEqual(['q1'])
+  })
+
+  it('builds topic mastery from recent real outcomes', () => {
+    const insights = quizTopicInsights([
+      attempt(),
+      attempt({ id: 'older', answers: { q1: 'q1-a', q2: 'q2-b' }, first_answers: { q1: 'q1-a', q2: 'q2-b' }, completed_at: '2025-12-31T00:00:00Z' }),
+    ], { quiz: 'Quiz title' })
+    expect(insights[0]).toMatchObject({ topic: 'Foundations', exposures: 4, correct: 3, accuracy: 75, mastery: 65 })
   })
 
   it('applies question and choice shuffle options without mutating the quiz', () => {
@@ -75,6 +96,14 @@ describe('study set helpers', () => {
 
     expect(quizSnapshotMatchesQuestions(snapshot, original)).toBe(true)
     expect(quizSnapshotMatchesQuestions(snapshot, original.map(item => item.id === 'q1' ? { ...item, promptText: 'Updated question' } : item))).toBe(false)
+  })
+
+  it('accepts a current needs-review subset but rejects edited review questions', () => {
+    const current = [question('q1'), question('q2'), question('q3')]
+    const reviewSnapshot = buildQuizSnapshot([current[0], current[2]], false, false)
+
+    expect(quizSnapshotMatchesQuestionSubset(reviewSnapshot, current)).toBe(true)
+    expect(quizSnapshotMatchesQuestionSubset(reviewSnapshot, current.map(item => item.id === 'q3' ? { ...item, promptText: 'Edited' } : item))).toBe(false)
   })
 
   it('requires two consecutive Got it recalls for mastery', () => {

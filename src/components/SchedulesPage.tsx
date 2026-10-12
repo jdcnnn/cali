@@ -6,14 +6,15 @@ import { calendarColorValue, defaultCalendarColor, isCalendarColorKey } from '..
 import type { CalendarColorKey } from '../lib/calendarColors'
 import { CalendarColorPicker } from './CalendarColorPicker'
 import { CaliTimePicker } from './CaliDateTimePicker'
+import { CaliSelect, type CaliSelectOption } from './CaliSelect'
 import { ScheduleScanner } from './ScheduleScanner'
 import { StatusIcon } from './StatusIcon'
 import { ConfirmationIcon } from './ConfirmationIcon'
 import { ReminderField } from './ReminderField'
 import { reminderLabel } from '../lib/reminders'
 import { enablePushNotifications } from '../lib/pushNotifications'
-import './schedules.css'
-import './skeleton.css'
+import '../styles/schedules.css'
+import '../styles/skeleton.css'
 
 type DayCode = 'M' | 'T' | 'W' | 'H' | 'F' | 'S' | 'U'
 type Subject = { id: string; user_id: string; subject_code: string; title: string; units: number; block_section: string; color_key: CalendarColorKey }
@@ -168,6 +169,10 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
   const dirty = modal?.kind === 'editor' && JSON.stringify(draft) !== JSON.stringify(modal.initial)
 
   const subjectById = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
+  const subjectOptions = useMemo<CaliSelectOption[]>(() => [
+    { value: '', label: 'New subject', detail: 'Create a new subject for this meeting' },
+    ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title, triggerLabel: `${subject.subject_code} — ${subject.title}` })),
+  ], [subjects])
   const meetingsByDay = useMemo(() => new Map(days.map(day => [day.code, meetings.filter(meeting => meeting.day_code === day.code).sort((a, b) => a.starts_at.localeCompare(b.starts_at))])), [meetings])
   const scheduledIds = useMemo(() => new Set(meetings.map(meeting => meeting.subject_id)), [meetings])
   const unscheduled = subjects.filter(subject => !scheduledIds.has(subject.id))
@@ -284,7 +289,7 @@ export function SchedulesPage({ studentId, now }: { studentId: string; now: Date
     <dialog ref={dialogRef} className={`schedule-dialog${modal?.kind === 'delete' || modal?.kind === 'delete-subject' || modal?.kind === 'editor' && discardPrompt ? ' schedule-dialog--confirmation' : ''}`} aria-labelledby="schedule-dialog-title" onCancel={event => { event.preventDefault(); requestClose() }}>
       {modal?.kind === 'editor' && <form onSubmit={save}>
         {discardPrompt ? <div className="schedule-dialog-content schedule-discard-content"><ConfirmationIcon kind="warning" /><p className="workspace-overline">UNSAVED CHANGES</p><h2 id="schedule-dialog-title">Discard your changes?</h2><p>Your edits to this meeting have not been saved.</p><div className="schedule-dialog-actions"><button type="button" className="schedule-secondary" onClick={() => setDiscardPrompt(false)}>Keep editing</button><button type="button" className="schedule-danger" onClick={() => { setDiscardPrompt(false); setModal(null) }}>Discard changes</button></div></div> : <div className="schedule-dialog-content"><div className="schedule-dialog-head"><div><p className="workspace-overline">{modal.meetingId ? 'EDIT MEETING' : 'NEW MEETING'}</p><h2 id="schedule-dialog-title">{modal.meetingId ? 'Edit' : 'Add'} {days.find(day => day.code === draft.day)?.name} Schedule</h2></div><button type="button" aria-label="Close" className="schedule-close" onClick={requestClose}><CloseIcon /></button></div>
-          {!modal.meetingId && <label className="schedule-field">Subject<select value={draft.subjectId} onChange={event => { const subject = subjectById.get(event.target.value); setDraft(previous => ({ ...previous, subjectId: event.target.value, code: subject?.subject_code ?? '', title: subject?.title ?? '', units: subject ? String(subject.units) : '', block: subject?.block_section ?? '', colorKey: isCalendarColorKey(subject?.color_key) ? subject.color_key : defaultCalendarColor })) }}><option value="">New subject</option>{subjects.map(subject => <option key={subject.id} value={subject.id}>{subject.subject_code} - {subject.title}</option>)}</select></label>}
+          {!modal.meetingId && <div className="schedule-field"><span>Subject</span><CaliSelect value={draft.subjectId} options={subjectOptions} ariaLabel="Meeting subject" className="cali-select--schedule-subject" onChange={subjectId => { const subject = subjectById.get(subjectId); setDraft(previous => ({ ...previous, subjectId, code: subject?.subject_code ?? '', title: subject?.title ?? '', units: subject ? String(subject.units) : '', block: subject?.block_section ?? '', colorKey: isCalendarColorKey(subject?.color_key) ? subject.color_key : defaultCalendarColor })) }} /></div>}
           <section className="schedule-form-section" aria-labelledby="subject-fields-title">
             <div className="schedule-form-section-head"><h3 id="subject-fields-title">Subject details</h3>{Boolean(draft.subjectId && !modal.meetingId) && <span>Using saved subject</span>}</div>
             <div className="schedule-form-grid">
