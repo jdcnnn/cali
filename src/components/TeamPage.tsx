@@ -4,49 +4,44 @@ import { CaliWordmark } from './CaliWordmark'
 import { SiteFooter } from './SiteFooter'
 import { startGoogleSignIn } from '../lib/supabase'
 import { useAuth } from '../auth/AuthContext'
-import jadePhoto from '../assets/jade-cunanan-temp.png'
-import ramPhoto from '../assets/ram.jpg'
-import carlPhoto from '../assets/carl.jpg'
-import carloPhoto from '../assets/carlo.jpg'
+import carloPhoto from '../assets/carlo.png'
 import '../styles/entry.css'
+import '../styles/team-refinement.css'
 import { useLoginMode } from '../auth/LoginModeContext'
 
 type TeamMember = {
-  id: string
   name: string
   role: string
   bio: string
-  photo?: string
+  placeholder: string
+  image?: string
 }
 
 const teamMembers: TeamMember[] = [
   {
-    id: '01',
     name: 'Jade Cunanan',
     role: 'Lead Developer',
     bio: 'Develops Cali’s core systems and technical architecture across the backend, database, and frontend.',
-    photo: jadePhoto,
+    placeholder: 'Jade',
   },
   {
-    id: '02',
     name: 'Ram Joshua Acorio',
     role: 'System Analyst',
     bio: 'Analyzes Cali’s system requirements and processes, helping translate user needs into practical system specifications.',
-    photo: ramPhoto,
+    placeholder: 'Ram',
   },
   {
-    id: '03',
     name: 'Carl Danelle David',
     role: 'Quality Assurance Engineer',
     bio: 'Tests Cali’s features and workflows to ensure functionality, reliability, and a consistent user experience.',
-    photo: carlPhoto,
+    placeholder: 'Carl',
   },
   {
-    id: '04',
     name: 'Markcarlo Saligan',
     role: 'Project Manager',
     bio: 'Coordinates Cali’s development efforts, project planning, and team collaboration to keep the project on track.',
-    photo: carloPhoto,
+    placeholder: 'Carlo',
+    image: carloPhoto,
   },
 ]
 
@@ -97,9 +92,11 @@ export function TeamPage() {
       </div>
 
       <div className="team-grid" aria-label="Cali team members">
-        {teamMembers.map((member) => <article className="team-card" key={member.id}>
-          <div className="team-photo">
-            {member.photo ? <img src={member.photo} alt={member.name} /> : <span>Photo {member.id}</span>}
+        {teamMembers.map((member) => <article className="team-card" key={member.name}>
+          <div className={`team-photo${member.image ? ' team-photo--image' : ''}`} role={member.image ? undefined : 'img'} aria-label={member.image ? undefined : `${member.placeholder} image placeholder`}>
+            {member.image
+              ? <img src={member.image} alt={`${member.name}, ${member.role}`} />
+              : <span className="team-photo-name" aria-hidden="true">{member.placeholder}</span>}
           </div>
           <div className="team-card-copy">
             <h2>{member.name}</h2>

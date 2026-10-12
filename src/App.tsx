@@ -17,6 +17,7 @@ import { DashboardTasks } from './components/DashboardTasks'
 import { TasksPage } from './components/TasksPage'
 import { CalendarPage } from './components/CalendarPage'
 import { InstallCali } from './components/InstallCali'
+import { SoundSettings, SoundSettingsNote } from './components/SoundSettings'
 import { ConnectionNotice } from './components/ConnectionNotice'
 import { CommunityNotificationsProvider } from './components/CommunityNotificationsProvider'
 import { ConfirmationIcon } from './components/ConfirmationIcon'
@@ -97,14 +98,13 @@ type StatusKind = 'error' | 'offline' | 'access' | 'not-found'
 
 type StatusDetail = { label: string; value: string }
 
-function StatusScreen({ title, detail, action, onAction, actionHref, secondaryAction, secondaryHref, busy = false, kind = 'error', label = 'Something went wrong', code, reason, facts = [], support = 'If this keeps happening, close Cali and try again in a moment.', alert }: { title: string; detail: string; action: string; onAction?: () => void; actionHref?: string; secondaryAction?: string; secondaryHref?: string; busy?: boolean; kind?: StatusKind; label?: string; code?: string; reason?: string; facts?: StatusDetail[]; support?: string; alert?: string }) {
-  const displayCode = code ?? ({ error: '500', offline: 'OFFLINE', access: '403', 'not-found': '404' } satisfies Record<StatusKind, string>)[kind]
+function StatusScreen({ title, detail, action, onAction, actionHref, secondaryAction, secondaryHref, busy = false, kind = 'error', label = 'Something went wrong', reason, facts = [], support = 'If this keeps happening, close Cali and try again in a moment.', alert }: { title: string; detail: string; action: string; onAction?: () => void; actionHref?: string; secondaryAction?: string; secondaryHref?: string; busy?: boolean; kind?: StatusKind; label?: string; reason?: string; facts?: StatusDetail[]; support?: string; alert?: string }) {
   return <main className={`status-page status-page--${kind}`}>
     <div className="status-layout">
       <section className="status-content" aria-labelledby="status-title">
         <Link to="/" className="status-brand" aria-label="Cali home"><Brand /></Link>
         <div className="status-body">
-          <div className="status-heading"><p className="status-label">{label}</p><span className="status-code" aria-label={`Error code ${displayCode}`}>{displayCode}</span></div>
+          <div className="status-heading"><p className="status-label">{label}</p></div>
           <h1 id="status-title">{title}</h1>
           <p className="status-detail">{detail}</p>
           {(reason || facts.length > 0) && <dl className="status-details">
@@ -114,8 +114,10 @@ function StatusScreen({ title, detail, action, onAction, actionHref, secondaryAc
           {alert && <p className="status-alert" role="alert">{alert}</p>}
         </div>
         <div className="status-footer">
-          {actionHref ? <Link className="button-primary status-action" to={actionHref}>{action}</Link> : <button className="button-primary status-action" onClick={onAction} disabled={busy}>{busy ? 'Please wait...' : action}</button>}
-          {secondaryAction && secondaryHref && <a className="status-secondary-action" href={secondaryHref} target="_blank" rel="noreferrer">{secondaryAction}</a>}
+          <div className="status-actions">
+            {actionHref ? <Link className="button-primary status-action" to={actionHref}>{action}</Link> : <button className="button-primary status-action" onClick={onAction} disabled={busy}>{busy ? 'Please wait...' : action}</button>}
+            {secondaryAction && secondaryHref && <a className="status-secondary-action" href={secondaryHref} target="_blank" rel="noreferrer">{secondaryAction}</a>}
+          </div>
           {support && <p className="status-support">{support}</p>}
         </div>
       </section>
@@ -149,7 +151,7 @@ function AuthError() {
     window.addEventListener('online', retry, { once: true })
     return () => window.removeEventListener('online', retry)
   }, [offline, reload])
-  return <StatusScreen kind={offline ? 'offline' : 'error'} code={offline ? undefined : 'AUTH'} label={offline ? 'Connection unavailable' : 'Unable to load'} title={offline ? "You're offline" : "We couldn't open Cali"} detail={offline ? 'Reconnect to the internet and Cali will try to open your workspace again.' : state.message ?? 'Please check your connection and try again.'} action="Try again" onAction={() => { void reload() }} />
+  return <StatusScreen kind={offline ? 'offline' : 'error'} label={offline ? 'Connection unavailable' : 'Unable to load'} title={offline ? "You're offline" : "We couldn't open Cali"} detail={offline ? 'Reconnect to the internet and Cali will try to open your workspace again.' : state.message ?? 'Please check your connection and try again.'} action="Try again" onAction={() => { void reload() }} />
 }
 
 function suspensionSupportHref(username: string | null, email: string, userId: string, reason: string | null) {
@@ -201,7 +203,7 @@ function CallbackPage() {
   const { state } = useAuth()
   const location = useLocation()
   const error = new URLSearchParams(location.search).get('error_description')
-  if (error) return <StatusScreen code="AUTH" title="Google sign-in didn't finish" detail={error} action="Back to sign in" onAction={() => { window.location.replace('/login') }} />
+  if (error) return <StatusScreen title="Google sign-in didn't finish" detail={error} action="Back to sign in" onAction={() => { window.location.replace('/login') }} />
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'ready') return <Navigate to={state.isAdmin ? '/admin' : '/dashboard'} replace />
   if (state.status === 'needsOnboarding') return <Navigate to="/onboarding" replace />
@@ -568,12 +570,17 @@ function SettingsScreen() {
     <div className="workspace-settings-stack">
       <section className="workspace-settings-group" aria-labelledby="workspace-device-title">
         <header className="workspace-settings-group-head"><h2 id="workspace-device-title">Device</h2><p>Notifications and app installation</p></header>
-        <div className="workspace-settings-panel"><NotificationSettings /><InstallCali /></div>
+        <div className="workspace-settings-panel"><NotificationSettings /><InstallCali /><SoundSettings /></div>
       </section>
       <section className="workspace-settings-group" aria-labelledby="workspace-resources-title">
         <header className="workspace-settings-group-head"><h2 id="workspace-resources-title">Support &amp; legal</h2><p>Guides and policies</p></header>
         <nav className="workspace-settings-resources" aria-label="Help and policies">
             <Link to="/guide" className="workspace-help-link"><span className="workspace-help-icon"><WorkspaceIcon section="guide" /></span><span><strong>Cali Guide</strong><small>How Cali works</small></span><svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></Link>
+            <Link to="/community-guidelines" state={{ from: '/settings', backLabel: 'Back to Settings', view: 'student' }} className="workspace-legal-link">
+              <span className="workspace-legal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M3 20v-2a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2M14 14h1a4 4 0 0 1 4 4v2"/></svg></span>
+              <span><strong>Community Guidelines</strong><small>Community standards</small></span>
+              <svg className="workspace-legal-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+            </Link>
             <Link to="/terms-and-conditions" state={{ from: '/settings', backLabel: 'Back to Settings', view: 'student' }} className="workspace-legal-link">
               <span className="workspace-legal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5M10 12h5M10 16h5"/></svg></span>
               <span><strong>Terms &amp; Conditions</strong><small>Service rules</small></span>
@@ -757,6 +764,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
             </div></section>
           </div>
         </div>
+        <SoundSettingsNote />
       </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'guide' ? <StudentGuide /> : section === 'settings' ? <SettingsScreen /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : section === 'study' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Study"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><StudyPage studentId={student.user_id} /></Suspense> : section === 'community' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Community"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><CommunityPage /></Suspense> : <ModuleScreen section={section} />}
     </div>
   </main>

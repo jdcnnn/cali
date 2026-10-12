@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { playSound } from '../lib/sounds'
 import type { FormEvent, ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { supabase } from '../lib/supabase'
@@ -214,7 +215,7 @@ function FlashcardEditor({ initial, subjects, reviewers, onSaved, onBack }: { in
     window.setTimeout(() => setSwappingCardId(current => current === card.id ? null : current), 360)
   }
   return <section className="set-detail-page">
-    <nav className="reviewer-page-nav set-editor-nav"><button type="button" className="cali-back-link" onClick={async () => { if (status === 'dirty' || status === 'error' || status === 'saving') { const version = editVersion.current; if (await save()) { if (editVersion.current === version || await saveRef.current()) onBack(); else setConfirmDiscard(true) } else setConfirmDiscard(true); return } onBack() }}><BackArrowIcon /><span className="set-back-label-long">Back to flashcards</span><span className="set-back-label-short">Flashcards</span></button><div className="set-editor-actions"><SaveStatus status={status} /><button type="button" className="button-primary" disabled={status === 'saved' || status === 'saving' || !title.trim()} onClick={() => void save()}><span className="set-save-button-long">{status === 'error' ? 'Retry save' : 'Save changes'}</span><span className="set-save-button-short">{status === 'error' ? 'Retry' : 'Save'}</span></button></div></nav>
+    <nav className="reviewer-page-nav set-editor-nav"><button type="button" className="cali-back-link" onClick={async () => { if (status === 'dirty' || status === 'error' || status === 'saving') { const version = editVersion.current; if (await save()) { if (editVersion.current === version || await saveRef.current()) onBack(); else setConfirmDiscard(true) } else setConfirmDiscard(true); return } onBack() }}><BackArrowIcon /><span className="set-back-label-long">Back to flashcards</span><span className="set-back-label-short">Flashcards</span></button><div className="set-editor-actions"><SaveStatus status={status} /><button type="button" className="button-primary" disabled={status === 'saved' || status === 'saving' || !title.trim()} onClick={async () => { if (await save()) playSound('save') }}><span className="set-save-button-long">{status === 'error' ? 'Retry save' : 'Save changes'}</span><span className="set-save-button-short">{status === 'error' ? 'Retry' : 'Save'}</span></button></div></nav>
     {saveError && <p className="study-form-error set-editor-error" role="alert">{saveError}</p>}
     <div className="set-builder-layout">
       <SourcePanel sourceId={sourceReviewerId || null} reviewers={reviewers} onSourceChange={nextSourceId => { setSourceReviewerId(nextSourceId); markDirty() }} />
@@ -234,7 +235,11 @@ function FlashcardEditor({ initial, subjects, reviewers, onSaved, onBack }: { in
 
 function FlashcardStudy({ initial, onChange, onBack }: { initial: FlashcardSet; onChange: (set: FlashcardSet) => void; onBack: () => void }) {
   const [record, setRecord] = useState(initial)
-  const [revealed, setRevealed] = useState(false)
+  const [revealed, setRevealState] = useState(false)
+  const setRevealed = (value: boolean) => {
+    setRevealState(value)
+    if (value && !revealed) void playSound('flip')
+  }
   const [completion, setCompletion] = useState<{ total: number; confident: number; mode: FlashcardStudyOptions['mode'] } | null>(null)
   const [studyError, setStudyError] = useState('')
   const [confirmRestart, setConfirmRestart] = useState(false)
@@ -277,17 +282,22 @@ function FlashcardStudy({ initial, onChange, onBack }: { initial: FlashcardSet; 
   const rate = async (rating: FlashcardRating) => {
     if (!session || !current || ratingInFlight.current) return
     ratingInFlight.current = true; setSavingRating(true); setStudyError('')
+    // This cue acknowledges the recall choice, not the server save.
+    void playSound(rating === 'good' ? 'correct' : 'incorrect')
     try {
       const ratings = { ...session.ratings, [current.id]: rating }
       if (session.index + 1 < session.cardIds.length) {
         const next = { ...session, ratings, index: session.index + 1 }
-        if (await persist(session, next)) setRevealed(false)
+        if (await persist(session, next)) {
+          setRevealed(false)
+        }
         return
       }
       const progress = applySessionRatings(record.progress, ratings, new Date().toISOString())
       if (await persist(session, null, progress)) {
         setCompletion({ total: session.cardIds.length, confident: Object.values(ratings).filter(value => value === 'good').length, mode: session.mode })
         setRevealed(false)
+        void playSound('quiz')
       }
     } finally {
       ratingInFlight.current = false; setSavingRating(false)
@@ -384,6 +394,7 @@ function QuizEditor({ initial, subjects, reviewers, onSaved, onBack }: { initial
         }
         if (error || !data) { setSaveError(saveErrorMessage(error, 'quiz')); setStatus('error'); return false }
         const saved = data as Quiz
+        playSound('save')
         setRecord(saved); onSaved(saved); setStatus(editVersion.current === savingVersion ? 'saved' : 'dirty'); return true
       } catch {
         setSaveError(saveErrorMessage(null, 'quiz')); setStatus('error'); return false
@@ -428,6 +439,7 @@ function QuizRunner({ quiz, attempt: initialAttempt, onAttempt, onBack }: { quiz
   const [saveError, setSaveError] = useState('')
   const [completing, setCompleting] = useState(false)
   const [confirmSubmit, setConfirmSubmit] = useState(false)
+  const correctStreak = useRef(0)
   const attemptRef = useRef(initialAttempt), saveQueue = useRef<Promise<void>>(Promise.resolve())
   const questions = attempt.snapshot.questions, question = questions[attempt.current_index]
   const mode = attempt.mode ?? 'practice'
@@ -465,6 +477,7 @@ function QuizRunner({ quiz, attempt: initialAttempt, onAttempt, onBack }: { quiz
       if (error || !data) throw error ?? new Error('Quiz completion failed')
       const completed = data as QuizAttempt
       attemptRef.current = completed; setAttempt(completed); onAttempt(completed); setConfirmSubmit(false)
+      playSound('quiz')
     }).catch(() => setSaveError('Cali could not finish this attempt. Check your connection and try again.')).finally(() => setCompleting(false))
   }
 
@@ -497,9 +510,16 @@ function QuizRunner({ quiz, attempt: initialAttempt, onAttempt, onBack }: { quiz
     ? ((quizReviewQuestionIds(attempt).findIndex(id => id === question.id) + Number(isAnswered)) / Math.max(1, quizReviewQuestionIds(attempt).length)) * 100
     : (answered / questions.length) * 100
   const chooseAnswer = (choiceId: string) => {
-    if (mode === 'practice' && isAnswered) return
+    if (!supabase || completing) return
+    const currentChoice = attemptRef.current.answers[question.id]
+    if (mode === 'practice' && currentChoice && currentChoice !== SKIPPED_QUIZ_ANSWER) return
     const first = phase === 'first_pass' && !firstAnswers[question.id] ? { ...firstAnswers, [question.id]: choiceId } : firstAnswers
     save({ answers: { ...attempt.answers, [question.id]: choiceId }, first_answers: first })
+    if (mode === 'practice') {
+      const correct = choiceId === question.correctChoiceId
+      correctStreak.current = correct ? correctStreak.current + 1 : 0
+      void playSound(correct ? 'correct' : 'incorrect', { streak: correctStreak.current })
+    }
   }
   const moveForward = () => {
     const current = attemptRef.current

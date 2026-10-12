@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { OnboardingDropdown } from './OnboardingDropdown'
 import { supabase } from '../lib/supabase'
+import { playSound } from '../lib/sounds'
 import {
   draftFromTask,
   emptyTaskDraft,
@@ -370,6 +371,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
       setTasks(previous => editor.taskId ? previous.map(task => task.id === completedTask.id ? completedTask : task) : [...previous, completedTask])
       setSteps(previous => [...previous.filter(step => step.task_id !== completedTask.id), ...((savedSteps ?? []) as TaskStep[])])
       setEditor(null)
+      playSound('save')
     } catch (cause) {
       if (savedTask && wasNew) {
         const createdTask = savedTask
@@ -398,6 +400,7 @@ export function TasksPage({ studentId }: { studentId: string }) {
     const desiredIndex = targetStatus === 'done' && task.status !== 'done' ? 0 : requestedIndex
     const index = Math.max(0, Math.min(desiredIndex, targetCount))
     setTasks(moveTaskInBoard(tasks, task.id, targetStatus, index)); setTaskUpdateError('')
+    if (targetStatus === 'done' && task.status !== 'done') void playSound('task')
     try {
       const { error } = await supabase.rpc('cali_move_own_task', { p_task_id: task.id, p_target_status: targetStatus, p_target_index: index })
       if (error) throw error

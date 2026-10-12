@@ -5,6 +5,7 @@ import { SiteFooter } from "./SiteFooter";
 import { ThemePicker } from "../theme/ThemePicker";
 import { clearAuthRedirectError, initialAuthRedirectError, startGoogleSignIn } from "../lib/supabase";
 import "../styles/entry.css";
+import "../styles/landing-refinement.css";
 import { useLoginMode } from "../auth/LoginModeContext";
 import { useAuth } from "../auth/AuthContext";
 

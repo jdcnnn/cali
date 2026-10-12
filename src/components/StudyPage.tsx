@@ -1,4 +1,5 @@
 import { ReviewerStyleOptions } from './ReviewerStyleOptions'
+import { playSound } from '../lib/sounds'
 import { DEFAULT_REVIEWER_PREFERENCES, type ReviewerPreferences } from '../lib/reviewerPreferences'
 import { readReviewerRecovery, writeReviewerRecovery, clearReviewerRecovery, reviewerSubmissionKey } from '../lib/reviewerRecovery'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -572,7 +573,7 @@ function ReviewerEditor({ reviewer, subjects, onSaved, onClose, onPageColorChang
     setSpellcheckEnabled(enabled)
     try { window.localStorage.setItem('cali-reviewer-spellcheck', enabled ? 'on' : 'off') } catch { /* The editor still updates when storage is unavailable. */ }
   }
-  const finish = async () => { if (await save()) onClose() }
+  const finish = async () => { if (await save()) { playSound('save'); onClose() } }
   const subjectOptions: CaliSelectOption[] = [{ value: '', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: subject.subject_code, detail: subject.title, triggerLabel: `${subject.subject_code} — ${subject.title}` }))]
   return <section className={`reviewer-edit-shell${pageColor ? ' has-page-color' : ''}`} style={{ '--reviewer-page-color': pageColor || 'var(--color-cali-surface)' } as CSSProperties}>
     <header>
@@ -1025,6 +1026,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
         return
       }
       onSaved(data as Reviewer)
+      playSound('save')
     } catch { setError('Could not save this reviewer. Retry to recover the saved result.') }
     finally { actionInFlight.current = false; setBusy(false) }
   }
@@ -1224,6 +1226,7 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
     try {
       const saved = await save()
       if (!saved) { setExitSaveError('Your changes still could not be saved. Check your connection and try again.'); return }
+      playSound('save')
       setShowUnsavedExit(false); setReviewerSaveState('saved'); navigate({ reviewer: null, edit: null })
     } catch {
       setExitSaveError('Your changes still could not be saved. Check your connection and try again.')

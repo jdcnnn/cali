@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router'
 import { supabase } from '../lib/supabase'
+import { compactDuration } from '../lib/duration'
 import { StatusIcon } from './StatusIcon'
 import '../styles/dashboard-schedules.css'
 import '../styles/skeleton.css'
@@ -48,9 +49,7 @@ function timeRemaining(meeting: Meeting, now: Date) {
   const end = endHour * 60 + endMinute
   const current = now.getHours() * 60 + now.getMinutes()
   const remaining = end - current
-  const hours = Math.floor(remaining / 60)
-  const minutes = remaining % 60
-  return [hours && `${hours} hr`, minutes && `${minutes} min`].filter(Boolean).join(' ')
+  return compactDuration(remaining)
 }
 
 export function DashboardSchedules({ studentId, now }: { studentId: string; now: Date }) {

@@ -19,7 +19,14 @@
   margin-inline: auto;
 }
 
-.status-content { width: 100%; max-width: none; text-align: center; }
+.status-content {
+  display: flex;
+  width: 100%;
+  max-width: none;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
 
 .status-brand {
   display: inline-flex;
@@ -34,7 +41,10 @@
 
 .status-brand img { width: auto; height: 44px; }
 
-.status-body { margin-top: clamp(42px, 7vh, 66px); }
+.status-body {
+  width: 100%;
+  margin-top: clamp(42px, 7vh, 66px);
+}
 
 .status-heading {
   display: flex;
@@ -51,20 +61,6 @@
   font-weight: 800;
   letter-spacing: .15em;
   text-transform: uppercase;
-}
-
-.status-code {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--color-cali-accent) 28%, var(--color-cali-border));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-cali-pale) 78%, var(--color-cali-surface));
-  color: var(--color-cali-action-text);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .08em;
 }
 
 .status-content h1 {
@@ -133,12 +129,20 @@
 }
 
 .status-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 20px;
-  justify-content: center;
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  gap: 14px;
   margin-top: 30px;
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
 }
 
 .status-page .status-action {
@@ -182,7 +186,6 @@
 }
 
 .status-page .status-support {
-  flex-basis: 100%;
   max-width: 440px;
   margin: 0;
   text-align: center;
@@ -202,9 +205,7 @@
   .status-brand { padding: 2px; }
   .status-brand img { height: 33px; }
   .status-body { margin-top: 29px; }
-  .status-heading { gap: 8px; }
   .status-page .status-label { font-size: 9px; letter-spacing: .12em; }
-  .status-code { min-height: 21px; padding-inline: 7px; font-size: 8px; }
   .status-content h1 { margin-top: 15px; font-size: clamp(31px, 9.5vw, 38px); line-height: 1.06; }
   .status-page .status-detail { margin-top: 11px; font-size: 13px; line-height: 1.58; }
   .status-details { margin-top: 20px; }
@@ -212,7 +213,8 @@
   .status-details dt { font-size: 8px; }
   .status-details dd { font-size: 13px; }
   .status-alert { margin-top: 14px; padding: 10px 12px; font-size: 11px; }
-  .status-footer { align-items: stretch; flex-direction: column; gap: 9px; margin-top: 20px; }
+  .status-footer { gap: 9px; margin-top: 20px; }
+  .status-actions { align-items: stretch; flex-direction: column; gap: 9px; }
   .status-page .status-action { width: 100%; min-height: 42px; font-size: 12px; }
   .status-secondary-action { width: 100%; min-height: 42px; font-size: 11px; }
   .status-page .status-support { max-width: none; }

@@ -1,0 +1,354 @@
+/* Landing-page presentation refinements.
+   Content and authentication behavior intentionally remain unchanged. */
+
+.entry-page .entry-header-inner {
+  min-height: 78px;
+}
+
+.entry-page .entry-home img {
+  height: 47px;
+}
+
+.entry-page .entry-header nav {
+  gap: 28px;
+}
+
+.entry-page .entry-header-cta,
+.entry-page .theme-trigger {
+  min-height: 44px;
+}
+
+.entry-page .entry-hero {
+  justify-content: center;
+  min-height: min(760px, calc(100svh - 78px));
+  padding-block: clamp(96px, 11vw, 148px) clamp(104px, 12vw, 158px);
+}
+
+.entry-page .entry-hero-copy {
+  width: min(100%, 990px);
+  text-align: center;
+}
+
+.entry-page .entry-hero h1 {
+  max-width: 960px;
+  margin: 26px auto 0;
+  font-size: clamp(68px, 8.15vw, 110px);
+  line-height: .98;
+  text-wrap: balance;
+}
+
+.entry-page .entry-summary {
+  max-width: 590px;
+  margin: 32px auto 0;
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.entry-page .entry-hero-error {
+  max-width: 590px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.entry-page .entry-hero-actions {
+  justify-content: center;
+  gap: 24px;
+  margin-top: 34px;
+}
+
+.entry-page .entry-auth-note {
+  max-width: 500px;
+  margin: 18px auto 0;
+}
+
+.entry-page .entry-section {
+  padding-block: clamp(96px, 10vw, 132px);
+}
+
+.entry-page .entry-features {
+  grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr);
+  gap: clamp(52px, 8vw, 112px);
+  align-items: start;
+}
+
+.entry-page .entry-section-intro {
+  position: sticky;
+  top: 118px;
+}
+
+.entry-page .entry-section h2,
+.entry-page .entry-how h2,
+.entry-page .entry-about h2 {
+  font-size: clamp(46px, 4.65vw, 68px);
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+.entry-page .entry-section-intro > p:last-child {
+  max-width: 360px;
+  margin-top: 27px;
+}
+
+.entry-page .entry-feature-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.entry-page .entry-feature {
+  display: grid;
+  grid-template-columns: 142px minmax(190px, .72fr) minmax(220px, 1fr);
+  gap: clamp(20px, 3vw, 42px);
+  align-items: start;
+  min-height: 0;
+  padding: 31px 0 34px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transition: color var(--theme-duration) var(--theme-ease),
+    border-color var(--theme-duration) var(--theme-ease);
+}
+
+.entry-page .entry-feature:hover {
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.entry-page .entry-feature-index {
+  padding-top: 6px;
+  line-height: 1.5;
+}
+
+.entry-page .entry-feature h3 {
+  margin: 0;
+  font-size: clamp(24px, 2vw, 29px);
+  line-height: 1.15;
+}
+
+.entry-page .entry-feature p {
+  max-width: 40ch;
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.entry-page .entry-how-inner {
+  padding-block: clamp(92px, 9vw, 124px);
+}
+
+.entry-page .entry-how-heading {
+  max-width: 780px;
+}
+
+.entry-page .entry-how-heading > p:last-child {
+  max-width: 520px;
+  margin: 25px 0 0;
+}
+
+.entry-page .entry-steps {
+  gap: clamp(24px, 4vw, 54px);
+  margin-top: 72px;
+}
+
+.entry-page .entry-steps li {
+  padding: 28px 12px 0 0;
+}
+
+.entry-page .entry-steps h3 {
+  margin-top: 30px;
+  font-family: Fredoka, sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -.015em;
+}
+
+.entry-page .entry-about {
+  gap: clamp(56px, 10vw, 142px);
+  padding-block: clamp(100px, 11vw, 148px);
+}
+
+.entry-page .entry-about-right {
+  padding-top: 29px;
+  border-top: 1px solid var(--line);
+}
+
+.entry-page .entry-about-right > p {
+  max-width: 470px;
+}
+
+.entry-page .entry-bottom-cta {
+  margin-top: 32px;
+}
+
+@media (max-width: 1040px) {
+  .entry-page .entry-hero h1 {
+    font-size: clamp(62px, 9vw, 91px);
+  }
+
+  .entry-page .entry-features {
+    grid-template-columns: minmax(220px, .62fr) minmax(0, 1.38fr);
+    gap: 48px;
+  }
+
+  .entry-page .entry-feature {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 12px 28px;
+  }
+
+  .entry-page .entry-feature p {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 800px) {
+  .entry-page .entry-header-inner {
+    min-height: 72px;
+  }
+
+  .entry-page .entry-home img {
+    height: 44px;
+  }
+
+  .entry-page .entry-hero {
+    min-height: 0;
+    padding-block: 84px 96px;
+  }
+
+  .entry-page .entry-hero h1 {
+    max-width: 720px;
+    font-size: clamp(54px, 12vw, 78px);
+    line-height: 1;
+  }
+
+  .entry-page .entry-summary {
+    font-size: 16px;
+  }
+
+  .entry-page .entry-features {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 54px;
+  }
+
+  .entry-page .entry-section-intro {
+    position: static;
+  }
+
+  .entry-page .entry-section-intro > p:last-child {
+    max-width: 520px;
+  }
+
+  .entry-page .entry-feature {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  .entry-page .entry-how-heading > p:last-child {
+    margin-top: 25px;
+  }
+
+  .entry-page .entry-steps {
+    margin-top: 58px;
+  }
+}
+
+@media (max-width: 640px) {
+  .entry-page .entry-hero {
+    padding-block: 70px 80px;
+  }
+
+  .entry-page .entry-hero h1 {
+    margin-top: 20px;
+    font-size: clamp(49px, 14.5vw, 66px);
+    letter-spacing: -.05em;
+  }
+
+  .entry-page .entry-summary {
+    margin-top: 25px;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .entry-page .entry-hero-actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 29px;
+  }
+
+  .entry-page .entry-google-primary,
+  .entry-page .entry-text-link {
+    width: 100%;
+  }
+
+  .entry-page .entry-text-link {
+    justify-content: center;
+  }
+
+  .entry-page .entry-auth-note {
+    margin-top: 14px;
+  }
+
+  .entry-page .entry-section {
+    padding-block: 78px 86px;
+  }
+
+  .entry-page .entry-section h2,
+  .entry-page .entry-how h2,
+  .entry-page .entry-about h2 {
+    font-size: clamp(42px, 12vw, 54px);
+  }
+
+  .entry-page .entry-features {
+    gap: 44px;
+  }
+
+  .entry-page .entry-feature {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-block: 26px 29px;
+  }
+
+  .entry-page .entry-feature h3 {
+    margin-top: 15px;
+    font-size: 25px;
+  }
+
+  .entry-page .entry-feature p {
+    grid-column: auto;
+    margin-top: 9px;
+  }
+
+  .entry-page .entry-how-inner {
+    padding-block: 78px 86px;
+  }
+
+  .entry-page .entry-steps {
+    gap: 0;
+    margin-top: 48px;
+  }
+
+  .entry-page .entry-steps li {
+    padding: 25px 0 30px;
+  }
+
+  .entry-page .entry-steps h3 {
+    margin-top: 18px;
+  }
+
+  .entry-page .entry-about {
+    gap: 44px;
+    padding-block: 82px 92px;
+  }
+
+  .entry-page .entry-about-right {
+    padding-top: 25px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry-page .entry-hero-copy {
+    animation: none;
+  }
+
+  }

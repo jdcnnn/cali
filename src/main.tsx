@@ -4,6 +4,10 @@ import './styles/index.css'
 import App from './App.tsx'
 import './styles/modal-system.css'
 import { ThemeProvider } from './theme/ThemeProvider.tsx'
+import { initializeSounds } from './lib/sounds'
+
+const disposeSounds = initializeSounds()
+if (import.meta.hot) import.meta.hot.dispose(disposeSounds)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
