@@ -8777,6 +8777,33 @@ button.flashcard-study-card:focus-visible {
   }
 }
 
+@media (max-width: 640px) {
+  .quiz-result-summary.is-test>div {
+    justify-items: center;
+    align-content: center;
+    gap: 5px;
+    min-height: 112px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .quiz-result-summary.is-test strong {
+    font-size: 28px;
+    line-height: 1.1;
+  }
+
+  .quiz-result-summary.is-test span {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .quiz-result-summary.is-test small {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+}
+
 @media (max-width: 480px) {
   .quiz-result {
     grid-template-columns: 1fr;
