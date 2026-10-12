@@ -63,6 +63,8 @@ export function CaliSelect({ value, options, onChange, ariaLabel, className = ''
     const isBody = host === document.body
     const viewportWidth = window.innerWidth, viewportHeight = window.innerHeight
     const hostRect = isBody ? { left: 0, top: 0, bottom: viewportHeight } : host.getBoundingClientRect()
+    const hostScrollLeft = isBody ? 0 : host.scrollLeft
+    const hostScrollTop = isBody ? 0 : host.scrollTop
     const gutter = 8, gap = 7
     const width = Math.min(Math.max(rect.width, Math.min(220, viewportWidth - gutter * 2)), viewportWidth - gutter * 2)
     const viewportLeft = Math.min(Math.max(rect.left, gutter), viewportWidth - width - gutter)
@@ -70,15 +72,17 @@ export function CaliSelect({ value, options, onChange, ariaLabel, className = ''
     const availableAbove = Math.max(0, rect.top - gap - gutter)
     const openAbove = availableBelow < 180 && availableAbove > availableBelow
     const availableHeight = openAbove ? availableAbove : availableBelow
+    const maxHeight = Math.max(72, Math.min(280, availableHeight))
+    const menuHeight = Math.min(listRef.current?.offsetHeight ?? maxHeight, maxHeight)
     setMenuStyle({
       position: isBody ? 'fixed' : 'absolute',
       zIndex: 300,
-      top: openAbove ? 'auto' : rect.bottom + gap - hostRect.top,
-      left: viewportLeft - hostRect.left,
-      bottom: openAbove ? hostRect.bottom - rect.top + gap : 'auto',
+      top: (openAbove ? rect.top - gap - menuHeight : rect.bottom + gap) - hostRect.top + hostScrollTop,
+      left: viewportLeft - hostRect.left + hostScrollLeft,
+      bottom: 'auto',
       width,
       maxWidth: width,
-      maxHeight: Math.max(72, Math.min(280, availableHeight)),
+      maxHeight,
     })
   }, [])
 
