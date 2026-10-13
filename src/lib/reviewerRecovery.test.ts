@@ -30,7 +30,7 @@ describe('account-scoped reviewer recovery', () => {
     expect(store.getItem('cali-theme')).toBe('dark')
   })
   it('changes request identity when reviewer preferences change', () => {
-    expect(reviewerSubmissionKey(value)).not.toBe(reviewerSubmissionKey({ ...value, preferences: { ...value.preferences, additionalContent: 'Include comparisons' } }))
+    expect(reviewerSubmissionKey(value)).not.toBe(reviewerSubmissionKey({ ...value, preferences: { ...value.preferences, comparisons: true } }))
   })
   it('rejects malformed persisted instructions', () => {
     const store = storage()

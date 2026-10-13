@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { generateAcademicReviewer } from './reviewerProvider'
 import type { ReviewerGenerationInput } from './reviewerGeneration'
-const input: ReviewerGenerationInput = { requestId: '6b5ad38b-8f1e-4a86-82b6-849076b980ed', sourceType: 'pdf', sourceText: 'Cells contain membranes.', detail: 'concise' }
+import { DEFAULT_REVIEWER_PREFERENCES } from '../src/lib/reviewerPreferences'
+const preferences = { ...DEFAULT_REVIEWER_PREFERENCES, examples: 'none' as const, presentation: 'bullets' as const }
+const input: ReviewerGenerationInput = { requestId: '6b5ad38b-8f1e-4a86-82b6-849076b980ed', sourceType: 'pdf', sourceText: 'Cells contain membranes.', detail: 'concise', preferences }
 const safe = { allowed: true, category: 'allowed' }
-const reviewer = { title: 'Cells', sections: [{ heading: 'Membranes', basis: 'source', blocks: [{ type: 'paragraph', text: 'Cells have membranes.' }] }] }
+const reviewer = { title: 'Cells', sections: [{ heading: 'Membranes', blocks: [{ type: 'key_points', basis: 'source', items: ['Cells have membranes.'] }, { type: 'key_points', basis: 'source', items: ['Membranes form a boundary.'] }] }] }
+const reviewerWithExamples = { title: 'Cells', sections: [{ heading: 'Membranes', blocks: [{ type: 'key_points', basis: 'source', items: ['Cells have membranes.'] }, { type: 'explanation', basis: 'source', text: 'The membrane forms a boundary.' }, { type: 'example', basis: 'supplementary', scenario: 'A gated boundary', explanation: 'The gate illustrates selective movement.' }] }, { heading: 'Applications', blocks: [{ type: 'example', basis: 'supplementary', scenario: 'A selective filter', explanation: 'A filter illustrates controlled passage.' }] }] }
 const response = (value: unknown, finishReason = 'stop') => new Response(JSON.stringify({ model: 'test:free', choices: [{ finish_reason: finishReason, message: { content: JSON.stringify(value) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }))
 describe('reviewer provider lifecycle', () => {
   it('blocks a flagged source before making any generation call', async () => {
@@ -42,6 +45,14 @@ describe('reviewer provider lifecycle', () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response(safe)).mockResolvedValueOnce(response(reviewer, 'length')).mockResolvedValueOnce(response(reviewer)).mockResolvedValueOnce(response(safe))
     await expect(generateAcademicReviewer(input, 'test-key', Date.now() + 110_000, fetcher)).resolves.toMatchObject({ generated: reviewer })
     expect(fetcher).toHaveBeenCalledTimes(4)
+  })
+  it('retries a structurally valid draft that misses selected examples', async () => {
+    const requested: ReviewerGenerationInput = { ...input, detail: 'standard', preferences: DEFAULT_REVIEWER_PREFERENCES }
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response(safe)).mockResolvedValueOnce(response(reviewer)).mockResolvedValueOnce(response(reviewerWithExamples)).mockResolvedValueOnce(response(safe))
+    const result = await generateAcademicReviewer(requested, 'test-key', Date.now() + 110_000, fetcher)
+    expect(result.generated).toEqual(reviewerWithExamples)
+    const fallbackBody = JSON.parse(String(fetcher.mock.calls[2]?.[1]?.body)) as { messages: { content: string }[] }
+    expect(fallbackBody.messages[1]?.content).toContain('Provide at least 2 example blocks; found 0.')
   })
   it('blocks unchecked output if the final policy gate is unavailable', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response(safe)).mockResolvedValueOnce(response(reviewer)).mockRejectedValueOnce(new Error('network failure'))

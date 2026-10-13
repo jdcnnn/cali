@@ -6917,6 +6917,36 @@ button.flashcard-study-card:focus-visible {
   width: min(400px, calc(100vw - 48px));
 }
 
+.ai-blocked-dialog {
+  width: min(430px, calc(100vw - 32px));
+}
+
+.ai-blocked-dialog .confirmation-icon {
+  margin-bottom: 12px;
+}
+
+.ai-blocked-status {
+  display: grid;
+  gap: 3px;
+  margin-top: 16px;
+  padding: 11px 13px;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-cali-pale) 42%, var(--color-cali-surface));
+}
+
+.ai-blocked-status strong {
+  color: var(--color-cali-ink);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.ai-blocked-status span {
+  color: var(--color-cali-slate);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .ai-quota-dialog > div {
   padding: 24px;
 }
@@ -8181,6 +8211,11 @@ button.flashcard-study-card:focus-visible {
 }
 
 /* Reviewer generator visual system: one hierarchy across desktop and mobile. */
+.ai-reviewer-dialog:not(.has-draft) {
+  --ai-dialog-width: 520px;
+  --ai-dialog-height: min(680px, calc(100dvh - 48px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+}
+
 .ai-reviewer-dialog .ai-intake-wizard {
   --ai-content-inset: 22px;
   --ai-type-caption: 10px;
@@ -8190,7 +8225,7 @@ button.flashcard-study-card:focus-visible {
 }
 
 .ai-reviewer-dialog .ai-intake-wizard > header {
-  padding: 20px var(--ai-content-inset) 15px;
+  padding: 16px var(--ai-content-inset) 12px;
 }
 
 .ai-reviewer-dialog .ai-intake-wizard > header > div {
@@ -8200,7 +8235,7 @@ button.flashcard-study-card:focus-visible {
 
 .ai-reviewer-dialog .ai-intake-wizard > header h2 {
   margin-top: 4px;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.15;
 }
 
@@ -8217,8 +8252,8 @@ button.flashcard-study-card:focus-visible {
 }
 
 .ai-intake-steps {
-  gap: 12px;
-  padding: 0 var(--ai-content-inset) 15px;
+  gap: 10px;
+  padding: 0 var(--ai-content-inset) 12px;
 }
 
 .ai-intake-steps li {
@@ -8241,14 +8276,14 @@ button.flashcard-study-card:focus-visible {
 }
 
 .ai-reviewer-dialog .ai-intake-wizard .ai-input-body {
-  gap: 17px;
-  padding: 19px var(--ai-content-inset) 21px;
+  gap: 12px;
+  padding: 14px var(--ai-content-inset) 16px;
   scrollbar-gutter: stable;
 }
 
 .ai-intake-wizard .ai-generator-section,
 .ai-reviewer-preferences {
-  gap: 17px;
+  gap: 12px;
 }
 
 .ai-step-heading h3 {
@@ -8265,7 +8300,7 @@ button.flashcard-study-card:focus-visible {
 }
 
 .ai-style-options {
-  gap: 18px;
+  gap: 12px;
 }
 
 .ai-intake-wizard .ai-source-tabs {
@@ -8369,11 +8404,11 @@ button.flashcard-study-card:focus-visible {
 }
 
 .ai-intake-wizard .ai-detail-options span {
-  grid-template-rows: auto minmax(2.7em, auto);
+  grid-template-rows: auto auto;
   align-content: center;
-  min-height: 64px;
+  min-height: 50px;
   gap: 3px;
-  padding: 10px 8px 8px;
+  padding: 7px 7px 6px;
   text-align: center;
 }
 
@@ -8402,17 +8437,172 @@ button.flashcard-study-card:focus-visible {
 }
 
 .ai-academic-note {
-  padding-top: 16px;
-  font-size: 12px;
-  line-height: 1.55;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-cali-pale) 32%, var(--color-cali-surface));
+  color: var(--color-cali-slate);
 }
 
 .ai-academic-note summary {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px;
   align-items: center;
-  min-height: 24px;
-  font-weight: 600;
+  gap: 9px;
+  min-height: 52px;
+  padding: 9px 10px;
+  list-style: none;
+  cursor: pointer;
 }
+
+.ai-academic-note summary::-webkit-details-marker { display: none; }
+
+.ai-academic-note summary::after {
+  content: '+';
+  color: var(--color-cali-slate);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+}
+
+.ai-academic-note[open] summary::after { content: '−'; }
+
+.ai-academic-note summary > span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ai-academic-note summary strong {
+  color: var(--color-cali-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ai-academic-note summary small {
+  color: var(--color-cali-slate);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.ai-academic-note ul {
+  margin: 0;
+  padding: 0 13px 12px 28px;
+  color: var(--color-cali-slate);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.ai-academic-note li + li { margin-top: 5px; }
+
+.ai-study-aids {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ai-study-aids > legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--color-cali-ink);
+  font-size: var(--ai-type-label);
+  font-weight: 700;
+}
+
+.ai-study-aids > legend small {
+  margin-left: 5px;
+  color: var(--color-cali-slate);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ai-study-aid-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-study-aid-grid label,
+.ai-supplementary-toggle {
+  position: relative;
+  display: block;
+}
+
+.ai-study-aid-grid input,
+.ai-supplementary-toggle input {
+  position: absolute;
+  opacity: 0;
+}
+
+.ai-study-aid-grid label > span,
+.ai-supplementary-toggle > span {
+  display: grid;
+  gap: 3px;
+  min-height: 48px;
+  padding: 9px 10px 9px 35px;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 11px;
+  background: var(--color-cali-surface);
+  color: var(--color-cali-ink);
+  cursor: pointer;
+}
+
+.ai-study-aid-grid label > span::before,
+.ai-supplementary-toggle > span::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 11px;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--color-cali-border-strong, var(--color-cali-border));
+  border-radius: 5px;
+  background: var(--color-cali-surface);
+}
+
+.ai-study-aid-grid label > span::after,
+.ai-supplementary-toggle > span::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: 16px;
+  width: 5px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  opacity: 0;
+  transform: rotate(45deg);
+}
+
+.ai-study-aid-grid input:checked + span,
+.ai-supplementary-toggle input:checked + span {
+  border-color: color-mix(in srgb, var(--color-cali-accent) 60%, var(--color-cali-border));
+  background: var(--color-cali-pale);
+}
+
+.ai-study-aid-grid input:checked + span::before,
+.ai-supplementary-toggle input:checked + span::before {
+  border-color: var(--color-cali-accent);
+  background: var(--color-cali-accent);
+}
+
+.ai-study-aid-grid input:checked + span::after,
+.ai-supplementary-toggle input:checked + span::after { opacity: 1; }
+.ai-study-aid-grid input:focus-visible + span,
+.ai-supplementary-toggle input:focus-visible + span { outline: 2px solid var(--color-cali-accent); outline-offset: 2px; }
+.ai-study-aid-grid strong,
+.ai-supplementary-toggle strong { font-size: 12px; line-height: 1.35; }
+.ai-study-aid-grid small,
+.ai-supplementary-toggle small { color: var(--color-cali-slate); font-size: 10.5px; font-weight: 500; line-height: 1.4; }
+
+.ai-supplementary-toggle > span { min-height: 46px; padding-block: 9px; }
 
 .ai-reviewer-dialog .ai-intake-wizard .study-form-error {
   margin: 0;
@@ -8422,19 +8612,27 @@ button.flashcard-study-card:focus-visible {
 }
 
 .ai-reviewer-dialog .ai-intake-wizard > footer.ai-input-footer {
-  min-height: 64px;
-  padding: 10px var(--ai-content-inset);
+  min-height: 58px;
+  padding: 8px var(--ai-content-inset);
 }
 
 .ai-intake-wizard .ai-input-footer button {
-  min-height: 42px;
+  min-height: 40px;
   font-size: 13px;
   line-height: 1.25;
 }
 
+.ai-action-label-compact { display: none; }
+
 @media (max-width: 700px) {
+  .ai-reviewer-dialog:not(.has-draft) {
+    --ai-dialog-width: 480px;
+    --ai-dialog-gutter: 12px;
+    --ai-dialog-height: min(660px, calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  }
+
   .ai-reviewer-dialog .ai-intake-wizard {
-    --ai-content-inset: 16px;
+    --ai-content-inset: 12px;
     --ai-type-caption: 10px;
     --ai-type-body: 12px;
     --ai-type-label: 12px;
@@ -8442,30 +8640,39 @@ button.flashcard-study-card:focus-visible {
   }
 
   .ai-reviewer-dialog .ai-intake-wizard > header {
-    gap: 10px;
-    padding: 16px var(--ai-content-inset) 12px;
+    position: relative;
+    gap: 8px;
+    padding: 14px var(--ai-content-inset) 11px;
+  }
+
+  .ai-reviewer-dialog .ai-intake-wizard > header > div {
+    width: 100%;
+    padding-right: 42px;
   }
 
   .ai-reviewer-dialog .ai-intake-wizard > header h2 {
-    margin-top: 4px;
+    margin-top: 3px;
     font-size: 20px;
-    line-height: 1.15;
+    line-height: 1.18;
   }
 
   .ai-reviewer-dialog .ai-intake-wizard .ai-dialog-intro {
     margin-top: 5px;
-    font-size: 12px;
-    line-height: 1.45;
+    font-size: 11.5px;
+    line-height: 1.5;
   }
 
   .ai-reviewer-dialog .study-dialog-close {
+    position: absolute;
+    top: 13px;
+    right: var(--ai-content-inset);
     width: 34px;
     height: 34px;
   }
 
   .ai-intake-steps {
-    gap: 8px;
-    padding: 0 16px 14px;
+    gap: 6px;
+    padding: 0 var(--ai-content-inset) 10px;
   }
 
   .ai-intake-steps li {
@@ -8476,40 +8683,42 @@ button.flashcard-study-card:focus-visible {
   }
 
   .ai-intake-steps li > span {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     font-size: 11px;
   }
 
   .ai-intake-steps strong {
-    font-size: 11px;
-    line-height: 1.25;
+    font-size: 10px;
+    line-height: 1.3;
   }
 
   .ai-reviewer-dialog .ai-intake-wizard .ai-input-body {
     gap: 15px;
-    padding: 15px var(--ai-content-inset) 18px;
+    padding: 14px var(--ai-content-inset) 16px;
     scrollbar-gutter: auto;
   }
 
   .ai-intake-wizard .ai-generator-section,
   .ai-reviewer-preferences {
-    gap: 15px;
+    gap: 14px;
   }
 
   .ai-step-heading h3 {
+    font-size: 16px;
     font-weight: 650;
     line-height: 1.3;
   }
 
   .ai-step-heading p {
     max-width: 34ch;
-    margin-top: 3px;
-    line-height: 1.45;
+    margin-top: 5px;
+    font-size: 12px;
+    line-height: 1.55;
   }
 
   .ai-style-options {
-    gap: 16px;
+    gap: 14px;
   }
 
   .ai-intake-wizard .ai-source-tabs button strong,
@@ -8532,16 +8741,16 @@ button.flashcard-study-card:focus-visible {
   }
 
   .ai-intake-wizard .ai-detail-options span {
-    min-height: 66px;
-    padding-inline: 5px;
+    min-height: 48px;
+    padding: 6px 3px 5px;
   }
 
   .ai-intake-wizard .ai-detail-options strong {
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .ai-intake-wizard .ai-detail-options small {
-    font-size: 10.5px;
+    font-size: 9.5px;
   }
 
   .ai-intake-wizard .ai-style-instructions textarea {
@@ -8554,23 +8763,164 @@ button.flashcard-study-card:focus-visible {
   }
 
   .ai-reviewer-dialog .ai-intake-wizard > footer.ai-input-footer {
-    min-height: 68px;
-    padding: 10px var(--ai-content-inset) max(10px, env(safe-area-inset-bottom));
+    min-height: 56px;
+    padding: 8px var(--ai-content-inset) max(8px, env(safe-area-inset-bottom));
   }
 
   .ai-intake-wizard > footer.ai-input-footer:has(> div) {
-    grid-template-columns: minmax(0, .9fr) minmax(0, 1.35fr);
+    grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
   }
+
+  .ai-study-aid-grid { gap: 6px; }
+  .ai-study-aid-grid label > span { min-height: 44px; padding: 8px 6px 8px 31px; }
+  .ai-study-aid-grid label > span::before { top: 11px; left: 9px; }
+  .ai-study-aid-grid label > span::after { top: 14px; left: 14px; }
+  .ai-study-aid-grid strong { font-size: 10.5px; }
+  .ai-study-aid-grid small { display: none; }
+  .ai-supplementary-toggle > span { min-height: 44px; padding: 8px 7px 8px 34px; }
+  .ai-supplementary-toggle small { display: none; }
+}
+
+@media (max-width: 520px) {
+  .ai-reviewer-dialog .ai-intake-wizard {
+    --ai-type-caption: 9px;
+    --ai-type-body: 11.5px;
+    --ai-type-label: 12px;
+    --ai-type-heading: 15px;
+  }
+
+  .ai-reviewer-dialog .ai-intake-wizard > header h2 { font-size: 19px; }
+  .ai-reviewer-dialog .ai-intake-wizard .ai-dialog-intro { font-size: 11px; }
+  .ai-intake-steps li > span { font-size: 10px; }
+  .ai-intake-steps strong { font-size: 9.5px; }
+  .ai-step-heading h3 { font-size: 15px; }
+  .ai-step-heading p { font-size: 11.5px; }
+
+  .ai-reviewer-preferences .ai-length-field > legend,
+  .ai-reviewer-preferences .ai-study-aids > legend {
+    margin-bottom: 9px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .ai-reviewer-preferences .ai-study-aids > legend small {
+    font-size: 10.5px;
+  }
+
+  .ai-reviewer-preferences .ai-detail-options {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .ai-reviewer-preferences .ai-detail-options span {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    place-items: start stretch;
+    min-height: 54px;
+    gap: 3px;
+    padding: 10px 12px;
+    text-align: left;
+  }
+
+  .ai-reviewer-preferences .ai-detail-options strong {
+    width: 100%;
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: left;
+  }
+
+  .ai-reviewer-preferences .ai-detail-options small {
+    display: block;
+    width: 100%;
+    font-size: 10.5px;
+    line-height: 1.45;
+    text-align: left;
+  }
+
+  .ai-reviewer-preferences .ai-study-aid-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .ai-reviewer-preferences .ai-study-aid-grid label > span {
+    min-height: 58px;
+    gap: 3px;
+    padding: 10px 11px 10px 39px;
+  }
+
+  .ai-reviewer-preferences .ai-study-aid-grid label > span::before {
+    top: 18px;
+    left: 12px;
+  }
+
+  .ai-reviewer-preferences .ai-study-aid-grid label > span::after {
+    top: 21px;
+    left: 17px;
+  }
+
+  .ai-reviewer-preferences .ai-study-aid-grid strong,
+  .ai-reviewer-preferences .ai-supplementary-toggle strong {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .ai-reviewer-preferences .ai-study-aid-grid small,
+  .ai-reviewer-preferences .ai-supplementary-toggle small {
+    display: block;
+    font-size: 10.5px;
+    line-height: 1.45;
+  }
+
+  .ai-reviewer-preferences .ai-supplementary-toggle > span {
+    min-height: 58px;
+    gap: 2px;
+    padding: 9px 10px 9px 38px;
+  }
+
+  .ai-reviewer-preferences .ai-supplementary-toggle > span::before {
+    top: 19px;
+    left: 12px;
+  }
+
+  .ai-reviewer-preferences .ai-supplementary-toggle > span::after {
+    top: 22px;
+    left: 17px;
+  }
+
+  .ai-reviewer-preferences .ai-academic-note summary { min-height: 50px; }
+  .ai-reviewer-preferences .ai-academic-note summary strong { font-size: 11.5px; }
+  .ai-reviewer-preferences .ai-academic-note summary small { font-size: 10px; }
+  .ai-reviewer-preferences .ai-academic-note ul { font-size: 10.5px; }
+  .ai-intake-wizard .ai-input-footer button { font-size: 12px; }
 }
 
 @media (max-width: 380px) {
-  .ai-intake-steps li {
-    align-items: center;
+  .ai-reviewer-dialog .ai-intake-wizard > header {
+    padding: 14px var(--ai-content-inset) 10px;
   }
 
-  .ai-intake-wizard .ai-detail-options small {
-    font-size: 10px;
+  .ai-reviewer-dialog .ai-intake-wizard > header h2 {
+    margin-top: 3px;
+    font-size: 19px;
   }
+
+  .ai-intake-steps {
+    padding-block: 0 10px;
+  }
+
+  .ai-intake-steps li {
+    align-items: center;
+    gap: 4px;
+  }
+
+  .ai-intake-steps strong { display: block; font-size: 9.5px; }
+
+  .ai-step-heading h3 { font-size: 15px; }
+  .ai-step-heading p { font-size: 11.5px; line-height: 1.5; }
+
+  .ai-action-label-wide { display: none; }
+  .ai-action-label-compact { display: inline; }
 }
 
 /* Quizzes: focused practice, honest progress, and compact learning guidance. */

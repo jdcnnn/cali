@@ -4,7 +4,7 @@ import { CaliWordmark } from './CaliWordmark'
 import { SiteFooter } from './SiteFooter'
 import { startGoogleSignIn } from '../lib/supabase'
 import { useAuth } from '../auth/AuthContext'
-import carloPhoto from '../assets/carlo.png'
+import carloPhoto from '../assets/carlo.webp'
 import '../styles/entry.css'
 import '../styles/team-refinement.css'
 import { useLoginMode } from '../auth/LoginModeContext'
@@ -95,7 +95,7 @@ export function TeamPage() {
         {teamMembers.map((member) => <article className="team-card" key={member.name}>
           <div className={`team-photo${member.image ? ' team-photo--image' : ''}`} role={member.image ? undefined : 'img'} aria-label={member.image ? undefined : `${member.placeholder} image placeholder`}>
             {member.image
-              ? <img src={member.image} alt={`${member.name}, ${member.role}`} />
+              ? <img src={member.image} alt={`${member.name}, ${member.role}`} width="937" height="1447" loading="lazy" decoding="async" />
               : <span className="team-photo-name" aria-hidden="true">{member.placeholder}</span>}
           </div>
           <div className="team-card-copy">

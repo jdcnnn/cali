@@ -9,19 +9,13 @@ import { CaliWordmark, ProfileAvatar } from './components/CaliWordmark'
 import { LandingPage } from './components/LandingPage'
 import { OnboardingDropdown } from './components/OnboardingDropdown'
 import { SplashScreen } from './components/SplashScreen'
-import { TeamPage } from './components/TeamPage'
-import { PolicyPage } from './components/PolicyPage'
-import { SchedulesPage } from './components/SchedulesPage'
 import { DashboardSchedules } from './components/DashboardSchedules'
 import { DashboardTasks } from './components/DashboardTasks'
-import { TasksPage } from './components/TasksPage'
-import { CalendarPage } from './components/CalendarPage'
 import { InstallCali } from './components/InstallCali'
 import { SoundSettings, SoundSettingsNote } from './components/SoundSettings'
 import { ConnectionNotice } from './components/ConnectionNotice'
 import { CommunityNotificationsProvider } from './components/CommunityNotificationsProvider'
 import { ConfirmationIcon } from './components/ConfirmationIcon'
-import { StudentGuide } from './components/GuidePages'
 import './styles/skeleton.css'
 import './styles/status-pages-refined.css'
 import { ThemePicker } from './theme/ThemePicker'
@@ -32,6 +26,12 @@ import { formatYearLevel, yearLevelOptions } from './lib/academic'
 const StudyPage = lazy(() => import('./components/StudyPage').then(module => ({ default: module.StudyPage })))
 const CommunityPage = lazy(() => import('./components/CommunityPage').then(module => ({ default: module.CommunityPage })))
 const AdminPage = lazy(() => import('./components/AdminDashboard').then(module => ({ default: module.AdminDashboard })))
+const SchedulesPage = lazy(() => import('./components/SchedulesPage').then(module => ({ default: module.SchedulesPage })))
+const TasksPage = lazy(() => import('./components/TasksPage').then(module => ({ default: module.TasksPage })))
+const CalendarPage = lazy(() => import('./components/CalendarPage').then(module => ({ default: module.CalendarPage })))
+const StudentGuide = lazy(() => import('./components/GuidePages').then(module => ({ default: module.StudentGuide })))
+const TeamPage = lazy(() => import('./components/TeamPage').then(module => ({ default: module.TeamPage })))
+const PolicyPage = lazy(() => import('./components/PolicyPage').then(module => ({ default: module.PolicyPage })))
 
 const programs = [
   'Bachelor of Science in Architecture',
@@ -92,6 +92,10 @@ function scrollWorkspaceToTop() {
 
 function LoadingScreen() {
   return <main className="splash-screen"><div className="session-loading" role="status" aria-live="polite"><Brand /><p>Opening your workspace...</p></div></main>
+}
+
+function WorkspaceModuleLoading({ label }: { label: string }) {
+  return <div className="workspace-module-loading" role="status" aria-label={`Loading ${label}`}><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>
 }
 
 type StatusKind = 'error' | 'offline' | 'access' | 'not-found'
@@ -765,7 +769,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
           </div>
         </div>
         <SoundSettingsNote />
-      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'guide' ? <StudentGuide /> : section === 'settings' ? <SettingsScreen /> : section === 'schedules' ? <SchedulesPage studentId={student.user_id} now={now} /> : section === 'tasks' ? <TasksPage studentId={student.user_id} /> : section === 'calendar' ? <CalendarPage studentId={student.user_id} now={now} /> : section === 'study' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Study"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><StudyPage studentId={student.user_id} /></Suspense> : section === 'community' ? <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label="Loading Community"><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><CommunityPage /></Suspense> : <ModuleScreen section={section} />}
+      </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'guide' ? <Suspense fallback={<WorkspaceModuleLoading label="Guide" />}><StudentGuide /></Suspense> : section === 'settings' ? <SettingsScreen /> : section === 'schedules' ? <Suspense fallback={<WorkspaceModuleLoading label="Schedules" />}><SchedulesPage studentId={student.user_id} now={now} /></Suspense> : section === 'tasks' ? <Suspense fallback={<WorkspaceModuleLoading label="Tasks" />}><TasksPage studentId={student.user_id} /></Suspense> : section === 'calendar' ? <Suspense fallback={<WorkspaceModuleLoading label="Calendar" />}><CalendarPage studentId={student.user_id} now={now} /></Suspense> : section === 'study' ? <Suspense fallback={<WorkspaceModuleLoading label="Study" />}><StudyPage studentId={student.user_id} /></Suspense> : section === 'community' ? <Suspense fallback={<WorkspaceModuleLoading label="Community" />}><CommunityPage /></Suspense> : <ModuleScreen section={section} />}
     </div>
   </main>
 }
@@ -815,10 +819,10 @@ function AppRoutes() {
   return <><div inert={splashPhase !== 'done'} aria-hidden={splashPhase !== 'done'}><Routes>
     <Route path="/" element={<HomeRedirect />} />
     <Route path="/login" element={<HomeRedirect />} />
-    <Route path="/team" element={<TeamPage />} />
-    <Route path="/terms-and-conditions" element={<PolicyPage kind="terms" />} />
-    <Route path="/privacy-policy" element={<PolicyPage kind="privacy" />} />
-    <Route path="/community-guidelines" element={<PolicyPage kind="community" />} />
+    <Route path="/team" element={<Suspense fallback={<LoadingScreen />}><TeamPage /></Suspense>} />
+    <Route path="/terms-and-conditions" element={<Suspense fallback={<LoadingScreen />}><PolicyPage kind="terms" /></Suspense>} />
+    <Route path="/privacy-policy" element={<Suspense fallback={<LoadingScreen />}><PolicyPage kind="privacy" /></Suspense>} />
+    <Route path="/community-guidelines" element={<Suspense fallback={<LoadingScreen />}><PolicyPage kind="community" /></Suspense>} />
     <Route path="/auth/callback" element={<CallbackPage />} />
     <Route path="/access-denied" element={<AccessDeniedPage />} />
     <Route path="/onboarding" element={<OnboardingPage />} />

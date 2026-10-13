@@ -1,5 +1,5 @@
 import { buildAcademicPolicyBody, parsePolicyDecision, policyMessage } from './reviewerPolicy.js'
-import { buildOpenRouterReviewerBody, getReviewerModels, parseGeneratedReviewerResponse, prepareGeneratedReviewer, validateReviewerQuality, type ReviewerGenerationInput } from './reviewerGeneration.js'
+import { buildOpenRouterReviewerBody, getReviewerModels, parseGeneratedReviewerResponse, prepareGeneratedReviewer, reviewerComplianceIssues, validateReviewerQuality, type ReviewerGenerationInput } from './reviewerGeneration.js'
 
 export class GenerationError extends Error {
   constructor(readonly category: string, message?: string) { super(message ?? category) }
@@ -54,9 +54,10 @@ export async function generateAcademicReviewer(input: ReviewerGenerationInput, k
   // Both source and requested additions are checked in full; never persist either.
   await checkPolicy({ source: input.sourceText, preferences: input.preferences }, 'input')
   let lastError = new GenerationError('invalid_output')
+  let retryFeedback: string[] = []
   for (const retry of [false, true]) {
     let provider: ProviderResult
-    try { provider = await call(buildOpenRouterReviewerBody(input.sourceText, input.detail, retry, input.preferences), retry ? 35_000 : 50_000, 21_000) }
+    try { provider = await call(buildOpenRouterReviewerBody(input.sourceText, input.detail, retry, input.preferences, retryFeedback), retry ? 35_000 : 50_000, 21_000) }
     catch (error) {
       lastError = error instanceof GenerationError ? error : new GenerationError('provider_error')
       if (lastError.category === 'provider_error') throw lastError
@@ -64,10 +65,12 @@ export async function generateAcademicReviewer(input: ReviewerGenerationInput, k
     }
     const choice = provider.choices?.[0]
     const parsed = parseGeneratedReviewerResponse(choice?.message?.parsed ?? choice?.message?.content)
-    const generated = parsed ? prepareGeneratedReviewer(parsed, input.detail) : null
-    if (choice?.finish_reason === 'length' || !generated || !validateReviewerQuality(generated, input.detail)) {
+    const generated = parsed ? prepareGeneratedReviewer(parsed, input.detail, input.preferences) : null
+    const complianceIssues = generated ? reviewerComplianceIssues(generated, input.detail, input.preferences, input.sourceText) : []
+    if (choice?.finish_reason === 'length' || !generated || !validateReviewerQuality(generated, input.detail, input.preferences) || complianceIssues.length) {
       lastError = new GenerationError(choice?.finish_reason === 'length' ? 'output_limit' : 'invalid_output')
-      console.warn('Reviewer validation failed.', { attempt: retry ? 'fallback' : 'primary', model: provider.model, finishReason: choice?.finish_reason, stage: !parsed ? 'schema' : !generated ? 'preparation' : 'quality' })
+      retryFeedback = complianceIssues.length ? complianceIssues : ['Return a complete reviewer that matches the JSON schema and configured limits.']
+      console.warn('Reviewer validation failed.', { attempt: retry ? 'fallback' : 'primary', model: provider.model, finishReason: choice?.finish_reason, stage: !parsed ? 'schema' : !generated ? 'preparation' : complianceIssues.length ? 'preference_compliance' : 'quality', missingRequirements: complianceIssues })
       continue
     }
     await checkPolicy(generated, 'output')

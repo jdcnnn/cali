@@ -22,7 +22,7 @@ describe('reviewer generation endpoint', () => {
     mocks.eligible.mockResolvedValue({ data: true, error: null })
     mocks.maybeSingle.mockResolvedValue({ data: { user_id: 'student-a' }, error: null })
     mocks.rpc.mockImplementation(async name => ({ data: name === 'cali_reserve_reviewer_generation' ? { action: 'reserved' } : null, error: null }))
-    mocks.generate.mockResolvedValue({ generated: { title: 'Cells', sections: [{ heading: 'Cells', basis: 'source', blocks: [{ type: 'paragraph', text: 'Cells contain membranes.' }] }] }, model: 'test:free', promptTokens: 10, outputTokens: 5 })
+    mocks.generate.mockResolvedValue({ generated: { title: 'Cells', sections: [{ heading: 'Cells', blocks: [{ type: 'key_points', basis: 'source', items: ['Cells contain membranes.'] }] }] }, model: 'test:free', promptTokens: 10, outputTokens: 5 })
   })
   afterEach(() => vi.unstubAllEnvs())
   it('requires authentication and rejects unsupported methods', async () => {

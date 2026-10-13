@@ -8,7 +8,7 @@ For the product scope, confirmed decisions, and development sequence, read cali.
 
 Cali's core product is feature-complete and is treated as a release candidate. Authentication and onboarding, Dashboard, Schedules and local form scanning, Tasks, Calendar, reminders, Study, Community, Profile, and the administration workspace are implemented. The linked Supabase database matches every repository migration through `20261011180000_learning_focused_quizzes.sql`.
 
-The repository-level release gates pass as of 2026-10-12: 84 tests across 12 files, lint, the type-checked production build, deployment-variable validation, and the client-bundle secret scan. This status does not replace final authenticated acceptance testing on the deployed app. Before a production handoff, run the critical student/admin journeys on desktop and mobile, complete the accessibility/device pass, and run the live Study AI provider check described below.
+The repository-level release gates pass as of 2026-10-13: 112 tests across 17 files, lint, strict browser/server TypeScript, the production build, deployment-variable validation, client-bundle secret scanning, and initial-load/chunk/image performance budgets. This status does not replace final authenticated acceptance testing on the deployed app. Before a production handoff, run the critical student/admin journeys on desktop and mobile, complete the accessibility/device pass, and run the live Study AI provider check described below.
 
 ## Local development
 
@@ -19,7 +19,7 @@ npm install
 npm run dev
 ~~~
 
-The project also has `npm run build`, `npm run lint`, and `npm test` scripts.
+The project also has `npm run build`, `npm run lint`, and `npm test` scripts. `npm run images:optimize` regenerates the optimized WebP team photo from its source PNG.
 
 ## Schedule module
 
@@ -169,7 +169,7 @@ The Vercel project is connected to `https://github.com/jdcnnn/cali.git`. Pushes 
 
 Production intentionally remains Cali's live testing and iteration environment. The local ngrok workflow above is only an additional way to inspect progress between pushes and does not change that deployment workflow.
 
-Before deployment, run `npm test`, `npm run lint`, and `npm run build`. The production build now fails when a required client or reviewer-generation variable is missing and scans `dist` to prevent server secrets from entering the browser bundle. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production. The `send-reminders` Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`; cron-job.org calls it once per minute with `X-Cali-Cron-Secret`. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, the VAPID private key, or the cron secret as Vite environment variables.
+Before deployment, run `npm test`, `npm run lint`, and `npm run build`. The production build now fails when a required client or reviewer-generation variable is missing, scans `dist` to prevent server secrets from entering the browser bundle, and enforces gzip budgets for initial JavaScript/CSS, application chunks, and raster images. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production. The `send-reminders` Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`; cron-job.org calls it once per minute with `X-Cali-Cron-Secret`. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, the VAPID private key, or the cron secret as Vite environment variables.
 
 Repository migrations through `20261011180000_learning_focused_quizzes.sql` are confirmed applied to the currently linked Cali Supabase project as of 2026-10-12. A different Supabase project needs the complete migration sequence.
 
@@ -187,7 +187,7 @@ Schedule deletion is subject-based: choosing Delete subject from a meeting card 
 
 ## AI reviewer generation
 
-Cali generates an editable study reviewer from either handwritten-note photos or one digital PDF. There is no pasted-text intake path. The guided intake has three steps: Add material, Check text, and Customize. Students correct the extracted text, then choose reviewer length with one optional style-instructions field. The selected length sets the coverage boundary while instructions refine presentation. Desktop intake is capped at 600 pixels wide; mobile dialogs keep 24-pixel side gutters and scroll longer content inside.
+Cali generates an editable study reviewer from either handwritten-note photos or one digital PDF. There is no pasted-text intake path. The guided intake has three steps: Add material, Check text, and Customize. Students correct the extracted text, then choose reviewer length, the number of examples, optional comparisons/common mistakes/memory aids/practice questions, a presentation style, and whether supplementary illustrative examples are allowed. These bounded controls replace the former free-form style prompt. Desktop intake is capped at 600 pixels wide; mobile dialogs keep 24-pixel side gutters and scroll longer content inside.
 
 ### Input limits
 
@@ -213,13 +213,13 @@ Photo OCR and PDF text extraction run in the browser. Original images and PDF fi
 - **Quick** targets 3–6 sections, up to 2 blocks per section, and up to 6 list items.
 - **Balanced** targets 4–10 sections, up to 3 blocks per section, and up to 7 list items.
 - **In depth** targets 6–14 sections, up to 3 blocks per section, and up to 8 list items.
-- Section, block, list-item, paragraph (below 120 words), and total output-size limits are validated before accepting a draft. Short sources may produce fewer sections.
-- Output may contain source-grounded summaries, definitions, comparisons, explanations, examples, memory aids, paragraphs, bullets, and numbered lists. It must match the source's dominant language and use only the submitted source material.
+- Section, block, list-item, semantic-preference, and total output-size limits are validated before accepting a draft. Short sources may produce fewer sections.
+- Output uses explicit key-point, explanation, example, comparison, common-mistake, memory-aid, and self-check blocks. Facts remain source-grounded. If the student allows them, only example blocks may use clearly labeled supplementary academic scenarios.
 - Each verified RTU student may complete 10 reviewer generations per calendar month. Failed attempts do not count, saved or discarded successful generations do count, and only one request may process at a time.
 - A generated result is a private, revision-checked draft. It expires after 24 hours unless the student explicitly saves it to `reviewers`; saving or discarding removes the temporary draft.
 
 Source text and preferences pass a contextual academic-content check before generation; output is checked again before creating a draft. Flagged sources are blocked automatically and failed checks do not consume quota. Gratuitous profanity, explicit sexual entertainment, targeted harassment, hate, actionable abuse, nonacademic requests, and policy overrides are blocked. Neutral academic discussion of sensitive subjects remains allowed. Unavailable or malformed policy decisions stop generation; model moderation can still make mistakes.
 
-The default free models are `nvidia/nemotron-3-super-120b-a12b:free`, then `apodex/apodex-1.1-mini:free`. Reasoning is disabled. The primary uses strict JSON schema; fallback uses JSON-object output and Cali validates the full schema and quality locally. Requests use bounded attempt deadlines within the endpoint's 110-second budget. Optional server-only `CALI_REVIEWER_MODELS` accepts two to four distinct `:free` model IDs; no OpenRouter Auto or paid model is used.
+The default free models are `nvidia/nemotron-3-super-120b-a12b:free`, then `apodex/apodex-1.1-mini:free`. Reasoning is disabled. The primary uses strict JSON schema; fallback uses JSON-object output. Cali validates the full schema, size limits, grounding boundaries, requested block counts, selected study aids, and presentation semantics locally. A structurally valid response that ignores a selection is rejected, and the fallback receives the exact missing requirements. Requests use bounded attempt deadlines within the endpoint's 110-second budget. Optional server-only `CALI_REVIEWER_MODELS` accepts two to four distinct `:free` model IDs; no OpenRouter Auto or paid model is used.
 
 Server environments require `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. These names belong in the local `.env` and the corresponding Vercel environments; server secrets must never use a `VITE_` prefix. Before deployment, apply the latest Supabase migration and run `npm run verify:study-ai` to verify configured models with actual generated output and contextual academic-policy fixtures. A release should also exercise a real selectable-text PDF and pass `npm test`, `npm run lint`, and `npm run build`.

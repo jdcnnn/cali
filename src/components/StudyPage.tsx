@@ -2,7 +2,7 @@ import { ReviewerStyleOptions } from './ReviewerStyleOptions'
 import { playSound } from '../lib/sounds'
 import { DEFAULT_REVIEWER_PREFERENCES, type ReviewerPreferences } from '../lib/reviewerPreferences'
 import { readReviewerRecovery, writeReviewerRecovery, clearReviewerRecovery, reviewerSubmissionKey } from '../lib/reviewerRecovery'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useEditor, useEditorState, EditorContent, Extension, Node as TiptapNode } from '@tiptap/react'
@@ -23,13 +23,14 @@ import { EMPTY_REVIEWER_DOCUMENT, formatReviewerDate, reviewerMatches, type Revi
 import { setReviewerVisibility, type ReviewerVisibility } from '../lib/community'
 import { extractPdfText, MAX_REVIEWER_SOURCE_CHARACTERS, PdfExtractionError } from '../lib/reviewerPdf'
 import { MAX_NOTE_PAGES, scanNotePages } from '../lib/noteScanner'
-import { StudySetsPage } from './StudySetsPage'
 import { CaliSelect, type CaliSelectOption } from './CaliSelect'
 import { BackArrowIcon } from './BackArrowIcon'
 import { ConfirmationIcon } from './ConfirmationIcon'
 import { StudyLibraryCardsSkeleton, StudyLibraryCountSkeleton, StudyLibraryFiltersSkeleton } from './StudyLibrarySkeleton'
 import '../styles/study.css'
 import '../styles/skeleton.css'
+
+const StudySetsPage = lazy(() => import('./StudySetsPage').then(module => ({ default: module.StudySetsPage })))
 
 type Notice = { kind: 'error' | 'success'; text: string } | null
 type ReviewerSaveState = 'saved' | 'dirty' | 'saving' | 'error'
@@ -718,6 +719,23 @@ function AiDraftActionDialog({ action, title, onCancel, onConfirm }: { action: '
   return <dialog ref={dialogRef} className="study-confirm-dialog" aria-labelledby="ai-draft-action-title" onCancel={event => { event.preventDefault(); onCancel() }}><div><ConfirmationIcon kind={saving ? 'confirmation' : 'warning'} /><p className="workspace-overline">{saving ? 'SAVE REVIEWER' : 'DISCARD DRAFT'}</p><h2 id="ai-draft-action-title">{saving ? `Save “${title}”?` : 'Discard this draft?'}</h2><p>{saving ? 'This will add it to your Reviewers section. You can continue editing it there after saving.' : 'This generated reviewer and your edits will be removed. This cannot be undone.'}</p><footer><button type="button" className="study-secondary" autoFocus onClick={onCancel}>{saving ? 'Cancel' : 'Keep editing'}</button><button type="button" className={saving ? 'button-primary' : 'study-danger'} onClick={confirmOnce}>{saving ? 'Save reviewer' : 'Discard draft'}</button></footer></div></dialog>
 }
 
+class ReviewerContentBlockedError extends Error {}
+
+function AiContentBlockedDialog({ message, onKeepSettings, onReviewMaterial }: { message: string; onKeepSettings: () => void; onReviewMaterial: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  useEffect(() => { const dialog = dialogRef.current; dialog?.showModal(); return () => { if (dialog?.open) dialog.close() } }, [])
+  return <dialog ref={dialogRef} className="study-confirm-dialog ai-blocked-dialog" aria-labelledby="ai-blocked-title" onCancel={event => { event.preventDefault(); onKeepSettings() }}>
+    <div>
+      <ConfirmationIcon kind="warning" />
+      <p className="workspace-overline">GENERATION BLOCKED</p>
+      <h2 id="ai-blocked-title">Review this material</h2>
+      <p>{message}</p>
+      <div className="ai-blocked-status"><strong>No generation was used</strong><span>Your extracted text and reviewer settings are still available.</span></div>
+      <footer><button type="button" className="study-secondary" onClick={onKeepSettings}>Keep settings</button><button type="button" className="button-primary" autoFocus onClick={onReviewMaterial}>Review material</button></footer>
+    </div>
+  </dialog>
+}
+
 function AiGenerationQuotaDialog({ quota, onCancel, onConfirm }: { quota: AiGenerationQuota; onCancel: () => void; onConfirm: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const confirmed = useRef(false)
@@ -773,6 +791,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
   const [busy, setBusy] = useState(false)
   const [showCloseConfirmation, setShowCloseConfirmation] = useState(false)
   const [showQuotaMessage, setShowQuotaMessage] = useState(false)
+  const [blockedContentMessage, setBlockedContentMessage] = useState<string | null>(null)
   const [draftAction, setDraftAction] = useState<'save' | 'discard' | null>(null)
   const [quota, setQuota] = useState<AiGenerationQuota | null>(null)
   const [progress, setProgress] = useState<AiProgress | null>(null)
@@ -940,7 +959,10 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
       if (pending.status !== 'processing') {
         lastSubmission.current = null
         setPendingSubmissionKey(null)
-        if (pending.status === 'failed') throw new Error(pending.failure_reason === 'content_blocked' ? 'This material was blocked by the academic content policy. Correct the source or reviewer instructions before retrying. This attempt does not count toward your monthly limit.' : 'The previous generation did not finish. Retry to start a new request; failed attempts do not count toward your monthly limit.')
+        if (pending.status === 'failed') {
+          if (pending.failure_reason === 'content_blocked') throw new ReviewerContentBlockedError('This material was blocked by the academic content policy. Correct the source before retrying. This attempt does not count toward your monthly limit.')
+          throw new Error('The previous generation did not finish. Retry to start a new request; failed attempts do not count toward your monthly limit.')
+        }
         throw new Error('This request was already saved or discarded. Reopen your study library.')
       }
       await new Promise<void>(resolve => {
@@ -978,6 +1000,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
         else throw new Error(result.error || 'Another reviewer is being generated. Retry after it finishes.')
       } else if (!response.ok) {
         if (result.category && result.category !== 'quota' && !result.recoverable) { lastSubmission.current = null; setPendingSubmissionKey(null) }
+        if (result.category === 'content_blocked') throw new ReviewerContentBlockedError(result.error || 'This material was blocked by the academic content policy. This attempt does not count toward your monthly limit.')
         throw new Error(result.error || 'Reviewer generation failed.')
       }
       if (!result.requestId || !result.content || !result.title || !Number.isInteger(result.revision)) throw new Error('The draft response could not be opened. Retry to recover it.')
@@ -993,7 +1016,8 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
       const message = generationError instanceof TypeError
         ? 'Cali cannot reach reviewer generation right now. Keep this window open and try again in a moment.'
         : generationError instanceof Error ? generationError.message : 'Reviewer generation failed.'
-      setError(message)
+      if (generationError instanceof ReviewerContentBlockedError) { setError(''); setBlockedContentMessage(message) }
+      else setError(message)
     } finally {
       actionInFlight.current = false
       setProgress(null); setBusy(false)
@@ -1040,7 +1064,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
   }
 
   const requestSourceClose = () => {
-    if (sourceText.trim() || notePages.length || fileName || preferences.additionalContent) { setShowCloseConfirmation(true); return }
+    if (sourceText.trim() || notePages.length || fileName) { setShowCloseConfirmation(true); return }
     closeSourceDialog()
   }
 
@@ -1065,7 +1089,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
 
   return <dialog ref={dialogRef} className={`study-dialog ai-reviewer-dialog${draft ? ' has-draft' : ''}`} onCancel={event => { if (event.target !== event.currentTarget) return; event.preventDefault(); if (!busy) { if (draft) setDraftAction('discard'); else requestSourceClose() } }}>
     {!draft ? <form onSubmit={requestGeneration} className="study-dialog-shell ai-intake-wizard">
-      <header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Generate a reviewer</h2><p className="ai-dialog-intro">Turn your course material into clear study notes.</p></div><button type="button" className="study-dialog-close" aria-label="Close reviewer generator" onClick={requestSourceClose} disabled={busy}><CloseIcon /></button></header>
+      <header><div><p className="workspace-overline">NEW REVIEWER</p><h2>Create a reviewer</h2><p className="ai-dialog-intro">Turn your material into clear study notes.</p></div><button type="button" className="study-dialog-close" aria-label="Close reviewer generator" onClick={requestSourceClose} disabled={busy}><CloseIcon /></button></header>
       <ol className="ai-intake-steps" aria-label="Reviewer preparation steps">{['Add material', 'Check text', 'Customize'].map((label, index) => <li key={label} className={index === intakeStep ? 'is-current' : index < intakeStep ? 'is-complete' : ''} aria-current={index === intakeStep ? 'step' : undefined}><span aria-hidden="true">{index + 1}</span><strong>{label}</strong></li>)}</ol>
       {progress ? <><AiProgressView progress={progress} /><footer className="ai-input-footer"><button type="button" className="study-secondary" onClick={() => { if (progress.phase === 'generate') onClose(); else setShowCloseConfirmation(true) }}>{progress.phase === 'generate' ? 'Close and resume later' : 'Stop extraction'}</button></footer></> : <>
         <div className="ai-input-body" ref={intakeBody}>
@@ -1090,13 +1114,13 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
 
           </>}
           {intakeStep === 1 && <section className="ai-generator-section ai-check-source"><div className="ai-step-heading"><h3 ref={stepHeading} tabIndex={-1}>Check the extracted text</h3><p>Compare it with your material and correct any missing or misread words.</p></div>{scanStatus && <p className="ai-scan-status" role="status">{scanStatus}</p>}<AiSourceTextEditor sourceType={sourceType} value={sourceText} onChange={setSourceText} /><p className="ai-source-note">This is the text Cali will use to create your reviewer.</p></section>}
-          {intakeStep === 2 && <section className="ai-generator-section ai-reviewer-preferences"><div className="ai-step-heading"><h3 ref={stepHeading} tabIndex={-1}>Customize your reviewer</h3><p>Choose the amount of detail, then add presentation instructions if needed.</p></div><ReviewerStyleOptions preferences={preferences} detail={detail} onPreferencesChange={setPreferences} onDetailChange={setDetail} /></section>}
+          {intakeStep === 2 && <section className="ai-generator-section ai-reviewer-preferences"><div className="ai-step-heading"><h3 ref={stepHeading} tabIndex={-1}>Customize your reviewer</h3><p>Choose the detail, examples, and optional study sections Cali should include.</p></div><ReviewerStyleOptions preferences={preferences} detail={detail} onPreferencesChange={setPreferences} onDetailChange={setDetail} /></section>}
           {error && <p className="study-form-error" role="alert">{error}</p>}
         </div>
         <footer className="ai-input-footer"><button type="button" className="study-secondary" onClick={() => { if (intakeStep === 0) requestSourceClose(); else { setError(''); setIntakeStep(intakeStep === 2 ? 1 : 0) } }}>{intakeStep === 0 ? 'Cancel' : 'Back'}</button><div>
           {intakeStep === 0 && <button type="button" className="button-primary" disabled={!sourceText.trim() && (sourceType !== 'scan' || !notePages.length)} onClick={() => { if (sourceText.trim()) { setError(''); setIntakeStep(1) } else void scanNotes() }}>{sourceType === 'scan' && !sourceText.trim() ? 'Extract text' : 'Review text'}</button>}
           {intakeStep === 1 && <button type="button" className="button-primary" disabled={!sourceText.trim()} onClick={() => { setError(''); setIntakeStep(2) }}>Use this text</button>}
-          {intakeStep === 2 && <button type="submit" className="button-primary" disabled={!sourceText.trim()}>{pendingSubmissionKey === reviewerSubmissionKey({ sourceType, sourceText: sourceText.trim(), detail, preferences }) ? 'Recover reviewer' : 'Generate reviewer'}</button>}
+          {intakeStep === 2 && <button type="submit" className="button-primary" disabled={!sourceText.trim()}>{pendingSubmissionKey === reviewerSubmissionKey({ sourceType, sourceText: sourceText.trim(), detail, preferences }) ? <><span className="ai-action-label-wide">Recover reviewer</span><span className="ai-action-label-compact">Recover</span></> : <><span className="ai-action-label-wide">Generate reviewer</span><span className="ai-action-label-compact">Generate</span></>}</button>}
         </div></footer>
       </>}
     </form> : <div className="ai-draft-shell"><header><div><p className="workspace-overline">AI-GENERATED DRAFT</p><h2>Edit before saving</h2><p>Check important details against your source. You can continue editing this reviewer after saving it from the Reviewers section.</p></div><span className={`reviewer-save-state reviewer-save-state--${draftState}`}>{draftState === 'saving' ? 'Saving…' : draftState === 'dirty' ? 'Unsaved changes' : draftState === 'error' ? 'Couldn’t autosave' : 'Draft saved'}</span></header>
@@ -1106,6 +1130,7 @@ function AiReviewerDialog({ userId, subjects, initialDraft, onClose, onSaved }: 
     </div>}
     {showCloseConfirmation && <AiSourceCloseDialog onKeepEditing={() => setShowCloseConfirmation(false)} onDiscard={closeSourceDialog} />}
     {showQuotaMessage && quota && <AiGenerationQuotaDialog quota={quota} onCancel={() => setShowQuotaMessage(false)} onConfirm={() => { setShowQuotaMessage(false); void generate() }} />}
+    {blockedContentMessage && <AiContentBlockedDialog message={blockedContentMessage} onKeepSettings={() => setBlockedContentMessage(null)} onReviewMaterial={() => { setBlockedContentMessage(null); setIntakeStep(1) }} />}
     {draftAction && <AiDraftActionDialog action={draftAction} title={draftTitle.trim()} onCancel={() => setDraftAction(null)} onConfirm={() => { const action = draftAction; setDraftAction(null); if (action === 'save') void saveReviewer(); else void discard() }} />}
   </dialog>
 }
@@ -1311,6 +1336,6 @@ function ReviewersStudyPage({ studentId }: { studentId: string }) {
 export function StudyPage({ studentId }: { studentId: string }) {
   const [params] = useSearchParams()
   const tool = params.get('tool')
-  if (tool === 'flashcards' || tool === 'quizzes') return <StudySetsPage studentId={studentId} tool={tool} />
+  if (tool === 'flashcards' || tool === 'quizzes') return <Suspense fallback={<div className="workspace-module-loading" role="status" aria-label={`Loading ${tool}`}><span className="cali-skeleton skeleton-block" aria-hidden="true" /></div>}><StudySetsPage studentId={studentId} tool={tool} /></Suspense>
   return <ReviewersStudyPage studentId={studentId} />
 }

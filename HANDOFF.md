@@ -9,7 +9,9 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 ## Phase status
 
 - Cali's agreed core scope is feature-complete and is now a release candidate. Auth/onboarding, Dashboard, Schedules and local scanning, Tasks, Calendar, reminders, Study, Community, Profile, and administration are implemented.
-- All repository migrations through `20261011180000_learning_focused_quizzes.sql` match the linked Supabase database. On 2026-10-12, 84 tests across 12 files passed, lint passed, and the type-checked production build, deployment-variable check, and client-bundle secret scan passed.
+- All repository migrations through `20261011180000_learning_focused_quizzes.sql` match the linked Supabase database. On 2026-10-13, 112 tests across 17 files passed, lint passed, and the strict type-checked production build, deployment-variable check, client-bundle secret scan, and performance budgets passed.
+- Secondary workspace/public routes are lazy-loaded with accessible fallbacks. Dashboard task styles live in `dashboard-tasks.css` and must remain directly imported by `DashboardTasks`; they cannot depend on the lazy Tasks route. Flashcards/quizzes are split from the main Study reviewer chunk.
+- The team photo is emitted as a 53.7 KB WebP with explicit dimensions and lazy decoding. Regenerate it from the retained source PNG with `npm run images:optimize`.
 - Remaining work is release verification rather than a missing core module: deploy the current working tree, exercise authenticated student/admin journeys on desktop and mobile, complete accessibility/device review, add browser-level authorization coverage, and run the live Study AI provider and deployed-flow checks.
 
 ## Completed work
@@ -135,6 +137,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 - Each student receives ten successful generations per calendar month and may have only one active generation. Failed attempts do not count. Request IDs are idempotent so retries do not consume duplicate quota; saved and discarded successful drafts still count.
 - `20261007000000_reliable_ai_reviewers.sql` adds request audit rows plus private generated drafts. Drafts support revision-checked autosave, resume after reopening, explicit Save reviewer and Discard confirmation, owner-only RLS, 24-hour expiry, opportunistic cleanup, permanent promotion into `reviewers`, and transactional account deletion. Source material is not stored in either AI table.
 - The generation modal was refined for desktop/mobile source selection, multi-photo order, extracted-text correction, reviewer-detail choices, step-by-step progress, quota confirmation, and a simplified draft editor. Closing source intake clears selected files and extracted text. Failed generation preserves reviewed text locally for retry.
+- Replaced free-form reviewer-style instructions with bounded semantic controls for example count, comparisons, common mistakes, memory aids, self-check questions, presentation style, and supplementary examples. Provider output now uses typed semantic blocks. Local compliance validation rejects responses that omit selected aids or required depth and passes exact missing requirements to the existing fallback attempt. Existing authentication, policy checks, request reservation, quota accounting, draft persistence, and model order are unchanged. Legacy clients with the retired `additionalContent` field migrate to structured defaults.
 - Fixed same-PDF reselection, draft-discard error handling, Vercel Node-function type checking, PDF.js resource cleanup, and production security headers. Added focused PDF cleanup tests. Tests remain development-only and are not present in the production bundle.
 
 ### Flashcards, quizzes, and Study UI consolidation (2026-10-05 to 2026-10-06)
@@ -225,7 +228,7 @@ The generated `dist/` build can be recreated with `npm run build`.
 
 ## Reviewer enhancements — 2026-10-08
 
-- Guided intake: Add material → Check text → Customize. Customization contains reviewer length and one optional style-instructions field. Length sets the coverage boundary while instructions refine presentation; generation remains source-grounded.
+- Guided intake: Add material → Check text → Customize. Customization contains reviewer length, example quantity, optional study aids, presentation style, and an explicit supplementary-example choice. Generation remains source-grounded; supplementary material is limited to clearly labeled example scenarios.
 - Desktop intake width is capped at 600px. All AI reviewer views use shared viewport and safe-area constraints; mobile keeps 24px side gutters. Longer intake content scrolls while footer actions stay visible.
 - Input and output undergo contextual academic moderation. Flagged sources block automatically; unavailable policy checks fail closed without quota consumption. Sensitive academic discussion is allowed. Model classification is not a guarantee against all unsafe content.
 - Free Nemotron/Apodex models passed actual output checks and six synthetic policy fixtures. Reasoning is disabled; the Apodex fallback uses JSON-object output because its provider does not accept strict JSON schema. Both paths undergo local structural and quality validation.

@@ -2,7 +2,7 @@ import { createServer } from 'vite'
 // Vite resolves NodeNext .js imports to the TypeScript sources, as in the dev endpoint.
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
 try {
-  const { buildOpenRouterReviewerBody, getReviewerModels, parseGeneratedReviewerResponse, prepareGeneratedReviewer, validateReviewerQuality } = await server.ssrLoadModule('/server/reviewerGeneration.ts')
+  const { buildOpenRouterReviewerBody, getReviewerModels, parseGeneratedReviewerResponse, prepareGeneratedReviewer, reviewerComplianceIssues, validateReviewerQuality } = await server.ssrLoadModule('/server/reviewerGeneration.ts')
   const { buildAcademicPolicyBody, parsePolicyDecision } = await server.ssrLoadModule('/server/reviewerPolicy.ts')
   const models = getReviewerModels()
   const key = process.env.OPENROUTER_API_KEY
@@ -30,14 +30,25 @@ try {
     return choice?.message?.parsed ?? choice?.message?.content
   }
   const notes = 'Photosynthesis lets plants convert light energy into chemical energy. It occurs in chloroplasts. Light-dependent reactions produce ATP and NADPH. The Calvin cycle uses them to build sugars from carbon dioxide.'
-  const preferences = { style: 'structured', additionalContent: 'Compare key concepts.', knowledge: 'source-only' }
+  const preferences = {
+    examples: 'some',
+    comparisons: true,
+    commonMistakes: false,
+    memoryAids: false,
+    selfCheck: true,
+    presentation: 'mixed',
+    allowSupplementaryExamples: true,
+  }
   const failures = []
   for (const [index, model] of models.entries()) {
     try {
     const body = { ...buildOpenRouterReviewerBody(notes, 'standard', index > 0, preferences), models: [model] }
     const parsed = parseGeneratedReviewerResponse(await completion(body))
     const reviewer = parsed && prepareGeneratedReviewer(parsed, 'standard', preferences)
-    if (!reviewer || !validateReviewerQuality(reviewer, 'standard', preferences)) throw new Error(model + ' did not produce a valid academic reviewer')
+    const complianceIssues = reviewer ? reviewerComplianceIssues(reviewer, 'standard', preferences, notes) : []
+    if (!reviewer || !validateReviewerQuality(reviewer, 'standard', preferences) || complianceIssues.length) {
+      throw new Error(model + ' did not produce a valid preference-compliant academic reviewer' + (complianceIssues.length ? ': ' + complianceIssues.join('; ') : ''))
+    }
     console.log('Generation verified: ' + model)
     } catch (error) { failures.push(model + ': ' + error.message); console.error('Generation check failed: ' + model + ': ' + error.message) }
   }
