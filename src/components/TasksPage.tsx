@@ -26,6 +26,7 @@ import { ConfirmationIcon, type ConfirmationIconKind } from './ConfirmationIcon'
 import { ReminderField } from './ReminderField'
 import { reminderLabel } from '../lib/reminders'
 import { enablePushNotifications } from '../lib/pushNotifications'
+import { WorkspacePageHeader } from './WorkspacePrimitives'
 import '../styles/tasks.css'
 import '../styles/skeleton.css'
 
@@ -107,7 +108,7 @@ function PlannerSection({ title, description, tasks, emptyText, ...rowProps }: {
 }) {
   return <section className="planner-section">
     <header><div><h2>{title}</h2><p>{description}</p></div><span>{tasks.length}</span></header>
-    {tasks.length ? <div className="planner-task-list">{tasks.map(task => <PlannerTaskRow key={task.id} task={task} subject={task.schedule_subject_id ? rowProps.subjects.get(task.schedule_subject_id) : undefined} steps={rowProps.steps} now={rowProps.now} suggestion={rowProps.suggestion} busy={rowProps.busy} onView={() => rowProps.onView(task)} onEdit={() => rowProps.onEdit(task)} onDelete={() => rowProps.onDelete(task)} onComplete={() => rowProps.onComplete(task)} onReopen={() => rowProps.onReopen(task)} onPlanToday={() => rowProps.onPlanToday(task)} />)}</div> : <p className="planner-section-empty">{emptyText}</p>}
+    {tasks.length ? <div className="planner-task-list">{tasks.map(task => <PlannerTaskRow key={task.id} task={task} subject={task.schedule_subject_id ? rowProps.subjects.get(task.schedule_subject_id) : undefined} steps={rowProps.steps} now={rowProps.now} suggestion={rowProps.suggestion} busy={rowProps.busy} onView={() => rowProps.onView(task)} onEdit={() => rowProps.onEdit(task)} onDelete={() => rowProps.onDelete(task)} onComplete={() => rowProps.onComplete(task)} onReopen={() => rowProps.onReopen(task)} onPlanToday={() => rowProps.onPlanToday(task)} />)}</div> : <div className="planner-section-empty"><span aria-hidden="true">✓</span><strong>{emptyText}</strong><small>Use Add task when you are ready to plan something new.</small></div>}
   </section>
 }
 
@@ -322,6 +323,11 @@ export function TasksPage({ studentId }: { studentId: string }) {
   const todayGroups = useMemo(() => plannerGroups(filteredTasks, now), [filteredTasks, now])
   const futureGroups = useMemo(() => upcomingGroups(filteredTasks, now), [filteredTasks, now])
   const completedTasks = useMemo(() => filteredTasks.filter(task => task.status === 'done').sort((left, right) => (right.completed_at ?? '').localeCompare(left.completed_at ?? '') || right.updated_at.localeCompare(left.updated_at)), [filteredTasks])
+  const viewCounts = useMemo(() => ({
+    today: todayGroups.overdue.length + todayGroups.today.length + todayGroups.suggestions.length,
+    upcoming: futureGroups.reduce((total, group) => total + group.tasks.length, 0),
+    completed: completedTasks.length,
+  }), [todayGroups, futureGroups, completedTasks])
   const subjectMap = useMemo(() => new Map(subjects.map(subject => [subject.id, subject])), [subjects])
   const subjectFilterOptions = useMemo(() => [{ value: 'all', label: 'All subjects' }, { value: 'general', label: 'General' }, ...subjects.map(subject => ({ value: subject.id, label: `${subject.subject_code} — ${subject.title}` }))], [subjects])
 
@@ -442,12 +448,13 @@ export function TasksPage({ studentId }: { studentId: string }) {
   if (loading) return <TasksSkeleton />
 
   return <div className="tasks-page">
-    <header className="tasks-heading"><div><p className="workspace-overline">ACADEMIC WORK</p><h1>Tasks</h1><p>Track coursework, deadlines, and the next step for each task.</p></div><button type="button" className="button-primary tasks-add" onClick={() => openNewTask()}><span aria-hidden="true">+</span> Add task</button></header>
+    <WorkspacePageHeader className="tasks-heading" eyebrow="ACADEMIC WORK" title="Tasks" description="Track coursework, deadlines, and the next step for each task." actions={<button type="button" className="button-primary tasks-add" onClick={() => openNewTask()}><span aria-hidden="true">+</span> Add task</button>} />
     {pageError ? <section className="tasks-error-state" role="alert"><h2>Tasks could not be loaded</h2><p>{pageError}</p><button type="button" className="button-primary" onClick={() => { setLoading(true); void load().catch(cause => { setPageError(cause instanceof Error ? cause.message : 'Could not load your tasks.'); setLoading(false) }) }}>Try again</button></section> : <>
       <div className="task-view-bar">
-        <nav className="task-view-tabs" aria-label="Task views">{(['today', 'upcoming', 'completed'] as TaskView[]).map(item => <button key={item} type="button" className={view === item ? 'active' : ''} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}>{item === 'today' ? 'Today' : item === 'upcoming' ? 'Upcoming' : 'Completed'}</button>)}</nav>
-        <div className="task-view-filters"><label className="task-search"><SearchIcon /><input type="search" aria-label="Search tasks" placeholder="Search tasks" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></label><OnboardingDropdown id="task-filter-subject" label="Filter by subject" placeholder="All subjects" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /><OnboardingDropdown id="task-filter-priority" label="Filter by importance" placeholder="Any importance" value={priorityFilter} options={[{ value: 'all', label: 'Any importance' }, { value: 'high', label: 'High importance' }, { value: 'medium', label: 'Medium importance' }, { value: 'low', label: 'Low importance' }]} onChange={priority => setPriorityFilter(priority as 'all' | TaskPriority)} />{filtersActive && <button type="button" onClick={() => { setSearchQuery(''); setSubjectFilter('all'); setPriorityFilter('all') }}>Clear filters</button>}</div>
+        <nav className="task-view-tabs" aria-label="Task views">{(['today', 'upcoming', 'completed'] as TaskView[]).map(item => <button key={item} type="button" className={view === item ? 'active' : ''} aria-current={view === item ? 'page' : undefined} onClick={() => setView(item)}><span>{item === 'today' ? 'Today' : item === 'upcoming' ? 'Upcoming' : 'Completed'}</span><small>{viewCounts[item]}</small></button>)}</nav>
+        <div className="task-view-filters"><label className="task-search"><SearchIcon /><input type="search" aria-label="Search tasks" placeholder="Search tasks" value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></label><OnboardingDropdown id="task-filter-subject" label="Filter by subject" placeholder="All subjects" value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} /><OnboardingDropdown id="task-filter-priority" label="Filter by importance" placeholder="All priorities" value={priorityFilter} options={[{ value: 'all', label: 'All priorities' }, { value: 'high', label: 'High importance' }, { value: 'medium', label: 'Medium importance' }, { value: 'low', label: 'Low importance' }]} onChange={priority => setPriorityFilter(priority as 'all' | TaskPriority)} />{filtersActive && <button type="button" onClick={() => { setSearchQuery(''); setSubjectFilter('all'); setPriorityFilter('all') }}>Clear filters</button>}</div>
       </div>
+      <p className="task-results-summary" aria-live="polite">{viewCounts[view]} {viewCounts[view] === 1 ? 'task' : 'tasks'} in this view{filtersActive ? ' after filtering' : ''}</p>
       {taskUpdateError && <div className="task-update-error" role="alert"><span>{taskUpdateError}</span><button type="button" onClick={() => setTaskUpdateError('')} aria-label="Dismiss error"><CloseIcon /></button></div>}
       {view === 'today' && <div className="tasks-planner">
         {todayGroups.overdue.length > 0 && <PlannerSection title="Needs attention" description="Open tasks past their due date." tasks={todayGroups.overdue} emptyText="No overdue tasks." {...rowProps} />}

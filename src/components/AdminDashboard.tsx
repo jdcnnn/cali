@@ -91,6 +91,7 @@ type ActionRequest = {
   busyLabel?: string;
   reasonLabel?: string;
   reasonPlaceholder?: string;
+  successMessage?: string;
   onConfirm: (reason: string) => Promise<void>;
 };
 
@@ -285,24 +286,42 @@ function Notice({ children }: { children: ReactNode }) {
   );
 }
 
+function ErrorState({ title, detail, onRetry }: { title: string; detail: string; onRetry: () => void }) {
+  return <div className="admin-error-state" role="alert">
+    <span><Icon name="shield" /></span>
+    <div><strong>{title}</strong><p>{detail}</p></div>
+    <button type="button" className="admin-button admin-button--quiet" onClick={onRetry}>Try again</button>
+  </div>;
+}
+
 function ActionDialog({
   action,
   onClose,
+  onComplete,
 }: {
   action: ActionRequest | null;
   onClose: () => void;
+  onComplete: (message: string) => void;
 }) {
   const [reason, setReason] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     setReason("");
     setError("");
     setBusy(false);
-    if (action?.reasonLabel)
-      window.setTimeout(() => reasonRef.current?.focus(), 0);
+    if (action) window.setTimeout(() => (action.reasonLabel ? reasonRef.current : cancelRef.current)?.focus(), 0);
   }, [action]);
+  useEffect(() => {
+    if (!action) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) { event.preventDefault(); onClose(); }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [action, busy, onClose]);
   if (!action) return null;
   const reasonRequired = Boolean(action.reasonLabel);
   async function confirm() {
@@ -311,7 +330,7 @@ function ActionDialog({
     setError("");
     try {
       await action!.onConfirm(reason.trim());
-      onClose();
+      onComplete(action!.successMessage ?? "Administrative change saved.");
     } catch (cause) {
       setError(errorMessage(cause));
       setBusy(false);
@@ -365,6 +384,7 @@ function ActionDialog({
         )}
         <div className="admin-dialog-actions">
           <button
+            ref={cancelRef}
             className="admin-button admin-dialog-cancel"
             onClick={onClose}
             disabled={busy}
@@ -642,16 +662,24 @@ function OverviewReportSignals({ users }: { users: AdminReportedUser[] }) {
 function Overview({ liveVersion }: { liveVersion: number }) {
   const [data, setData] = useState<AdminOverview | null>(null),
     [audit, setAudit] = useState<AuditPage | null>(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [overview, nextAudit] = await Promise.all([getAdminOverview(), getAuditHistory(1, 4)]);
+      setData(overview);
+      setAudit(nextAudit);
+      setError("");
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
   useEffect(() => {
-    void Promise.all([getAdminOverview(), getAuditHistory(1, 4)])
-      .then(([overview, nextAudit]) => {
-        setData(overview);
-        setAudit(nextAudit);
-        setError("");
-      })
-      .catch((cause) => setError(errorMessage(cause)));
-  }, [liveVersion]);
+    void load();
+  }, [liveVersion, load]);
   return (
     <>
       <PageHeader
@@ -671,9 +699,11 @@ function Overview({ liveVersion }: { liveVersion: number }) {
           )
         }
       />
-      {error && <Notice>{error}</Notice>}
-      {!data || !audit ? (
+      {error && data && audit && <Notice>{error}</Notice>}
+      {loading ? (
         <LoadingState label="Loading overview" />
+      ) : !data || !audit ? (
+        <ErrorState title="Overview could not be loaded" detail={error || "Cali could not retrieve administration data."} onRetry={() => void load()} />
       ) : (
         <div className="admin-overview">
           <section
@@ -1380,6 +1410,9 @@ function Users({
         : "Their Cali access and eligible Community content will be restored.",
       confirmLabel: suspended ? "Suspend account" : "Restore account",
       tone: suspended ? "danger" : "default",
+      successMessage: suspended
+        ? `@${user.username} was suspended.`
+        : `@${user.username} was restored.`,
       reasonLabel: suspended ? "Suspension reason" : "Restoration note",
       reasonPlaceholder: suspended
         ? "Explain why this account is being suspended…"
@@ -1489,9 +1522,11 @@ function Users({
                 : `Showing ${firstResult}–${lastResult} of ${total} accounts`}
           </p>
         </div>
-        {error && <Notice>{error}</Notice>}
+        {error && users.length > 0 && <Notice>{error}</Notice>}
         {loading ? (
           <LoadingState label="Loading users" />
+        ) : error && users.length === 0 ? (
+          <ErrorState title="Users could not be loaded" detail={error} onRetry={() => void load()} />
         ) : users.length === 0 ? (
           <EmptyState
             icon="users"
@@ -1844,8 +1879,11 @@ function System({
   const [settings, setSettings] = useState<SystemSettings | null>(null),
     [audit, setAudit] = useState<AuditPage | null>(null),
     [auditPage, setAuditPage] = useState(1),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true);
+  const lastLiveVersionRef = useRef(liveVersion);
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const [nextSettings, nextAudit] = await Promise.all([
         getAdminSystemSettings(),
@@ -1856,13 +1894,17 @@ function System({
       setError("");
     } catch (cause) {
       setError(errorMessage(cause));
+    } finally {
+      setLoading(false);
     }
   }, [auditPage]);
   useEffect(() => {
     void load();
   }, [load]);
   useEffect(() => {
-    if (liveVersion > 0) void load();
+    if (liveVersion <= lastLiveVersionRef.current) return;
+    lastLiveVersionRef.current = liveVersion;
+    void load();
   }, [liveVersion, load]);
   function toggle() {
     if (!settings) return;
@@ -1876,6 +1918,9 @@ function System({
         : "Existing personal-email users will lose access on their next authorization check. Their data will remain intact, and personal-email administrators keep access.",
       confirmLabel: allowed ? "Allow personal accounts" : "Use RTU-only access",
       tone: allowed ? "default" : "danger",
+      successMessage: allowed
+        ? "Personal Google account access is now allowed."
+        : "Sign-in access is now limited to RTU accounts.",
       onConfirm: async () => {
         setSettings(await setPersonalLogin(allowed));
         setAuditPage(1);
@@ -1889,12 +1934,15 @@ function System({
         eyebrow="ACCESS & SECURITY"
         title="System"
         description="Control login eligibility and review the permanent administration trail."
+        meta={settings && <span className={`admin-policy-pill ${settings.allowPersonalGoogleLogin ? "is-open" : ""}`}><i />{settings.allowPersonalGoogleLogin ? "All Google accounts" : "RTU accounts only"}</span>}
       />
-      {error && <Notice>{error}</Notice>}
-      {!settings ? (
+      {error && settings && audit && <Notice>{error}</Notice>}
+      {loading ? (
         <LoadingState label="Loading system settings" />
+      ) : !settings || !audit ? (
+        <ErrorState title="System settings could not be loaded" detail={error || "Cali could not retrieve access policy data."} onRetry={() => void load()} />
       ) : (
-        <Panel
+        <><Panel
           title="Google account access"
           description="This policy is enforced by the database for every protected request."
           className="admin-policy-panel"
@@ -1932,11 +1980,7 @@ function System({
             </button>
           </div>
         </Panel>
-      )}
-      {audit ? (
-        <AuditList audit={audit} page={auditPage} onPageChange={setAuditPage} />
-      ) : (
-        <LoadingState label="Loading admin activity" />
+        <AuditList audit={audit} page={auditPage} onPageChange={setAuditPage} /></>
       )}
     </>
   );
@@ -1948,6 +1992,27 @@ export function AdminDashboard() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [action, setAction] = useState<ActionRequest | null>(null);
   const [liveVersion, setLiveVersion] = useState(0);
+  const [successMessage, setSuccessMessage] = useState("");
+  const actionTriggerRef = useRef<HTMLElement | null>(null);
+  const requestAction = useCallback((nextAction: ActionRequest) => {
+    actionTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setSuccessMessage("");
+    setAction(nextAction);
+  }, []);
+  const closeAction = useCallback(() => {
+    setAction(null);
+    window.setTimeout(() => actionTriggerRef.current?.focus(), 0);
+  }, []);
+  const completeAction = useCallback((message: string) => {
+    setAction(null);
+    setSuccessMessage(message);
+    window.setTimeout(() => actionTriggerRef.current?.focus(), 0);
+  }, []);
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(""), 4500);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
   useEffect(() => {
     setMenuOpen(false);
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -1996,7 +2061,7 @@ export function AdminDashboard() {
   const activeLabel =
     sections.find((item) => item.key === active)?.label ?? "Overview";
   const requestSignOut = () =>
-    setAction({
+    requestAction({
       title: "Sign out of Cali?",
       description:
         "You can sign in again with an eligible verified Google account.",
@@ -2088,17 +2153,18 @@ export function AdminDashboard() {
           {active === "overview" ? (
             <Overview liveVersion={liveVersion} />
           ) : active === "users" ? (
-            <Users requestAction={setAction} liveVersion={liveVersion} />
+            <Users requestAction={requestAction} liveVersion={liveVersion} />
           ) : active === "moderation" ? (
-            <Moderation requestAction={setAction} liveVersion={liveVersion} />
+            <Moderation requestAction={requestAction} liveVersion={liveVersion} />
           ) : active === "handbook" ? (
             <AdminHandbook />
           ) : (
-            <System requestAction={setAction} liveVersion={liveVersion} />
+            <System requestAction={requestAction} liveVersion={liveVersion} />
           )}
         </div>
       </div>
-      <ActionDialog action={action} onClose={() => setAction(null)} />
+      {successMessage && <div className="admin-success-toast" role="status"><span aria-hidden="true">✓</span><strong>{successMessage}</strong><button type="button" aria-label="Dismiss confirmation" onClick={() => setSuccessMessage("")}><Icon name="close" /></button></div>}
+      <ActionDialog action={action} onClose={closeAction} onComplete={completeAction} />
     </main>
   );
 }

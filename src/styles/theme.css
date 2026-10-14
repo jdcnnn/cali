@@ -125,6 +125,47 @@
     font-weight: 700;
 }
 
+.theme-picker--settings {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: min(100%, 500px);
+}
+
+.theme-picker--settings .theme-option {
+    min-width: 0;
+    min-height: 68px;
+    padding: 9px;
+    border: 1px solid var(--color-cali-border);
+    background: var(--color-cali-surface);
+}
+
+.theme-picker--settings .theme-option:hover,
+.theme-picker--settings .theme-option--selected {
+    border-color: color-mix(in srgb, var(--color-cali-accent) 55%, var(--color-cali-border));
+    background: var(--color-cali-pale);
+}
+
+.theme-picker--settings .theme-option-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.theme-picker--settings .theme-option-copy {
+    min-width: 0;
+}
+
+.theme-picker--settings .theme-option-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.theme-picker--settings .theme-option-check {
+    align-self: flex-start;
+    font-size: 13px;
+}
+
 @keyframes theme-pop-in {
     from {
         opacity: 0;
@@ -146,5 +187,16 @@
 
     .theme-popover {
         animation: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .theme-picker--settings {
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+    }
+
+    .theme-picker--settings .theme-option {
+        min-height: 58px;
     }
 }

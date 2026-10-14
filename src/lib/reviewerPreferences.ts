@@ -1,4 +1,5 @@
 export type ReviewerPreferences = {
+  sourceFaithful: boolean
   examples: 'none' | 'some' | 'many'
   comparisons: boolean
   commonMistakes: boolean
@@ -8,6 +9,7 @@ export type ReviewerPreferences = {
   allowSupplementaryExamples: boolean
 }
 export const DEFAULT_REVIEWER_PREFERENCES: ReviewerPreferences = {
+  sourceFaithful: true,
   examples: 'some',
   comparisons: false,
   commonMistakes: false,
@@ -26,10 +28,12 @@ export function parseReviewerPreferences(value: unknown): ReviewerPreferences | 
   const examples = item.examples ?? DEFAULT_REVIEWER_PREFERENCES.examples
   const presentation = item.presentation ?? DEFAULT_REVIEWER_PREFERENCES.presentation
   if (!['none', 'some', 'many'].includes(String(examples)) || !['mixed', 'bullets', 'explanatory'].includes(String(presentation))) return null
+  if (item.sourceFaithful !== undefined && typeof item.sourceFaithful !== 'boolean') return null
   for (const key of ['comparisons', 'commonMistakes', 'memoryAids', 'selfCheck', 'allowSupplementaryExamples'] as const) {
     if (item[key] !== undefined && typeof item[key] !== 'boolean') return null
   }
   return {
+    sourceFaithful: typeof item.sourceFaithful === 'boolean' ? item.sourceFaithful : DEFAULT_REVIEWER_PREFERENCES.sourceFaithful,
     examples: examples as ReviewerPreferences['examples'],
     comparisons: typeof item.comparisons === 'boolean' ? item.comparisons : DEFAULT_REVIEWER_PREFERENCES.comparisons,
     commonMistakes: typeof item.commonMistakes === 'boolean' ? item.commonMistakes : DEFAULT_REVIEWER_PREFERENCES.commonMistakes,

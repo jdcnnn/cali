@@ -932,6 +932,10 @@
 }
 
 .task-view-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 38px;
   padding: 0 18px;
   border: 0;
@@ -940,6 +944,24 @@
   color: var(--color-cali-slate);
   font: 800 12px 'DM Sans', sans-serif;
   cursor: pointer;
+}
+
+.task-view-tabs button small {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-cali-slate) 10%, transparent);
+  color: inherit;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.task-view-tabs button.active small {
+  background: var(--color-cali-pale);
+  color: var(--color-cali-action-text);
 }
 
 .task-view-tabs button:hover {
@@ -1187,11 +1209,45 @@
 }
 
 .planner-section-empty {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
   margin: 0;
-  padding: 26px 20px;
+  padding: 30px 20px;
   color: var(--color-cali-slate);
   font-size: 12px;
   text-align: center;
+}
+
+.planner-section-empty>span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 3px;
+  border-radius: 50%;
+  background: var(--color-cali-pale);
+  color: var(--color-cali-action-text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.planner-section-empty strong {
+  color: var(--color-cali-ink);
+  font-size: 12px;
+}
+
+.planner-section-empty small {
+  max-width: 300px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.task-results-summary {
+  margin: -7px 4px 14px;
+  color: var(--color-cali-slate);
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .planner-task-list {
@@ -1801,6 +1857,11 @@
 }
 
 @media (max-width: 620px) {
+  .tasks-heading .workspace-page-header-actions,
+  .tasks-heading .tasks-add {
+    width: 100%;
+  }
+
   .tasks-loading-heading {
     display: flex;
     margin-top: 16px;
@@ -1914,6 +1975,19 @@
 
   .task-detail-footer .button-primary {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 430px) {
+  .task-view-tabs button {
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .task-view-tabs button small {
+    min-width: 18px;
+    height: 18px;
+    padding-inline: 5px;
   }
 }
 

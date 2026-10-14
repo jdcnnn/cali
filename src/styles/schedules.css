@@ -83,8 +83,8 @@
 
 .schedule-week-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
   gap: 14px;
   margin-top: 16px;
 }
@@ -94,6 +94,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   overflow: visible;
   border: 1px solid var(--color-cali-border);
   border-radius: 15px;
@@ -154,10 +155,21 @@
   align-self: center;
   justify-items: center;
   gap: 4px;
+  width: 100%;
   margin: 0;
   padding: 6px 8px;
+  border: 0;
+  background: transparent;
   color: var(--color-cali-slate);
+  font-family: inherit;
   text-align: center;
+  cursor: pointer;
+}
+
+.schedule-day-empty:hover .schedule-day-empty-note,
+.schedule-day-empty:focus-visible .schedule-day-empty-note {
+  color: var(--color-cali-action-text);
+  text-decoration: underline;
 }
 
 .schedule-day-empty-icon {
@@ -820,6 +832,10 @@
 
   .schedule-hero-count {
     display: inline-flex;
+    margin-top: 0;
+  }
+
+  .schedule-hero .workspace-page-header-actions {
     margin-top: 17px;
   }
 
@@ -856,6 +872,7 @@
   }
 
   .schedule-day-card {
+    height: auto;
     min-height: 0;
     border-radius: 13px;
   }

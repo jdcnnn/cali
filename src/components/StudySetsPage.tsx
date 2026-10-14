@@ -116,7 +116,6 @@ function ToolTabs({ tool, navigate }: { tool: Tool; navigate: (changes: Record<s
 
 function SourcePanel({ sourceId, reviewers, onSourceChange }: { sourceId: string | null; reviewers: SourceReviewer[]; onSourceChange: (sourceId: string) => void }) {
   const [source, setSource] = useState<SourceReviewer | null>(null)
-  const [choosing, setChoosing] = useState(false)
   useEffect(() => {
     if (!supabase || !sourceId) return
     let active = true
@@ -124,11 +123,11 @@ function SourcePanel({ sourceId, reviewers, onSourceChange }: { sourceId: string
     return () => { active = false }
   }, [sourceId])
   const activeSource = source?.id === sourceId ? source : null
-  const alternatives = reviewers.filter(reviewer => reviewer.id !== sourceId)
+  const sourceOptions: CaliSelectOption[] = [{ value: '', label: 'No reference', detail: 'Build without a reviewer' }, ...reviewers.map(reviewer => ({ value: reviewer.id, label: reviewer.title }))]
   return <aside className="set-source-panel">
     <details open>
       <summary><div className="set-source-heading"><p className="workspace-overline">REFERENCE REVIEWER</p><h3>{sourceId ? activeSource?.title ?? 'Loading reviewer…' : 'No reviewer selected'}</h3></div><ChevronIcon /></summary>
-      <div className="set-source-body">{sourceId && <><p>Use these notes as your reference while writing each item.</p><div className="set-source-document">{activeSource?.content ? renderReferenceNodes(activeSource.content.content) : <p>{activeSource?.plain_text || 'This reviewer does not contain any text yet.'}</p>}</div></>}{choosing ? <div className="set-source-picker" role="listbox" aria-label="Choose another reference reviewer">{alternatives.map(reviewer => <button key={reviewer.id} type="button" role="option" aria-selected="false" onClick={() => { setChoosing(false); onSourceChange(reviewer.id) }}><strong>{reviewer.title}</strong></button>)}<button type="button" className="set-source-picker-cancel" onClick={() => setChoosing(false)}>Cancel</button></div> : <button type="button" className="study-secondary set-source-change" disabled={!alternatives.length} onClick={() => setChoosing(true)}>Use other reviewers</button>}</div>
+      <div className="set-source-body"><div className="set-source-selector"><span>Reference source</span><CaliSelect value={sourceId ?? ''} options={sourceOptions} onChange={onSourceChange} ariaLabel="Reference reviewer" className="cali-select--form" /></div>{sourceId ? <><p>Use these notes as your reference while writing each item.</p><div className="set-source-document">{activeSource?.content ? renderReferenceNodes(activeSource.content.content) : <p>{activeSource?.plain_text || 'This reviewer does not contain any text yet.'}</p>}</div></> : <p className="set-source-empty">Select a reviewer only when you want notes beside the editor.</p>}</div>
     </details>
   </aside>
 }
@@ -702,7 +701,7 @@ export function StudySetsPage({ studentId, tool }: { studentId: string; tool: To
     <header className="study-heading"><div><p className="workspace-overline">STUDY SPACE</p><h1>{tool === 'flashcards' ? <>Practice active <em>recall.</em></> : <>Check your <em>understanding.</em></>}</h1><p>{tool === 'flashcards' ? 'Build focused card sets and track what you have mastered.' : 'Create quizzes, answer each question, and review completed attempts.'}</p></div><div className="study-heading-actions"><button type="button" className="button-primary" onClick={() => navigate({ new: '1' })}><span>+</span> New {tool === 'flashcards' ? 'flashcard set' : 'quiz'}</button></div></header>
     <ToolTabs tool={tool} navigate={navigate} />
     <section className={`reviewer-library${tool === 'quizzes' ? ' quiz-library' : ''}`} aria-busy={loading}>
-      <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>{tool === 'flashcards' ? 'Flashcard sets' : 'Quizzes'}</h2></div>{tool === 'quizzes' && <p>Practice with feedback or take a test when you are ready.</p>}</div>
+      <div className="reviewer-library-head"><div><p className="workspace-overline">YOUR LIBRARY</p><h2>{tool === 'flashcards' ? 'Flashcard sets' : 'Quizzes'}</h2></div><div className="study-library-summary">{!loading && <span className="reviewer-count">{summaries.length} {summaries.length === 1 ? 'set' : 'sets'}</span>}</div></div>
       {loading ? <StudyLibraryFiltersSkeleton /> : <div className="reviewer-filters"><label><SearchIcon /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={`Search ${tool}`} aria-label={`Search ${tool}`} /></label><CaliSelect value={subjectFilter} options={subjectFilterOptions} onChange={setSubjectFilter} ariaLabel="Filter by subject" className="cali-select--filter" /></div>}
       {loading ? <StudyLibraryCardsSkeleton containerClassName="study-set-grid" label={`Loading ${tool}`} /> : <div className="study-set-grid">{visible.length ? visible.map(item => {
         const subject = subjects.find(value => value.id === item.subject_id)

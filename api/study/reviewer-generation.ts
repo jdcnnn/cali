@@ -44,7 +44,11 @@ function publicError(category: string) {
 export default async function handler(request: IncomingMessage, response: ServerResponse) {
   if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); send(response, 405, { error: 'Method not allowed.' }); return }
   const deadline = Date.now() + 110_000
+  const clientDisconnect = new AbortController()
+  request.once('aborted', () => clientDisconnect.abort())
+  response.once?.('close', () => { if (!response.writableEnded) clientDisconnect.abort() })
   const boundedFetch: typeof fetch = (resource, init) => fetch(resource, { ...init, signal: AbortSignal.timeout(Math.max(1, Math.min(8_000, deadline - Date.now()))) })
+  const providerFetch: typeof fetch = (resource, init) => fetch(resource, { ...init, signal: init?.signal ? AbortSignal.any([clientDisconnect.signal, init.signal]) : clientDisconnect.signal })
   const supabaseUrl = process.env.SUPABASE_URL
   const anonKey = process.env.SUPABASE_ANON_KEY
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -86,7 +90,7 @@ export default async function handler(request: IncomingMessage, response: Server
 
   let failureCategory = 'provider_error'
   try {
-    const { generated, model, promptTokens, outputTokens } = await generateAcademicReviewer(input, openRouterKey, deadline)
+    const { generated, model, promptTokens, outputTokens } = await generateAcademicReviewer(input, openRouterKey, deadline, providerFetch)
     const converted = reviewerToTiptap(generated)
     const { error: completionError } = await admin.rpc('cali_complete_reviewer_generation', {
       p_request_id: input.requestId, p_user_id: user.id, p_model: model,

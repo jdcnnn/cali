@@ -12,6 +12,7 @@ import { ConfirmationIcon } from './ConfirmationIcon'
 import { ReminderField } from './ReminderField'
 import { reminderLabel } from '../lib/reminders'
 import { enablePushNotifications } from '../lib/pushNotifications'
+import { WorkspacePageHeader } from './WorkspacePrimitives'
 import '../styles/calendar.css'
 import '../styles/skeleton.css'
 
@@ -296,12 +297,11 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
   if (loading) return <CalendarSkeleton />
 
   return <div className="calendar-page">
-    {error ? <><header className="calendar-heading calendar-heading--standalone"><div><p className="workspace-overline">ACADEMIC CALENDAR</p><h1>Calendar</h1></div></header><section className="calendar-error" role="alert"><h2>Calendar could not be loaded</h2><p>{error}</p><button type="button" className="button-primary" onClick={() => { setLoading(true); void load().catch(cause => { setError(cause instanceof Error ? cause.message : 'Could not load your calendar.'); setLoading(false) }) }}>Try again</button></section></> : <section className="calendar-shell">
-      <header className="calendar-heading">
-        <div><p className="workspace-overline">ACADEMIC CALENDAR</p><h1>Calendar</h1><p>See your class meetings and task deadlines in one clear monthly view.</p></div>
-      </header>
+    {error ? <><WorkspacePageHeader className="calendar-heading calendar-heading--standalone" eyebrow="ACADEMIC CALENDAR" title="Calendar" /><section className="calendar-error" role="alert"><h2>Calendar could not be loaded</h2><p>{error}</p><button type="button" className="button-primary" onClick={() => { setLoading(true); void load().catch(cause => { setError(cause instanceof Error ? cause.message : 'Could not load your calendar.'); setLoading(false) }) }}>Try again</button></section></> : <section className="calendar-shell">
+      <WorkspacePageHeader className="calendar-heading" eyebrow="ACADEMIC CALENDAR" title="Calendar" description="See classes, deadlines, and events together—then add plans without leaving the date you selected." />
       <div className="calendar-toolbar" aria-label="Calendar controls">
         <div className="calendar-navigation"><button type="button" className="calendar-today" onClick={() => setSelectedDate(todayKey)}>Today</button><span className="calendar-arrow-group"><button type="button" onClick={() => movePeriod(-1)} aria-label="Previous month"><ChevronIcon direction="left" /></button><button type="button" onClick={() => movePeriod(1)} aria-label="Next month"><ChevronIcon direction="right" /></button></span><h2 aria-live="polite">{rangeLabel}</h2></div>
+        <details className="calendar-create calendar-create--toolbar"><summary aria-label="Add to calendar"><span aria-hidden="true">+</span><strong>Add</strong></summary><div><p>ADD TO SELECTED DATE</p><NavLink to={`/schedules?new=1&day=${selectedDayCode}`}><ClassIndicatorIcon /><span><strong>Class meeting</strong><small>Add to Schedules</small></span></NavLink><NavLink to={`/tasks?new=1&date=${selectedDate}`}><DeadlineIndicatorIcon /><span><strong>Task deadline</strong><small>Due on selected date</small></span></NavLink><button type="button" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); setEditingEvent(null); setEventEditorOpen(true) }}><EventIndicatorIcon /><span><strong>Event</strong><small>Add to selected date</small></span></button></div></details>
       </div>
 
       {!meetings.length && !tasks.length && !events.length && <section className="calendar-empty"><div><span><CalendarEmptyIcon /></span><h2>Nothing scheduled yet</h2><p>Add a class meeting, task deadline, or event to begin filling your calendar.</p></div><div><NavLink to={`/schedules?new=1&day=${selectedDayCode}`}>Add a class</NavLink><NavLink to={`/tasks?new=1&date=${selectedDate}`}>Add a task</NavLink><button type="button" onClick={() => { setEditingEvent(null); setEventEditorOpen(true) }}>Add an event</button></div></section>}
@@ -319,7 +319,6 @@ export function CalendarPage({ studentId, now }: { studentId: string; now: Date 
         </aside>
       </section>
       {preview && <CalendarPreviewDialog preview={preview} subjects={subjectMap} onClose={() => setPreview(null)} onEditEvent={event => { setPreview(null); setEditingEvent(event); setEventEditorOpen(true) }} />}
-      <details className="calendar-create"><summary aria-label="Add to calendar"><span>+</span></summary><div><p>ADD TO CALENDAR</p><NavLink to={`/schedules?new=1&day=${selectedDayCode}`}><ClassIndicatorIcon /><span><strong>Class meeting</strong><small>Add to Schedules</small></span></NavLink><NavLink to={`/tasks?new=1&date=${selectedDate}`}><DeadlineIndicatorIcon /><span><strong>Task deadline</strong><small>Due on selected date</small></span></NavLink><button type="button" onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); setEditingEvent(null); setEventEditorOpen(true) }}><EventIndicatorIcon /><span><strong>Event</strong><small>Add to selected date</small></span></button></div></details>
       {eventEditorOpen && <EventEditorDialog studentId={studentId} initialDate={selectedDate} existingEvent={editingEvent ?? undefined} onClose={() => { setEventEditorOpen(false); setEditingEvent(null) }} onSaved={load} />}
     </section>}
   </div>

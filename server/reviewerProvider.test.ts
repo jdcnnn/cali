@@ -47,7 +47,7 @@ describe('reviewer provider lifecycle', () => {
     expect(fetcher).toHaveBeenCalledTimes(4)
   })
   it('retries a structurally valid draft that misses selected examples', async () => {
-    const requested: ReviewerGenerationInput = { ...input, detail: 'standard', preferences: DEFAULT_REVIEWER_PREFERENCES }
+    const requested: ReviewerGenerationInput = { ...input, detail: 'standard', preferences: { ...DEFAULT_REVIEWER_PREFERENCES, sourceFaithful: false } }
     const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response(safe)).mockResolvedValueOnce(response(reviewer)).mockResolvedValueOnce(response(reviewerWithExamples)).mockResolvedValueOnce(response(safe))
     const result = await generateAcademicReviewer(requested, 'test-key', Date.now() + 110_000, fetcher)
     expect(result.generated).toEqual(reviewerWithExamples)

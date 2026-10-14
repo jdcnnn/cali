@@ -1,0 +1,178 @@
+/* Phase 2: shared density, type, touch, and responsive rules for signed-in modules. */
+.workspace-shell > .workspace-content {
+  padding: var(--workspace-page-top) var(--workspace-page-gutter) var(--workspace-page-bottom);
+}
+
+.workspace-shell :where(button, a, summary, input, textarea, select):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-cali-accent) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.workspace-shell :where(
+  .schedule-hero p:last-child,
+  .schedule-section-heading > p:last-child,
+  .tasks-heading > div > p:last-child,
+  .calendar-heading > div:first-child > p:last-child,
+  .study-heading > div:first-child > p:last-child,
+  .workspace-page-header-description
+) {
+  font-size: var(--workspace-text-body);
+  line-height: 1.55;
+}
+
+.workspace-shell :where(
+  .schedule-form-section-head span,
+  .task-view-tabs button,
+  .task-view-filters .field-input,
+  .task-view-filters > button,
+  .calendar-navigation .calendar-today,
+  .community-results-head button,
+  .community-reader-actions button,
+  .community-dialog-field .cali-select-trigger,
+  .community-dialog-field textarea,
+  .community-inbox-tab-copy strong,
+  .community-request-actions button,
+  .community-revoke,
+  .community-notification-archive,
+  .community-updates-view-toggle button,
+  .community-updates-pagination button,
+  .community-dialog-field > span
+) {
+  font-size: var(--workspace-text-caption);
+}
+
+.workspace-shell :where(
+  .community-top-intro > p:last-child,
+  .community-top-empty p,
+  .community-result-count,
+  .community-inbox-tab-copy small,
+  .community-inbox-panel-head span,
+  .community-request-row p,
+  .community-request-row small,
+  .community-notification p,
+  .community-notification small,
+  .community-moderation-row p,
+  .community-moderation-row small,
+  .community-report-guidance
+) {
+  font-size: var(--workspace-text-caption);
+  line-height: 1.5;
+}
+
+.workspace-shell :where(
+  .schedule-add,
+  .calendar-navigation button,
+  .calendar-empty a,
+  .calendar-empty > div:last-child button,
+  .task-view-tabs button,
+  .task-view-filters .field-input,
+  .task-view-filters > button,
+  .study-secondary,
+  .study-tabs button,
+  .community-results-head button,
+  .community-reader-actions button,
+  .community-mobile-filter-toggle,
+  .community-filter-clear
+) {
+  min-height: var(--workspace-control-height);
+}
+
+.workspace-shell :where(
+  .task-card-menu summary,
+  .task-update-error button,
+  .calendar-preview > header > button,
+  .calendar-event-dialog header > button
+) {
+  width: 40px;
+  height: 40px;
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .workspace-shell :where(
+    .schedule-add,
+    .schedule-menu-panel button,
+    .task-card-menu summary,
+    .task-card-menu-panel button,
+    .task-update-error button,
+    .task-plan-button,
+    .task-complete-button,
+    .task-checklist-editor > div:first-child > button,
+    .task-checklist-fields button,
+    .task-detail-footer button,
+    .calendar-navigation button,
+    .calendar-empty a,
+    .calendar-empty > div:last-child button,
+    .calendar-month-agenda section button,
+    .calendar-preview > header > button,
+    .calendar-event-dialog header > button,
+    .calendar-create > summary,
+    .calendar-create div > button,
+    .study-tabs button,
+    .study-notice button,
+    .set-detail-menu > summary,
+    .reviewer-reader-actions summary,
+    .reviewer-reader-actions details button,
+    .community-trending-arrows button,
+    .community-results-head button,
+    .community-reader-actions button,
+    .community-report-footer button,
+    .community-vote.is-compact button,
+    .community-request-actions button,
+    .community-revoke,
+    .community-notification-archive,
+    .community-updates-view-toggle button,
+    .community-updates-pagination button,
+    .community-moderation-row button,
+    .community-danger-action
+  ) {
+    min-height: var(--workspace-control-height);
+  }
+
+  .workspace-shell :where(
+    .schedule-add,
+    .task-card-menu summary,
+    .task-update-error button,
+    .calendar-navigation button,
+    .calendar-preview > header > button,
+    .calendar-event-dialog header > button,
+    .study-notice button,
+    .set-detail-menu > summary,
+    .reviewer-reader-actions summary,
+    .community-trending-arrows button
+  ) {
+    min-width: var(--workspace-control-height);
+    width: var(--workspace-control-height);
+    height: var(--workspace-control-height);
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-shell :where(.schedule-hero, .tasks-heading, .calendar-heading--standalone, .study-heading) {
+    padding: 22px 18px;
+    border-radius: 18px;
+  }
+
+  .workspace-shell :where(.schedule-hero h1, .tasks-heading h1, .study-heading h1) {
+    font-size: clamp(34px, 10vw, 42px);
+  }
+
+  .workspace-shell :where(
+    .schedule-hero p:last-child,
+    .tasks-heading > div > p:last-child,
+    .calendar-heading > div:first-child > p:last-child,
+    .study-heading > div:first-child > p:last-child,
+    .workspace-page-header-description
+  ) {
+    font-size: 13px;
+  }
+
+  .workspace-shell :where(.study-heading-actions, .community-reader-actions) {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  .workspace-shell :where(.study-heading-actions > *, .community-reader-actions > *) {
+    width: 100%;
+  }
+}

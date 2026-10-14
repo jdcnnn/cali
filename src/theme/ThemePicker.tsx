@@ -15,7 +15,7 @@ function ThemeIcon({ mode }: { mode: ThemePreference }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8m-4-4v4" /></svg>
 }
 
-export function ThemePicker() {
+export function ThemePicker({ variant = 'menu' }: { variant?: 'menu' | 'settings' }) {
   const { preference, setPreference } = useTheme()
   const [open, setOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
@@ -35,6 +35,14 @@ export function ThemePicker() {
     document.addEventListener('keydown', handleKeyDown)
     return () => { document.removeEventListener('pointerdown', handlePointerDown); document.removeEventListener('keydown', handleKeyDown) }
   }, [open])
+
+  if (variant === 'settings') return <div className="theme-picker theme-picker--settings" role="group" aria-label="Choose workspace appearance">
+    {choices.map((choice) => <button key={choice.value} type="button" className={`theme-option${preference === choice.value ? ' theme-option--selected' : ''}`} aria-pressed={preference === choice.value} onClick={() => setPreference(choice.value)}>
+      <span className="theme-option-icon"><ThemeIcon mode={choice.value} /></span>
+      <span className="theme-option-copy"><strong>{choice.label}</strong><small>{choice.hint}</small></span>
+      <span className="theme-option-check" aria-hidden="true">{preference === choice.value ? '✓' : ''}</span>
+    </button>)}
+  </div>
 
   return <div className="theme-picker" ref={pickerRef}>
     <button ref={buttonRef} type="button" className="theme-trigger" aria-label={`Appearance: ${current.label}`} aria-expanded={open} aria-controls={open ? optionsId : undefined} onClick={() => setOpen((value) => !value)} title={`Appearance: ${current.label}`}>

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './styles/index.css'
 import App from './App.tsx'
 import './styles/modal-system.css'
+import './styles/workspace-normalization.css'
 import { ThemeProvider } from './theme/ThemeProvider.tsx'
 import { initializeSounds } from './lib/sounds'
 

@@ -40,6 +40,12 @@ describe('reviewer generation output', () => {
     expect(prompt).toContain(`SOURCE_JSON:\n${JSON.stringify(injection)}`)
   })
 
+  it('keeps the default style faithful to the supplied source', () => {
+    const prompt = buildReviewerPrompt('Cells contain membranes.', 'standard')
+    expect(prompt).toContain('structured academic reviewer from the original source content')
+    expect(prompt).toContain('do not expand beyond what the student supplied')
+  })
+
   it('rejects malformed and oversized requests', () => {
     const request = { requestId: '6b5ad38b-8f1e-4a86-82b6-849076b980ed', sourceType: 'scan', sourceText: 'lecture notes', detail: 'standard' }
     expect(parseReviewerGenerationInput(request)).toEqual(request)
@@ -92,7 +98,7 @@ describe('enhanced reviewer limits', () => {
     expect(prepareGeneratedReviewer(reviewer, 'concise')).toBeNull()
   })
   it('reports every missing selected study aid', () => {
-    const preferences = { ...DEFAULT_REVIEWER_PREFERENCES, examples: 'many' as const, comparisons: true, commonMistakes: true, memoryAids: true, selfCheck: true }
+    const preferences = { ...DEFAULT_REVIEWER_PREFERENCES, sourceFaithful: false, examples: 'many' as const, comparisons: true, commonMistakes: true, memoryAids: true, selfCheck: true }
     const issues = reviewerComplianceIssues(source, 'detailed', preferences, 'Cells contain membranes.')
     expect(issues).toContain('Provide at least 4 example blocks; found 0.')
     expect(issues).toContain('Provide at least one comparison block.')
@@ -101,7 +107,7 @@ describe('enhanced reviewer limits', () => {
     expect(issues).toContain('Provide at least one self_check block with a question and answer.')
   })
   it('keeps structured preferences below system policy and makes them mandatory', () => {
-    const preferences = { ...DEFAULT_REVIEWER_PREFERENCES, examples: 'many' as const, comparisons: true }
+    const preferences = { ...DEFAULT_REVIEWER_PREFERENCES, sourceFaithful: false, examples: 'many' as const, comparisons: true }
     const body = buildOpenRouterReviewerBody('Cells', 'standard', false, preferences)
     expect(body.messages[0].role).toBe('system')
     expect(body.messages[1].content).toContain('at least 4 example blocks')

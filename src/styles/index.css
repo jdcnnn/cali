@@ -1154,6 +1154,10 @@ button:disabled {
   display: none;
 }
 
+.workspace-mobile-section {
+  display: none;
+}
+
 .workspace-nav {
   display: grid;
   gap: 5px;
@@ -1933,6 +1937,21 @@ button:disabled {
     height: 41px;
   }
 
+  .workspace-mobile-section {
+    display: inline-flex;
+    min-height: 30px;
+    align-items: center;
+    margin-left: auto;
+    padding: 5px 9px;
+    border: 1px solid var(--color-cali-border);
+    border-radius: 999px;
+    background: var(--color-cali-surface);
+    color: var(--color-cali-slate);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
   .workspace-menu-button {
     display: grid;
     place-content: center;
@@ -2327,6 +2346,9 @@ button:disabled {
 .workspace-nav {
   gap: 5px;
   margin-top: 18px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .workspace-nav-caption {
@@ -3064,10 +3086,43 @@ button:disabled {
 }
 
 .workspace-profile-saved {
-  margin: 8px 0 0;
-  color: var(--color-cali-accent);
-  font-size: 12px;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 15px 0 -2px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--color-cali-accent) 28%, var(--color-cali-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-cali-pale) 60%, var(--color-cali-surface));
+  color: var(--color-cali-action-text);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.workspace-profile-saved span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-cali-action);
+  color: #fff;
+  font-size: 10px;
+}
+
+.workspace-profile-discard-dialog {
+  width: min(440px, calc(100vw - 48px));
+}
+
+.workspace-profile-discard {
+  min-height: 42px;
+  padding: 9px 16px;
+  border: 1px solid #9B3F42;
+  border-radius: 10px;
+  background: #9B3F42;
+  color: #fff;
+  font-weight: 800;
 }
 
 .workspace-settings-group-head > :last-child:not(:first-child) {
@@ -3192,7 +3247,7 @@ button:disabled {
 }
 
 .workspace-settings-page-heading {
-  margin-top: 24px;
+  margin-top: 0;
   padding: 0 0 25px;
   border-bottom: 1px solid var(--color-cali-border);
 }
@@ -3272,6 +3327,35 @@ button:disabled {
   border-radius: 16px;
   background: var(--color-cali-surface);
   box-shadow: 0 8px 24px rgb(18 56 77 / 5%);
+}
+
+.workspace-appearance-card {
+  display: grid;
+  grid-template-columns: minmax(180px, .72fr) minmax(420px, 1.28fr);
+  align-items: center;
+  gap: 24px;
+  padding: 20px 22px;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 16px;
+  background: var(--color-cali-surface);
+  box-shadow: 0 8px 24px rgb(18 56 77 / 5%);
+}
+
+.workspace-appearance-card>div:first-child {
+  min-width: 0;
+}
+
+.workspace-appearance-card h3 {
+  margin: 0;
+  font-size: var(--settings-title-size);
+  font-weight: 750;
+}
+
+.workspace-appearance-card p {
+  margin: 6px 0 0;
+  color: var(--color-cali-slate);
+  font-size: var(--settings-body-size);
+  line-height: 1.55;
 }
 
 .workspace-settings-resources {
@@ -3818,6 +3902,11 @@ button:disabled {
   letter-spacing: .14em;
 }
 
+.workspace-danger-zone .workspace-danger-label {
+  display: block;
+  margin-bottom: 5px;
+}
+
 .workspace-danger-zone h3 {
   margin: 0;
   color: var(--color-cali-ink);
@@ -4160,6 +4249,10 @@ button:disabled {
     gap: 12px;
   }
 
+  .workspace-profile-discard-dialog .signout-dialog-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
   .workspace-profile-section-head h2 {
     font-size: 18px;
   }
@@ -4269,6 +4362,12 @@ button:disabled {
   .workspace-settings-resources {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
+  }
+
+  .workspace-appearance-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 18px;
   }
 
   .workspace-settings-resources .workspace-help-link,
@@ -4448,11 +4547,27 @@ button:disabled {
   height: 19px;
 }
 
-.dashboard-action-label {
+.dashboard-action-copy {
+  display: grid;
   min-width: 0;
+  gap: 3px;
+}
+
+.dashboard-action-copy strong {
+  color: var(--color-cali-ink);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.dashboard-action-copy small {
+  overflow: hidden;
+  color: var(--color-cali-slate);
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dashboard-action-arrow {

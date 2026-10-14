@@ -12,10 +12,11 @@ import { SplashScreen } from './components/SplashScreen'
 import { DashboardSchedules } from './components/DashboardSchedules'
 import { DashboardTasks } from './components/DashboardTasks'
 import { InstallCali } from './components/InstallCali'
-import { SoundSettings, SoundSettingsNote } from './components/SoundSettings'
+import { SoundSettings } from './components/SoundSettings'
 import { ConnectionNotice } from './components/ConnectionNotice'
 import { CommunityNotificationsProvider } from './components/CommunityNotificationsProvider'
 import { ConfirmationIcon } from './components/ConfirmationIcon'
+import { WorkspacePageHeader } from './components/WorkspacePrimitives'
 import './styles/skeleton.css'
 import './styles/status-pages-refined.css'
 import { ThemePicker } from './theme/ThemePicker'
@@ -379,6 +380,7 @@ const workspaceLinks: { section: WorkspaceSection; label: string; path: string }
   { section: 'study', label: 'Study', path: '/study' },
   { section: 'community', label: 'Community', path: '/community' },
   { section: 'profile', label: 'Profile', path: '/profile' },
+  { section: 'settings', label: 'Settings', path: '/settings' },
 ]
 
 const moduleDetails = {
@@ -453,13 +455,22 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
   const [saveError, setSaveError] = useState('')
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const discardDialogRef = useRef<HTMLDialogElement>(null)
   const year = formatYearLevel(student.year_level)
+  const profileDirty = username !== student.username || programChoice !== student.program || yearLevel !== String(student.year_level) || bio !== (student.bio ?? '')
 
   useEffect(() => {
     if (!saved) return
     const timer = window.setTimeout(() => setSaved(false), 4000)
     return () => window.clearTimeout(timer)
   }, [saved])
+
+  useEffect(() => {
+    const dialog = discardDialogRef.current
+    if (discardOpen && dialog && !dialog.open) dialog.showModal()
+    return () => { if (dialog?.open) dialog.close() }
+  }, [discardOpen])
 
   function startEditing() {
     setUsername(student.username)
@@ -470,6 +481,12 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
     setSaveError('')
     setSaved(false)
     setEditing(true)
+  }
+
+  function requestCancelEditing() {
+    if (busy) return
+    if (profileDirty) setDiscardOpen(true)
+    else setEditing(false)
   }
 
   async function saveProfileDetails(event: FormEvent<HTMLFormElement>) {
@@ -509,7 +526,7 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
   }
 
   return <div className="workspace-profile-page">
-    <header className="workspace-profile-heading"><p className="workspace-overline">YOUR CALI ACCOUNT</p><h1>Profile</h1><p>Manage the identity and academic details connected to your workspace.</p></header>
+    <WorkspacePageHeader className="workspace-profile-heading" eyebrow="YOUR CALI ACCOUNT" title="Profile" description="Manage the identity and academic details connected to your workspace." />
     <section className="workspace-profile-identity" aria-label="Profile summary">
       <div className="workspace-profile-identity-main"><ProfileAvatar name={student.full_name || student.username} src={student.avatar_url} className="workspace-profile-avatar" /><div className="workspace-profile-identity-copy"><p>COMMUNITY IDENTITY</p><h2>@{student.username}</h2><span>{student.full_name || 'Google account name unavailable'}</span></div></div>
       <dl className="workspace-profile-summary-meta" aria-label="Community identity details"><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div></dl>
@@ -524,16 +541,14 @@ function ProfileScreen({ student, email }: { student: Student; email: string }) 
             <div className="workspace-profile-form-wide"><label className="field-label" htmlFor="profile-program">Program</label><OnboardingDropdown id="profile-program" label="Program" placeholder="Browse or search programs" value={programChoice} options={programOptions} searchable allowCustom onChange={value => { setProgramChoice(value); setFieldErrors(previous => ({ ...previous, program: undefined })) }} invalid={Boolean(fieldErrors.program)} describedBy={fieldErrors.program ? 'profile-program-error profile-program-help' : 'profile-program-help'} /><p id="profile-program-help" className="field-help">Not on the list? Type your full program name, then choose “Use”.</p>{fieldErrors.program && <p id="profile-program-error" className="field-error" role="alert">{fieldErrors.program}</p>}</div>
             <div className="workspace-profile-form-wide"><label className="field-label" htmlFor="profile-bio">Public bio <small>{bio.length}/280</small></label><textarea id="profile-bio" maxLength={280} value={bio} onChange={event => { setBio(event.target.value); setFieldErrors(previous => ({ ...previous, bio: undefined })) }} placeholder="Share what you study or the kinds of reviewers you create." aria-invalid={Boolean(fieldErrors.bio)} />{fieldErrors.bio && <p className="field-error" role="alert">{fieldErrors.bio}</p>}<p className="field-help">Shown on your Cali Community profile.</p></div>
             {saveError && <p className="workspace-profile-save-error" role="alert">{saveError}</p>}
-            <div className="workspace-profile-form-actions"><button type="button" className="workspace-profile-cancel" onClick={() => { setEditing(false); setSaveError('') }} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy}>{busy ? 'Saving...' : 'Save changes'}</button></div>
-          </form> : <><dl><div><dt>Username</dt><dd>{student.username}</dd></div><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div><div><dt>Public bio</dt><dd>{student.bio || 'Add a short introduction for your Community profile.'}</dd></div></dl>{saved && <p className="workspace-profile-saved" role="status">Profile details saved.</p>}</>}
+            <div className="workspace-profile-form-actions"><button type="button" className="workspace-profile-cancel" onClick={requestCancelEditing} disabled={busy}>Cancel</button><button type="submit" className="button-primary" disabled={busy || !profileDirty}>{busy ? 'Saving...' : 'Save changes'}</button></div>
+          </form> : <>{saved && <p className="workspace-profile-saved" role="status"><span aria-hidden="true">✓</span> Profile details saved.</p>}<dl><div><dt>Username</dt><dd>{student.username}</dd></div><div><dt>Program</dt><dd>{student.program}</dd></div><div><dt>Year level</dt><dd>{year}</dd></div><div><dt>Public bio</dt><dd>{student.bio || 'Add a short introduction for your Community profile.'}</dd></div></dl></>}
         </section>
         <section className="workspace-profile-section workspace-profile-account" aria-labelledby="profile-account-title"><header><p className="workspace-overline">SIGN-IN IDENTITY</p><h2 id="profile-account-title">Google account</h2><span>This information comes from the account used to sign in.</span></header><dl><div><dt>Full name</dt><dd>{student.full_name || 'Not provided by Google'}</dd></div><div><dt>Email address</dt><dd>{email}</dd></div></dl></section>
     </div>
-    <Link to="/settings" className="workspace-settings-entry">
-      <span className="workspace-settings-entry-icon"><WorkspaceIcon section="settings" /></span>
-      <span className="workspace-settings-entry-copy"><strong>Cali Settings</strong><small>Open app preferences, the Cali Guide, policies, and account controls.</small></span>
-      <svg className="workspace-settings-entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
-    </Link>
+    <dialog ref={discardDialogRef} className="signout-dialog workspace-profile-discard-dialog" aria-labelledby="profile-discard-title" onCancel={event => { event.preventDefault(); setDiscardOpen(false) }}>
+      <div className="signout-dialog-content"><ConfirmationIcon kind="warning" /><p className="workspace-overline">UNSAVED PROFILE</p><h2 id="profile-discard-title">Discard your changes?</h2><p>Your profile edits have not been saved.</p><div className="signout-dialog-actions"><button type="button" className="signout-cancel" onClick={() => setDiscardOpen(false)}>Keep editing</button><button type="button" className="workspace-profile-discard" onClick={() => { setDiscardOpen(false); setEditing(false); setSaveError('') }}>Discard changes</button></div></div>
+    </dialog>
   </div>
 }
 
@@ -569,11 +584,14 @@ function SettingsScreen() {
   }
 
   return <div className="workspace-settings-page">
-    <Link to="/profile" className="cali-back-link workspace-settings-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg><span>Back to Profile</span></Link>
-    <header className="workspace-settings-page-heading"><h1>Settings</h1><p>Manage Cali on this device and review your account.</p></header>
+    <WorkspacePageHeader className="workspace-settings-page-heading" eyebrow="WORKSPACE PREFERENCES" title="Settings" description="Manage Cali on this device, find help, and review your account." />
     <div className="workspace-settings-stack">
+      <section className="workspace-settings-group" aria-labelledby="workspace-appearance-title">
+        <header className="workspace-settings-group-head"><h2 id="workspace-appearance-title">Appearance</h2><p>Choose how Cali looks on this device</p></header>
+        <div className="workspace-appearance-card"><div><h3>Workspace theme</h3><p>Follow your device automatically or keep Cali in light or dark mode.</p></div><ThemePicker variant="settings" /></div>
+      </section>
       <section className="workspace-settings-group" aria-labelledby="workspace-device-title">
-        <header className="workspace-settings-group-head"><h2 id="workspace-device-title">Device</h2><p>Notifications and app installation</p></header>
+        <header className="workspace-settings-group-head"><h2 id="workspace-device-title">Device</h2><p>Alerts, installation, and sound</p></header>
         <div className="workspace-settings-panel"><NotificationSettings /><InstallCali /><SoundSettings /></div>
       </section>
       <section className="workspace-settings-group" aria-labelledby="workspace-resources-title">
@@ -598,8 +616,8 @@ function SettingsScreen() {
         </nav>
       </section>
       <section className="workspace-settings-group" aria-labelledby="workspace-account-title">
-        <header className="workspace-settings-group-head"><h2 id="workspace-account-title">Account</h2><p>Permanent actions</p></header>
-        <div className="workspace-danger-zone"><div><h3>Delete account</h3><p>Permanently remove your Cali account and stored data.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></div>
+        <header className="workspace-settings-group-head"><h2 id="workspace-account-title">Account</h2><p>Data and account access</p></header>
+        <div className="workspace-danger-zone"><div><span className="workspace-danger-label">DANGER ZONE</span><h3>Delete account</h3><p>Permanently remove your Cali account and all workspace data. This cannot be undone.</p></div><button ref={deleteTriggerRef} type="button" className="workspace-delete-trigger" onClick={() => { setDeleteConfirmation(''); setDeleteError(''); setDeleteOpen(true) }}>Delete account</button></div>
       </section>
     </div>
     <dialog ref={deleteDialogRef} className="signout-dialog workspace-delete-dialog" aria-labelledby="delete-account-title" aria-describedby="delete-account-description" onCancel={event => { if (deleting) event.preventDefault() }} onClose={() => { setDeleteOpen(false); deleteTriggerRef.current?.focus() }}>
@@ -698,6 +716,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
+  const currentSectionLabel = workspaceLinks.find(link => link.section === section)?.label ?? (section === 'guide' ? 'Guide' : 'Workspace')
 
   useLayoutEffect(() => {
     scrollWorkspaceToTop()
@@ -740,7 +759,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
     <aside ref={sidebarRef} id="workspace-sidebar" className={`workspace-sidebar${menuOpen ? ' workspace-sidebar--open' : ''}`} aria-label="Workspace navigation">
       <div className="workspace-sidebar-head"><NavLink to="/dashboard" aria-label="Cali dashboard" onClick={() => { setMenuOpen(false); scrollWorkspaceToTop() }}><Brand /></NavLink><button ref={closeButtonRef} type="button" className="workspace-menu-close" aria-label="Close menu" onClick={() => { setMenuOpen(false); menuButtonRef.current?.focus() }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5 5 19" /></svg></button></div>
       <nav className="workspace-nav" aria-label="Main workspace"><p className="workspace-nav-caption">WORKSPACE</p>
-        {workspaceLinks.map(link => <NavLink key={link.section} to={link.path} end className={({ isActive }) => `workspace-nav-link${isActive || (section === 'settings' && link.section === 'profile') ? ' workspace-nav-link--active' : ''}`} onClick={() => setMenuOpen(false)}><WorkspaceIcon section={link.section} /><span>{link.label}</span>{(link.section === section || (section === 'settings' && link.section === 'profile')) && <span className="workspace-nav-marker" aria-hidden="true" />}</NavLink>)}
+        {workspaceLinks.map(link => <NavLink key={link.section} to={link.path} end className={({ isActive }) => `workspace-nav-link${isActive ? ' workspace-nav-link--active' : ''}`} onClick={() => setMenuOpen(false)}><WorkspaceIcon section={link.section} /><span>{link.label}</span>{link.section === section && <span className="workspace-nav-marker" aria-hidden="true" />}</NavLink>)}
       </nav>
       <div className="workspace-sidebar-bottom">
         {state.status === 'ready' && state.isAdmin && <NavLink className="workspace-admin-switch" to="/admin" onClick={() => setMenuOpen(false)}>
@@ -752,7 +771,7 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
       </div>
     </aside>
     <div className="workspace-content" inert={menuOpen} aria-hidden={menuOpen}>
-      <header className="workspace-mobile-header"><button ref={menuButtonRef} type="button" className="workspace-menu-button" aria-label="Open menu" aria-expanded={menuOpen} aria-controls="workspace-sidebar" onClick={() => setMenuOpen(true)}><span /><span /><span /></button><NavLink to="/dashboard" aria-label="Cali dashboard" onClick={scrollWorkspaceToTop}><Brand /></NavLink></header>
+      <header className="workspace-mobile-header"><button ref={menuButtonRef} type="button" className="workspace-menu-button" aria-label="Open menu" aria-expanded={menuOpen} aria-controls="workspace-sidebar" onClick={() => setMenuOpen(true)}><span /><span /><span /></button><NavLink to="/dashboard" aria-label="Cali dashboard" onClick={scrollWorkspaceToTop}><Brand /></NavLink><span className="workspace-mobile-section">{currentSectionLabel}</span></header>
       {section === 'dashboard' ? <>
         <section className="workspace-welcome" aria-labelledby="workspace-title"><div className="workspace-welcome-main"><p className="workspace-overline">YOUR DASHBOARD</p><h1 id="workspace-title">{greetingForHour(now.getHours())}, <em>{student.username}.</em></h1><p>Your classes, tasks, and study space in one place.</p></div><div className="workspace-date"><span>TODAY</span><strong>{new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).format(now)}</strong><small>{now.getFullYear()}</small></div></section>
         <div className="workspace-overview-grid">
@@ -761,14 +780,13 @@ function WorkspaceContent({ student, email, section }: { student: Student; email
             <DashboardTasks studentId={student.user_id} now={now} />
             <section className="dashboard-quick-actions" aria-labelledby="dashboard-quick-actions-title"><h2 id="dashboard-quick-actions-title">Quick actions</h2><div className="dashboard-quick-actions-list">
               {([
-                { to: '/schedules', section: 'schedules', label: 'Add a class meeting' },
-                { to: '/profile', section: 'profile', label: 'Edit academic details' },
-                { to: '/study', section: 'study', label: 'Open study tools' },
-              ] as const).map(action => <NavLink key={action.to} to={action.to} className="dashboard-action-card"><span className="dashboard-action-icon"><WorkspaceIcon section={action.section} /></span><span className="dashboard-action-label">{action.label}</span><svg className="dashboard-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></NavLink>)}
+                { to: '/tasks?new=1', section: 'tasks', label: 'Add a task', detail: 'Capture coursework or a deadline' },
+                { to: '/study?new=manual', section: 'study', label: 'Create a reviewer', detail: 'Start a new study document' },
+                { to: '/schedules?new=1', section: 'schedules', label: 'Add a class', detail: 'Create a weekly meeting' },
+              ] as const).map(action => <NavLink key={action.to} to={action.to} className="dashboard-action-card"><span className="dashboard-action-icon"><WorkspaceIcon section={action.section} /></span><span className="dashboard-action-copy"><strong>{action.label}</strong><small>{action.detail}</small></span><svg className="dashboard-action-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></NavLink>)}
             </div></section>
           </div>
         </div>
-        <SoundSettingsNote />
       </> : section === 'profile' ? <ProfileScreen student={student} email={email} /> : section === 'guide' ? <Suspense fallback={<WorkspaceModuleLoading label="Guide" />}><StudentGuide /></Suspense> : section === 'settings' ? <SettingsScreen /> : section === 'schedules' ? <Suspense fallback={<WorkspaceModuleLoading label="Schedules" />}><SchedulesPage studentId={student.user_id} now={now} /></Suspense> : section === 'tasks' ? <Suspense fallback={<WorkspaceModuleLoading label="Tasks" />}><TasksPage studentId={student.user_id} /></Suspense> : section === 'calendar' ? <Suspense fallback={<WorkspaceModuleLoading label="Calendar" />}><CalendarPage studentId={student.user_id} now={now} /></Suspense> : section === 'study' ? <Suspense fallback={<WorkspaceModuleLoading label="Study" />}><StudyPage studentId={student.user_id} /></Suspense> : section === 'community' ? <Suspense fallback={<WorkspaceModuleLoading label="Community" />}><CommunityPage /></Suspense> : <ModuleScreen section={section} />}
     </div>
   </main>

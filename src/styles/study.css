@@ -6526,6 +6526,102 @@ button.flashcard-study-card:focus-visible {
   }
 }
 
+/* Phase 3: faster study creation and a calmer library/editor hierarchy. */
+.ai-simple-preferences {
+  overflow: hidden;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-cali-pale) 42%, var(--color-cali-surface));
+}
+
+.ai-simple-preferences > summary {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ai-simple-preferences > summary::-webkit-details-marker { display: none; }
+.ai-simple-preferences > summary > span:first-child { display: grid; gap: 2px; }
+.ai-simple-preferences > summary strong { color: var(--color-cali-ink); font-size: 13px; }
+.ai-simple-preferences > summary small { color: var(--color-cali-slate); font-size: 11px; font-weight: 600; }
+.ai-simple-preferences > summary > span:last-child { color: var(--color-cali-action-text); font-size: 20px; transition: transform .16s ease; }
+.ai-simple-preferences[open] > summary > span:last-child { transform: rotate(45deg); }
+.ai-simple-preferences fieldset { margin: 0; padding: 0 13px 13px; border: 0; }
+.ai-simple-preferences legend { padding: 0 0 9px; color: var(--color-cali-slate); font-size: 11px; font-weight: 700; }
+.ai-simple-preferences fieldset > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ai-simple-preferences label { position: relative; min-width: 0; }
+.ai-simple-preferences input { position: absolute; opacity: 0; }
+.ai-simple-preferences label > span { display: grid; min-height: 62px; align-content: center; gap: 3px; padding: 9px 10px; border: 1px solid var(--color-cali-border); border-radius: 10px; background: var(--color-cali-surface); cursor: pointer; }
+.ai-simple-preferences label strong { font-size: 12px; }
+.ai-simple-preferences label small { color: var(--color-cali-slate); font-size: 10px; line-height: 1.35; }
+.ai-simple-preferences input:checked + span { border-color: var(--color-cali-accent); background: var(--color-cali-pale); box-shadow: inset 0 0 0 1px var(--color-cali-accent); }
+.ai-simple-preferences input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--color-cali-accent) 28%, transparent); outline-offset: 2px; }
+
+.study-library-summary { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+
+.set-source-selector { display: grid; gap: 6px; }
+.set-source-selector > span { color: var(--color-cali-ink); font-size: 11px; font-weight: 800; }
+.set-source-selector .cali-select-trigger { width: 100%; min-height: 44px; }
+.set-source-empty { padding: 13px; border: 1px dashed var(--color-cali-border); border-radius: 10px; background: var(--color-cali-canvas); }
+
+.reviewer-reading {
+  box-shadow: 0 18px 50px rgba(14, 72, 97, .07);
+}
+
+.reviewer-reader-actions {
+  padding: 5px;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 13px;
+  background: var(--color-cali-surface);
+}
+
+@media (max-width: 760px) {
+  .ai-intake-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ai-simple-preferences fieldset > div { grid-template-columns: 1fr; }
+  .ai-simple-preferences label > span { min-height: 52px; }
+
+  .reviewer-list { gap: 12px; padding-inline: 16px; padding-bottom: 16px; }
+  .reviewer-preview-title { margin-top: 13px; font-size: 21px; }
+
+  .study-library-summary { align-items: flex-end; flex-direction: column-reverse; gap: 7px; }
+
+  .study-set-card {
+    height: auto;
+    min-height: 138px;
+  }
+
+  .study-set-preview-meta { font-size: 10px; }
+  .study-set-preview-title { height: auto; min-height: 42px; font-size: 19px; -webkit-line-clamp: 2; line-clamp: 2; }
+  .study-set-preview-content > small,
+  .quiz-set-card-footer > span,
+  .quiz-set-card-footer b { font-size: 11px; }
+
+  .reviewer-page-nav:not(.set-editor-nav) { align-items: stretch; flex-direction: column; gap: 10px; }
+  .reviewer-page-nav:not(.set-editor-nav) .reviewer-back { align-self: flex-start; }
+  .reviewer-reader-actions { display: grid; width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .reviewer-reader-actions .reviewer-create-action { grid-column: span 2; width: 100%; padding-inline: 8px; }
+  .reviewer-reader-actions .reviewer-icon-action,
+  .reviewer-reader-actions details,
+  .reviewer-reader-actions summary { width: 100%; min-width: 0; }
+  .reviewer-reader-actions details > div { right: 0; }
+
+  .reviewer-reading > header { padding-inline: 20px; }
+  .reviewer-document { padding-inline: 20px; }
+  .set-source-document { min-height: 120px; }
+}
+
+@media (max-width: 480px) {
+  .ai-intake-steps strong { font-size: 11px; }
+  .reviewer-reader-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .reviewer-reader-actions .study-secondary { font-size: 11px; }
+  .reviewer-reading h1 { font-size: clamp(31px, 10vw, 40px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reviewer-save-state--saving::before {
     animation: none;
@@ -7441,7 +7537,7 @@ button.flashcard-study-card:focus-visible {
 .ai-reviewer-dialog .ai-intake-wizard > header h2 { margin-top: 6px; font-size: 26px; line-height: 1.2; }
 .ai-reviewer-dialog .ai-intake-wizard .workspace-overline { font-size: 11px; }
 .ai-reviewer-dialog .ai-intake-wizard .ai-dialog-intro { margin-top: 8px; font-size: 14px; font-weight: 400; line-height: 1.6; }
-.ai-intake-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; flex: none; margin: 0; padding: 0 24px 16px; border-bottom: 0; list-style: none; }
+.ai-intake-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; flex: none; margin: 0; padding: 0 24px 16px; border-bottom: 0; list-style: none; }
 .ai-intake-steps li { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--color-cali-slate); }
 .ai-intake-steps li > span { display: grid; place-items: center; flex: none; width: 27px; height: 27px; border: 1px solid var(--color-cali-border); border-radius: 50%; font-size: 12px; font-weight: 600; }
 .ai-intake-steps strong { font-size: 13px; font-weight: 500; line-height: 1.3; }
