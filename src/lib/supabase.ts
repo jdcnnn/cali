@@ -52,6 +52,15 @@ export async function startGoogleSignIn() {
 
 export type LoginMode = { allowPersonalGoogleLogin: boolean }
 
+export async function checkUsernameAvailability(username: string, signal?: AbortSignal): Promise<boolean> {
+  if (!supabase) throw new Error('Could not check username. Please try again.')
+  const timeout = AbortSignal.timeout(8000)
+  const { data, error } = await supabase.rpc('cali_username_available', { p_username: username.trim().toLowerCase() })
+    .abortSignal(signal ? AbortSignal.any([signal, timeout]) : timeout)
+  if (error || typeof data !== 'boolean') throw new Error('Could not check username. Please try again.')
+  return data
+}
+
 export async function getPublicLoginMode(): Promise<LoginMode> {
   if (!supabase) return { allowPersonalGoogleLogin: false }
   const { data, error } = await supabase.rpc('cali_public_login_mode')

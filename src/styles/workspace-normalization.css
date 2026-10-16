@@ -1,4 +1,14 @@
 /* Phase 2: shared density, type, touch, and responsive rules for signed-in modules. */
+.workspace-shell { min-width: 0; }
+
+@media (max-width: 900px) {
+  .workspace-shell > .workspace-sidebar { overflow: hidden; }
+  .workspace-sidebar-head, .workspace-sidebar-bottom { flex-shrink: 0; }
+  .workspace-sidebar > .workspace-nav { flex: 1; min-height: 0; }
+  .workspace-mobile-header > .workspace-mobile-section { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .workspace-mobile-header > .workspace-menu-button, .workspace-mobile-header > a { flex-shrink: 0; }
+}
+
 .workspace-shell>.workspace-content {
   padding: var(--workspace-page-top) var(--workspace-page-gutter) var(--workspace-page-bottom);
 }

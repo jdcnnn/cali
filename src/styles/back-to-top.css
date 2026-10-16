@@ -1,0 +1,15 @@
+.cali-back-to-top {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--color-cali-border);
+  border-radius: 10px;
+  background: var(--color-cali-surface);
+  color: var(--color-cali-accent);
+  cursor: pointer;
+}
+.cali-back-to-top svg { width: 18px; height: 18px; }
+.cali-back-to-top:hover { border-color: var(--color-cali-accent); background: var(--color-cali-pale); }

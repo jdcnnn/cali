@@ -3,6 +3,7 @@
 
 :is(
   dialog.signout-dialog,
+  dialog.onboarding-confirm-dialog,
   dialog.task-editor-dialog,
   dialog.task-detail-dialog,
   dialog.task-confirm-dialog,
@@ -23,6 +24,7 @@
 
 :is(
   dialog.signout-dialog,
+  dialog.onboarding-confirm-dialog,
   dialog.task-editor-dialog,
   dialog.task-detail-dialog,
   dialog.task-confirm-dialog,
@@ -40,6 +42,7 @@
 
 :is(
   .signout-dialog.signout-dialog,
+  .onboarding-confirm-dialog.onboarding-confirm-dialog,
   .task-confirm-dialog.task-confirm-dialog,
   .study-confirm-dialog.study-confirm-dialog,
   .schedule-dialog.schedule-dialog--confirmation,
@@ -76,6 +79,7 @@
 
 :is(
   .signout-dialog-content,
+  .onboarding-confirm-content,
   .task-confirm-dialog > div,
   .study-confirm-dialog > div,
   .schedule-dialog--confirmation .schedule-dialog-content,
@@ -92,6 +96,7 @@
 
 :is(
   .signout-dialog,
+  .onboarding-confirm-dialog,
   .task-confirm-dialog,
   .study-confirm-dialog,
   .schedule-dialog--confirmation,
@@ -166,6 +171,7 @@
 
 :is(
   .signout-dialog-actions,
+  .onboarding-confirm-actions,
   .task-confirm-dialog footer,
   .task-editor > footer,
   .task-detail-footer,
@@ -238,6 +244,7 @@
   button.schedule-secondary.schedule-secondary,
   button.cali-picker-secondary.cali-picker-secondary,
   button.signout-cancel.signout-cancel,
+  button.onboarding-confirm-cancel.onboarding-confirm-cancel,
   button.admin-dialog-cancel.admin-dialog-cancel
 ) {
   border-color: var(--color-cali-border);
@@ -251,6 +258,7 @@
   button.schedule-secondary.schedule-secondary,
   button.cali-picker-secondary.cali-picker-secondary,
   button.signout-cancel.signout-cancel,
+  button.onboarding-confirm-cancel.onboarding-confirm-cancel,
   button.admin-dialog-cancel.admin-dialog-cancel
 ):hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--color-cali-accent) 35%, var(--color-cali-border));
@@ -273,6 +281,7 @@
 
   :is(
     dialog.signout-dialog,
+    dialog.onboarding-confirm-dialog,
     dialog.task-confirm-dialog,
     dialog.study-confirm-dialog,
     dialog.calendar-event-dialog,

@@ -118,7 +118,7 @@ html {
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
 }
 
 .cali-wordmark {
@@ -2188,6 +2188,8 @@ button:disabled {
     flex-direction: column;
     width: 100vw;
     max-height: none;
+    max-width: none;
+    overflow: hidden;
     padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
     border: 0;
     border-radius: 0;
@@ -2195,6 +2197,7 @@ button:disabled {
 
   .onboarding-dropdown--mobile .onboarding-dropdown-panel-header {
     display: flex;
+    flex: none;
     align-items: center;
     justify-content: space-between;
     gap: 16px;

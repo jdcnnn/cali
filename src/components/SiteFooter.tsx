@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router'
 import { CaliWordmark } from './CaliWordmark'
+import { BackToTop } from './BackToTop'
 import { useAuth } from '../auth/AuthContext'
 import '../styles/entry.css'
 import { useLoginMode } from '../auth/LoginModeContext'
@@ -23,12 +24,6 @@ export function SiteFooter() {
   const policyReturnState = ['/terms-and-conditions', '/privacy-policy', '/community-guidelines'].includes(location.pathname) && currentPolicyState.from
     ? currentPolicyState
     : { from: currentPath, backLabel: originBackLabel, view: activeView, previousState: location.state }
-
-  function scrollToTop() {
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
-    })
-  }
 
   return <footer className="entry-footer">
     <div className="entry-container entry-footer-main">
@@ -54,7 +49,7 @@ export function SiteFooter() {
     </nav>
     <div className="entry-container entry-footer-bottom">
       <p>Cali is an independent student workspace and is not an official RTU service.</p>
-      <div><span>© {new Date().getFullYear()} Cali</span><Link to={location.pathname} onClick={scrollToTop}>Back to top</Link></div>
+      <div><span>© {new Date().getFullYear()} Cali</span><BackToTop /></div>
     </div>
   </footer>
 }

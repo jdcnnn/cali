@@ -346,6 +346,35 @@
   }
 }
 
+@media (max-width: 800px) {
+  .entry-page .entry-menu {
+    left: 0;
+    right: 0;
+    margin-inline: auto;
+    width: min(280px, 100%);
+    max-height: calc(100dvh - 100px);
+    padding: 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 12px;
+  }
+
+  .entry-page .entry-menu--open { gap: 8px; transform-origin: top center; }
+  .entry-page .entry-header nav { gap: 2px; }
+  .entry-page .entry-header nav a { min-height: 40px; padding: 9px 10px; border-radius: 7px; font-size: 12px; }
+  .entry-page .entry-header-actions { gap: 8px; padding-top: 8px; }
+  .entry-page .entry-menu .theme-trigger { min-height: 40px; height: 40px; padding-inline: 10px; border-radius: 7px; }
+  .entry-page .entry-menu .theme-trigger > svg:first-child { width: 17px; height: 17px; }
+  .entry-page .entry-menu .theme-trigger-label { margin-left: 8px; font-size: 12px; }
+  .entry-page .entry-menu .theme-trigger-current { font-size: 11px; }
+  .entry-page .entry-menu .entry-header-cta { min-height: 40px; padding: 9px 12px; font-size: 12px; border-radius: 7px; }
+  .entry-page .entry-menu .theme-popover { margin-top: 4px; padding: 6px; border-radius: 9px; }
+  .entry-page .entry-menu .theme-option { min-height: 44px; gap: 10px; padding: 6px 8px; border-radius: 7px; }
+  .entry-page .entry-menu .theme-option-icon { width: 28px; height: 28px; border-radius: 7px; }
+  .entry-page .entry-menu .theme-option-copy strong { font-size: 12px; }
+  .entry-page .entry-menu .theme-option-copy small { font-size: 10px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .entry-page .entry-hero-copy {
     animation: none;

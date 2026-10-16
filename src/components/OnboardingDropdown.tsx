@@ -21,7 +21,7 @@ export function OnboardingDropdown({ id, label, placeholder, value, options, onC
   const [query, setQuery] = useState('')
   const [openAbove, setOpenAbove] = useState(false)
   const [mobileOverlay, setMobileOverlay] = useState(false)
-  const [viewport, setViewport] = useState({ height: window.innerHeight, top: 0 })
+  const [viewport, setViewport] = useState({ height: window.innerHeight, width: window.innerWidth, top: 0, left: 0 })
   const listId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -59,7 +59,7 @@ export function OnboardingDropdown({ id, label, placeholder, value, options, onC
     document.body.style.overflow = 'hidden'
     const visualViewport = window.visualViewport
     function updateViewport() {
-      setViewport({ height: visualViewport?.height ?? window.innerHeight, top: visualViewport?.offsetTop ?? 0 })
+      setViewport({ height: visualViewport?.height ?? window.innerHeight, width: visualViewport?.width ?? window.innerWidth, top: visualViewport?.offsetTop ?? 0, left: visualViewport?.offsetLeft ?? 0 })
     }
     updateViewport()
     visualViewport?.addEventListener('resize', updateViewport)
@@ -113,7 +113,7 @@ export function OnboardingDropdown({ id, label, placeholder, value, options, onC
       <span className={value ? '' : 'onboarding-dropdown-placeholder'}>{options[selectedIndex]?.label ?? (value || placeholder)}</span>
       <span className="onboarding-dropdown-chevron" aria-hidden="true" />
     </button>
-    {open && <div className="onboarding-dropdown-panel" style={mobileOverlay ? { height: viewport.height, top: viewport.top } : undefined}>
+    {open && <div className="onboarding-dropdown-panel" style={mobileOverlay ? { height: viewport.height, width: viewport.width, top: viewport.top, left: viewport.left, right: 'auto' } : undefined}>
       <div className="onboarding-dropdown-panel-header"><strong>{label}</strong><button type="button" onClick={() => { setOpen(false); triggerRef.current?.focus() }} aria-label={`Close ${label} menu`}>Close</button></div>
       {searchable && <input ref={searchRef} className="onboarding-dropdown-search" type="search" value={query} maxLength={allowCustom ? 120 : undefined} onChange={event => setQuery(event.target.value)} placeholder={`Search ${label.toLowerCase()}s`} aria-label={`Search ${label.toLowerCase()}s`} onKeyDown={event => {
         if (event.key === 'ArrowDown') { event.preventDefault(); optionRefs.current[0]?.focus() }

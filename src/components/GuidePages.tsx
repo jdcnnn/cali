@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { BackArrowIcon } from './BackArrowIcon'
+import { BackToTop } from './BackToTop'
 import { CaliSelect, type CaliSelectOption } from './CaliSelect'
 import '../styles/guide-pages.css'
 
@@ -176,10 +177,6 @@ function ClearIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>
 }
 
-function ArrowUpIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 10 6-6 6 6"/><path d="M12 4v16"/></svg>
-}
-
 function GuidePage({ kind }: { kind: 'student' | 'admin' }) {
   const [query, setQuery] = useState('')
   const [selectedTopic, setSelectedTopic] = useState('')
@@ -203,11 +200,6 @@ function GuidePage({ kind }: { kind: 'student' | 'admin' }) {
     window.addEventListener('scroll', updateVisibility, { passive: true })
     return () => window.removeEventListener('scroll', updateVisibility)
   }, [isAdmin])
-
-  function scrollGuideToTop() {
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
-  }
 
   function jumpToSection(sectionId: string) {
     if (!sectionId) return
@@ -242,7 +234,7 @@ function GuidePage({ kind }: { kind: 'student' | 'admin' }) {
         </section>) : <section className="cali-guide-empty"><SearchIcon/><h2>No matching guide topics</h2><p>Try a shorter or broader search.</p><button type="button" onClick={() => setQuery('')}>Show all topics</button></section>}
       </main>
     </div>
-    {!isAdmin && <button type="button" className={`cali-guide-top${showBackToTop ? ' cali-guide-top--visible' : ''}`} aria-label="Back to top" onClick={scrollGuideToTop}><ArrowUpIcon/></button>}
+    {!isAdmin && <BackToTop className={`cali-guide-top${showBackToTop ? ' cali-guide-top--visible' : ''}`} tabIndex={showBackToTop ? 0 : -1} />}
   </div>
 }
 

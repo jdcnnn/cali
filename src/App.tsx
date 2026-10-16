@@ -19,10 +19,12 @@ import { ConfirmationIcon } from './components/ConfirmationIcon'
 import { WorkspacePageHeader } from './components/WorkspacePrimitives'
 import './styles/skeleton.css'
 import './styles/status-pages-refined.css'
+import './styles/onboarding.css'
 import { ThemePicker } from './theme/ThemePicker'
 import { disablePushNotifications, enablePushNotifications, getCachedPushStatus, getPushStatus } from './lib/pushNotifications'
 import type { PushStatus } from './lib/pushNotifications'
 import { formatYearLevel, yearLevelOptions } from './lib/academic'
+import { checkUsernameAvailability } from './lib/supabase'
 
 const StudyPage = lazy(() => import('./components/StudyPage').then(module => ({ default: module.StudyPage })))
 const CommunityPage = lazy(() => import('./components/CommunityPage').then(module => ({ default: module.CommunityPage })))
@@ -296,6 +298,42 @@ function OnboardingPage() {
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<OnboardingField, string>>>({})
   const [submitError, setSubmitError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [step, setStep] = useState<0 | 1 | 2>(0)
+  const [usernameCheck, setUsernameCheck] = useState<{ username: string; status: 'available' | 'taken' | 'error' } | null>(null)
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const confirmationRef = useRef<HTMLDialogElement>(null)
+  const cancelSetupRef = useRef<HTMLButtonElement>(null)
+  const submitSetupRef = useRef<HTMLButtonElement>(null)
+  const saveSetupLock = useRef(false)
+  const stepFocus = useRef<string | null>(null)
+  useEffect(() => {
+    const dialog = confirmationRef.current
+    if (!confirmationOpen || !dialog) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    dialog.showModal()
+    cancelSetupRef.current?.focus()
+    return () => {
+      if (dialog.open) dialog.close()
+      document.body.style.overflow = previousOverflow
+    }
+  }, [confirmationOpen])
+  useEffect(() => {
+    if (state.status !== 'needsOnboarding' || step !== 0 || !/^[a-z0-9_]{3,30}$/.test(username)) return
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void checkUsernameAvailability(username, controller.signal).then(available => {
+        if (!controller.signal.aborted) setUsernameCheck({ username, status: available ? 'available' : 'taken' })
+      }).catch(() => {
+        if (!controller.signal.aborted) setUsernameCheck({ username, status: 'error' })
+      })
+    }, 450)
+    return () => { window.clearTimeout(timer); controller.abort() }
+  }, [username, step, state.status])
+  useLayoutEffect(() => {
+    if (stepFocus.current) document.getElementById(stepFocus.current)?.focus()
+    stepFocus.current = null
+  }, [step])
   if (state.status === 'loading') return <LoadingScreen />
   if (state.status === 'signedOut') return <Navigate to="/login" replace />
   if (state.status === 'ineligible') return <Navigate to="/access-denied" replace />
@@ -305,9 +343,17 @@ function OnboardingPage() {
   const googleIdentity = state.user.identities?.find((identity) => identity.provider === 'google')?.identity_data
   const name = typeof googleIdentity?.full_name === 'string' ? googleIdentity.full_name : typeof googleIdentity?.name === 'string' ? googleIdentity.name : null
   const avatar = typeof googleIdentity?.avatar_url === 'string' ? googleIdentity.avatar_url : typeof googleIdentity?.picture === 'string' ? googleIdentity.picture : null
+  const usernameStatus = /^[a-z0-9_]{3,30}$/.test(username) ? usernameCheck?.username === username ? usernameCheck.status : 'checking' : 'idle'
+  const usernameError = fieldErrors.username ?? (usernameStatus === 'taken' ? 'Username is already taken.' : usernameStatus === 'error' ? 'Could not check username. Please try again.' : undefined)
 
   function clearFieldError(field: OnboardingField) {
     setFieldErrors(previous => ({ ...previous, [field]: undefined }))
+  }
+
+  function changeStep(next: 0 | 1 | 2, focus = 'onboarding-title') {
+    setSubmitError('')
+    stepFocus.current = focus
+    setStep(next)
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -318,55 +364,116 @@ function OnboardingPage() {
     const program = programChoice.trim()
     const year = Number(yearLevel)
     const errors: Partial<Record<OnboardingField, string>> = {}
-    if (!/^[a-z0-9_]{3,30}$/.test(normalizedUsername)) errors.username = 'Use 3-30 lowercase letters, numbers, or underscores.'
-    if (!Number.isInteger(year) || year < 1 || year > 5) errors.yearLevel = 'Choose a year level from 1 to 5.'
-    if (!program) errors.program = 'Choose or enter your program.'
-    else if (program.length > 120) errors.program = 'Use a program name up to 120 characters.'
+    if (step !== 1) {
+      if (!normalizedUsername) errors.username = 'Enter a username.'
+      else if (normalizedUsername.length < 3) errors.username = 'Use at least 3 characters.'
+      else if (normalizedUsername.length > 30) errors.username = 'Use no more than 30 characters.'
+      else if (!/^[a-z0-9_]+$/.test(normalizedUsername)) errors.username = 'Use lowercase letters, numbers, or underscores.'
+    }
+    if (step !== 0) {
+      if (!Number.isInteger(year) || year < 1 || year > 5) errors.yearLevel = 'Choose a year level from 1 to 5.'
+      if (!program) errors.program = 'Choose or enter your program.'
+      else if (program.length > 120) errors.program = 'Use a program name up to 120 characters.'
+    }
     setFieldErrors(errors)
     const firstInvalid = Object.keys(errors)[0] as OnboardingField | undefined
     if (firstInvalid) {
       const id = { username: 'username', program: 'program', yearLevel: 'year-level' }[firstInvalid]
-      document.getElementById(id)?.focus()
+      if (step === 2) changeStep(firstInvalid === 'username' ? 0 : 1, id)
+      else document.getElementById(id)?.focus()
       return
     }
+    if (step === 0) {
+      setBusy(true)
+      try {
+        const available = await checkUsernameAvailability(normalizedUsername)
+        setUsernameCheck({ username: normalizedUsername, status: available ? 'available' : 'taken' })
+        if (!available) {
+          setFieldErrors({ username: 'Username is already taken.' })
+          document.getElementById('username')?.focus()
+          return
+        }
+        changeStep(1)
+      } catch {
+        setFieldErrors({ username: 'Could not check username. Please try again.' })
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+    if (step === 1) {
+      changeStep(2)
+      return
+    }
+    setConfirmationOpen(true)
+  }
+
+  async function confirmSetup() {
+    if (busy || saveSetupLock.current || !confirmationOpen || step !== 2) return
+    saveSetupLock.current = true
+    setSubmitError('')
+    const normalizedUsername = username.trim().toLowerCase()
     setBusy(true)
     try {
-      await completeOnboarding(normalizedUsername, program, year)
+      await completeOnboarding(normalizedUsername, programChoice.trim(), Number(yearLevel))
       navigate('/dashboard', { replace: true })
     } catch (cause) {
       const code = typeof cause === 'object' && cause && 'code' in cause ? String(cause.code) : ''
       if (code === '23505') {
-        setFieldErrors({ username: 'That username is already taken. Choose another one.' })
-        document.getElementById('username')?.focus()
+        setUsernameCheck({ username: normalizedUsername, status: 'taken' })
+        setFieldErrors({ username: 'Username is already taken.' })
+        setConfirmationOpen(false)
+        changeStep(0, 'username')
       } else {
         setSubmitError(cause instanceof Error ? cause.message : 'We could not save your profile. Please try again.')
       }
       setBusy(false)
+    } finally {
+      saveSetupLock.current = false
     }
   }
 
   return <main className="onboarding-page">
     <header className="site-header page-wrap"><Brand /><div className="site-header-actions"><SignOutControl /></div></header>
     <div className="onboarding-layout page-wrap">
-      <section className="onboarding-intro" aria-labelledby="onboarding-title">
-        <div className="onboarding-intro-copy">
-          <p className="eyebrow"><span className="eyebrow-mark" /> GET STARTED</p>
-          <h1 id="onboarding-title">Set up your <em>Cali profile.</em></h1>
-          <p>Check your Google account, then add the details you’ll use in Cali.</p>
+      <form onSubmit={submit} className="onboarding-form" aria-labelledby="onboarding-title" aria-busy={busy} noValidate>
+        <div className="onboarding-heading">
+          <p className="onboarding-kicker">Step {step + 1} of 3</p>
+          <h1 id="onboarding-title" tabIndex={-1}>{['Choose a username', 'Add academic details', 'Review and confirm'][step]}</h1>
+          <p>{['Choose a unique username for your Cali profile.', 'Add your current year level and program.', 'Check your details before opening your workspace.'][step]}</p>
+          <progress className="onboarding-step-progress" value={step + 1} max={3} aria-label="Profile setup progress" aria-valuetext={`Step ${step + 1} of 3`} />
         </div>
-        <GoogleProfile email={state.user.email ?? ''} name={name} avatar={avatar} />
-      </section>
-      <form onSubmit={submit} className="onboarding-form" noValidate>
-        <div className="form-section-head"><h2>Your details</h2><span>All fields required</span></div>
+        <div className="onboarding-account">
+          <p className="onboarding-account-label">Signed in with Google</p>
+          <GoogleProfile email={state.user.email ?? ''} name={name} avatar={avatar} />
+        </div>
         <div className="onboarding-fields">
-          <div className="onboarding-field"><label htmlFor="username" className="field-label">Username</label><input id="username" name="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[a-z0-9_]{3,30}" className="field-input" value={username} onChange={(e) => { setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); clearFieldError('username') }} aria-describedby={fieldErrors.username ? 'username-error username-help' : 'username-help'} aria-invalid={Boolean(fieldErrors.username)} /><ul id="username-help" className="username-requirements"><li>3–30 characters</li><li>Lowercase letters, numbers, underscores</li><li>Unique username</li></ul>{fieldErrors.username && <p id="username-error" className="field-error" role="alert">{fieldErrors.username}</p>}</div>
-          <div className="onboarding-field"><label htmlFor="year-level" className="field-label">Year level</label><OnboardingDropdown id="year-level" label="Year level" placeholder="Select year level" value={yearLevel} options={yearOptions} onChange={(value) => { setYearLevel(value); clearFieldError('yearLevel') }} invalid={Boolean(fieldErrors.yearLevel)} describedBy={fieldErrors.yearLevel ? 'year-level-error' : undefined} />{fieldErrors.yearLevel && <p id="year-level-error" className="field-error" role="alert">{fieldErrors.yearLevel}</p>}</div>
-          <div className="onboarding-field onboarding-field--program"><label htmlFor="program" className="field-label">Program</label><OnboardingDropdown id="program" label="Program" placeholder="Browse or search programs" value={programChoice} options={programOptions} searchable allowCustom onChange={(value) => { setProgramChoice(value); clearFieldError('program') }} invalid={Boolean(fieldErrors.program)} describedBy={fieldErrors.program ? 'program-error program-help' : 'program-help'} /><p id="program-help" className="field-help">Not on the list? Type your full program name, then choose “Use”.</p>{fieldErrors.program && <p id="program-error" className="field-error" role="alert">{fieldErrors.program}</p>}</div>
+          {step === 0 && <div className="onboarding-field"><label htmlFor="username" className="field-label">Username <span>Required</span></label><input id="username" name="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[a-z0-9_]{3,30}" className="field-input" placeholder="e.g. alex_delacruz" spellCheck={false} autoCapitalize="none" readOnly={busy} value={username} onChange={(e) => { setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')); clearFieldError('username') }} aria-describedby={usernameError ? 'username-error' : 'username-help'} aria-invalid={Boolean(usernameError)} />{!usernameError && <p id="username-help" className="field-help" role="status">{usernameStatus === 'checking' ? 'Checking username...' : usernameStatus === 'available' ? 'Username is available.' : '3-30 characters. Use lowercase letters, numbers, or underscores.'}</p>}{usernameError && <p id="username-error" className="field-error" role="alert">{usernameError}</p>}</div>}
+          {step === 1 && <div className="onboarding-field"><label htmlFor="year-level" className="field-label">Current year level <span>Required</span></label><OnboardingDropdown id="year-level" label="Current year level" placeholder="Select your year level" value={yearLevel} options={yearOptions} onChange={(value) => { setYearLevel(value); clearFieldError('yearLevel') }} invalid={Boolean(fieldErrors.yearLevel)} describedBy={fieldErrors.yearLevel ? 'year-level-error' : undefined} />{fieldErrors.yearLevel && <p id="year-level-error" className="field-error" role="alert">{fieldErrors.yearLevel}</p>}</div>}
+          {step === 1 && <div className="onboarding-field onboarding-field--program"><label htmlFor="program" className="field-label">Program <span>Required</span></label><OnboardingDropdown id="program" label="Program" placeholder="Select your program" value={programChoice} options={programOptions} searchable allowCustom onChange={(value) => { setProgramChoice(value); clearFieldError('program') }} invalid={Boolean(fieldErrors.program)} describedBy={fieldErrors.program ? 'program-error' : 'program-help'} />{!fieldErrors.program && <p id="program-help" className="field-help">Search the list or enter your full program name.</p>}{fieldErrors.program && <p id="program-error" className="field-error" role="alert">{fieldErrors.program}</p>}</div>}
         </div>
-        {submitError && <p className="form-error mt-6" role="alert">{submitError}</p>}
-        <div className="onboarding-form-actions"><button type="submit" className="button-primary onboarding-submit" disabled={busy}>{busy ? 'Saving your profile...' : 'Open my workspace'}</button></div>
+        {step === 2 && <dl className="onboarding-review">
+          <div><dt>Username</dt><dd>{username}</dd><button type="button" onClick={() => changeStep(0, 'username')} disabled={busy} aria-label="Edit username">Edit</button></div>
+          <div><dt>Current year level</dt><dd>{formatYearLevel(Number(yearLevel))}</dd><button type="button" onClick={() => changeStep(1, 'year-level')} disabled={busy} aria-label="Edit year level">Edit</button></div>
+          <div><dt>Program</dt><dd>{shortProgramName(programChoice)}</dd><button type="button" onClick={() => changeStep(1, 'program')} disabled={busy} aria-label="Edit program">Edit</button></div>
+        </dl>}
+        {submitError && !confirmationOpen && <p className="form-error mt-6" role="alert">{submitError}</p>}
+        <div className="onboarding-form-actions"><div className="onboarding-navigation">{step > 0 && <button type="button" className="onboarding-back" disabled={busy} onClick={() => changeStep(step === 2 ? 1 : 0)}>Back</button>}<button ref={submitSetupRef} key={step} type="submit" className="button-primary onboarding-submit" disabled={busy}>{busy ? step === 0 ? 'Checking username...' : 'Saving profile...' : step === 2 ? 'Open my workspace' : 'Continue'}</button></div>{step === 2 && <p>You can update your profile later.</p>}</div>
       </form>
+      <footer className="onboarding-footer"><nav aria-label="Policies"><Link to="/terms-and-conditions">Terms and conditions</Link><Link to="/privacy-policy">Privacy policy</Link><Link to="/community-guidelines">Community guidelines</Link></nav></footer>
     </div>
+    <dialog ref={confirmationRef} className="onboarding-confirm-dialog" aria-labelledby="onboarding-confirm-title" aria-describedby="onboarding-confirm-description" aria-busy={busy} onCancel={event => { if (busy) event.preventDefault() }} onClose={() => { setConfirmationOpen(false); if (step === 2) submitSetupRef.current?.focus() }}>
+      <div className="onboarding-confirm-content">
+        <p className="workspace-overline">PROFILE SETUP</p>
+        <h2 id="onboarding-confirm-title">Save your profile?</h2>
+        <p id="onboarding-confirm-description">Save these details and open your Cali workspace.</p>
+        {submitError && <p className="field-error" role="alert">{submitError}</p>}
+        <div className="onboarding-confirm-actions">
+          <button ref={cancelSetupRef} type="button" className="onboarding-confirm-cancel" disabled={busy} onClick={() => setConfirmationOpen(false)}>Cancel</button>
+          <button type="button" className="button-primary" disabled={busy} onClick={() => { void confirmSetup() }}>{busy ? 'Saving...' : 'Confirm'}</button>
+        </div>
+      </div>
+    </dialog>
   </main>
 }
 
