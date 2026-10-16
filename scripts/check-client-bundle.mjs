@@ -4,7 +4,7 @@ import { gzipSync } from 'node:zlib'
 
 const outputDirectory = 'dist'
 
-const secrets = ['SUPABASE_SERVICE_ROLE_KEY', 'OPENROUTER_API_KEY', 'SUPABASE_DB_PASSWORD']
+const secrets = ['SUPABASE_SERVICE_ROLE_KEY', 'OPENROUTER_API_KEY', 'SUPABASE_DB_PASSWORD', 'VAPID_PRIVATE_KEY', 'CALI_CRON_SECRET']
   .map(name => [name, process.env[name]?.trim()])
   .filter((entry) => entry[1])
 

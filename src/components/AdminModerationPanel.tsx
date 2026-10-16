@@ -1,3 +1,5 @@
+import { ModalBackdrop } from './ModalBackdrop'
+import { readableReviewerDocument, safeReviewerLink } from '../lib/reviewerDocument'
 /* oxlint-disable react/set-state-in-effect -- remote moderation data is synchronized through effects. */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -70,7 +72,7 @@ function reviewerPreviewBlocks(content: JSONContent): ReviewerPreviewBlock[] {
     }
     for (const child of node.content ?? []) visit(child)
   }
-  visit(content)
+  visit(readableReviewerDocument(content))
   return blocks
 }
 
@@ -99,7 +101,7 @@ function DocumentNode({ node, nodeKey }: { node: JSONContent; nodeKey: string })
       if (mark.type === 'strike') text = <s>{text}</s>
       if (mark.type === 'code') text = <code>{text}</code>
       if (mark.type === 'highlight') text = <mark>{text}</mark>
-      if (mark.type === 'link') text = <a href={String(mark.attrs?.href ?? '#')} target="_blank" rel="noreferrer">{text}</a>
+      if (mark.type === 'link') text = <a href={safeReviewerLink(mark.attrs?.href)} target="_blank" rel="noreferrer">{text}</a>
     }
     return text
   }
@@ -125,8 +127,8 @@ function DocumentNode({ node, nodeKey }: { node: JSONContent; nodeKey: string })
 
 function ContentPreview({ target, item, report, loading, error, onClose, onVisibility, onResolve }: { target: Target | null; item: AdminCommunityItem | null; report: AdminReport | null; loading: boolean; error: string; onClose: () => void; onVisibility: (target: Target) => void; onResolve: (report: AdminReport, action: 'dismiss' | 'hide') => void }) {
   if (!target) return null
-  return <div className="admin-preview-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
-    <section className="admin-preview" role="dialog" aria-modal="true" aria-labelledby="admin-preview-title">
+  return <ModalBackdrop className="admin-preview-backdrop" labelledBy="admin-preview-title" onClose={onClose}>
+    <section className="admin-preview" aria-labelledby="admin-preview-title">
       <header className="admin-preview-header">
         <div><span className="admin-preview-kicker">{report ? 'REPORT REVIEW' : 'COMMUNITY PREVIEW'}</span><h2 id="admin-preview-title">{item?.type === 'reviewer' ? item.title : target.label}</h2></div>
         <button aria-label="Close content preview" onClick={onClose}><Glyph name="close"/></button>
@@ -139,7 +141,7 @@ function ContentPreview({ target, item, report, loading, error, onClose, onVisib
             <div className="admin-preview-badges"><span>{item.category}</span><span>{item.visibility}</span>{item.hidden && <span className="is-hidden">Hidden</span>}</div>
           </div>
           {item.description && <p className="admin-preview-description">{item.description}</p>}
-          <div className="admin-preview-document">{item.content?.content?.map((node, index) => <DocumentNode key={index} node={node} nodeKey={String(index)}/>)}</div>
+          <div className="admin-preview-document">{readableReviewerDocument(item.content).content?.map((node, index) => <DocumentNode key={index} node={node} nodeKey={String(index)}/>)}</div>
         {report ? <footer className="admin-preview-footer admin-report-review-footer"><div><strong>Review this report</strong><span>Choose an outcome after checking the content and report details.</span></div><div><button className="admin-button admin-button--quiet admin-button--small" onClick={() => onResolve(report, 'dismiss')}>Dismiss report</button><button className="admin-button admin-button--danger-quiet admin-button--small" onClick={() => onResolve(report, 'hide')}><Glyph name="hide"/>Hide reviewer</button></div></footer> : <footer className="admin-preview-footer"><span>Reviewer content is shown exactly as it appears in Community.</span><button className={`admin-button admin-button--small ${target.hidden ? 'admin-button--quiet' : 'admin-button--danger-quiet'}`} onClick={() => onVisibility(target)}><Glyph name={target.hidden ? 'restore' : 'hide'}/>{target.hidden ? 'Restore reviewer' : 'Hide reviewer'}</button></footer>}
       </>}
       {!loading && !error && item?.type === 'profile' && <>
@@ -147,7 +149,7 @@ function ContentPreview({ target, item, report, loading, error, onClose, onVisib
         {report && <footer className="admin-preview-footer admin-report-review-footer"><div><strong>Review this account concern</strong><span>Inspect the public profile, then review account access if the evidence warrants action.</span></div><div><button className="admin-button admin-button--quiet admin-button--small" onClick={() => onResolve(report, 'dismiss')}>Dismiss report</button><Link className="admin-button admin-button--primary admin-button--small" to={`/admin/users?focus=${encodeURIComponent(item.username)}&view=profile&report=${encodeURIComponent(report.id)}`}><Glyph name="eye"/>Review account access</Link></div></footer>}
       </>}
     </section>
-  </div>
+  </ModalBackdrop>
 }
 
 type ReviewerResult = CommunitySearch['reviewers'][number]

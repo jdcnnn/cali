@@ -8,6 +8,9 @@ const required = [
   'OPENROUTER_API_KEY',
 ]
 
+const exposedSecrets = Object.keys(process.env).filter(name => /^VITE_.*(?:SERVICE_ROLE|OPENROUTER|DB_PASSWORD|PRIVATE_KEY|CRON_SECRET)/.test(name))
+if (exposedSecrets.length) throw new Error('Server secrets must not use a VITE_ prefix: ' + exposedSecrets.join(', '))
+
 const placeholder = /^(?:your_|replace|change-?me|placeholder|todo)/i
 const missing = required.filter(name => {
   const value = process.env[name]?.trim()

@@ -289,3 +289,7 @@
     transition: none;
   }
 }
+
+/* Native admin modals retain the existing overlay surfaces. */
+.cali-modal-backdrop::backdrop { background: transparent; }
+.cali-modal-backdrop:not([open]) { display: none; }

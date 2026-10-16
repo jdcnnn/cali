@@ -35,6 +35,15 @@ function isPushServiceRegistrationError(cause: unknown) {
   return /registration failed|push service error|push subscription failed|push service unavailable/i.test(message)
 }
 
+export async function readyPushRegistration(timeoutMs = 5000): Promise<ServiceWorkerRegistration> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([navigator.serviceWorker.ready, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Notifications could not start. Reload Cali and try again.')), timeoutMs)
+    })])
+  } finally { clearTimeout(timer) }
+}
+
 async function subscribeToPush(registration: ServiceWorkerRegistration, applicationServerKey: Uint8Array<ArrayBuffer>) {
   try {
     return await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
@@ -56,7 +65,7 @@ async function subscribeToPush(registration: ServiceWorkerRegistration, applicat
 export async function getPushStatus(): Promise<PushStatus> {
   if (!supportsPush()) return rememberPushStatus('unsupported')
   if (Notification.permission === 'denied') return rememberPushStatus('denied')
-  const registration = await navigator.serviceWorker.ready
+  const registration = await readyPushRegistration()
   return rememberPushStatus(await registration.pushManager.getSubscription() ? 'enabled' : 'disabled')
 }
 
@@ -67,7 +76,7 @@ async function enablePushNotificationsOnce(): Promise<void> {
   const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('Notification permission was not granted. You can enable it in your browser settings.')
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await readyPushRegistration()
   const subscription = await registration.pushManager.getSubscription()
     ?? await subscribeToPush(registration, urlBase64ToUint8Array(publicKey))
   const json = subscription.toJSON()
@@ -96,7 +105,7 @@ export function enablePushNotifications(): Promise<void> {
 
 export async function disablePushNotifications(): Promise<void> {
   if (!supportsPush()) { rememberPushStatus('unsupported'); return }
-  const registration = await navigator.serviceWorker.ready
+  const registration = await readyPushRegistration()
   const subscription = await registration.pushManager.getSubscription()
   if (!subscription) { rememberPushStatus('disabled'); return }
   if (supabase) {
@@ -111,8 +120,8 @@ export async function disablePushNotifications(): Promise<void> {
 
 export async function removePushSubscriptionOnSignOut() {
   if (!supportsPush()) return
-  const registration = await navigator.serviceWorker.ready
-  const subscription = await registration.pushManager.getSubscription()
+  const registration = await navigator.serviceWorker.getRegistration()
+  const subscription = await registration?.pushManager.getSubscription()
   if (!subscription) return
   if (supabase) await supabase.rpc('cali_remove_own_push_subscription', { p_endpoint: subscription.endpoint })
   await subscription.unsubscribe().catch(() => false)

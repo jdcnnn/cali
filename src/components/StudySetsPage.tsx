@@ -1,3 +1,4 @@
+import { readableReviewerDocument } from '../lib/reviewerDocument'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { playSound } from '../lib/sounds'
 import type { FormEvent, ReactNode } from 'react'
@@ -127,7 +128,7 @@ function SourcePanel({ sourceId, reviewers, onSourceChange }: { sourceId: string
   return <aside className="set-source-panel">
     <details open>
       <summary><div className="set-source-heading"><p className="workspace-overline">REFERENCE REVIEWER</p><h3>{sourceId ? activeSource?.title ?? 'Loading reviewer…' : 'No reviewer selected'}</h3></div><ChevronIcon /></summary>
-      <div className="set-source-body"><div className="set-source-selector"><span>Reference source</span><CaliSelect value={sourceId ?? ''} options={sourceOptions} onChange={onSourceChange} ariaLabel="Reference reviewer" className="cali-select--form" /></div>{sourceId ? <><p>Use these notes as your reference while writing each item.</p><div className="set-source-document">{activeSource?.content ? renderReferenceNodes(activeSource.content.content) : <p>{activeSource?.plain_text || 'This reviewer does not contain any text yet.'}</p>}</div></> : <p className="set-source-empty">Select a reviewer only when you want notes beside the editor.</p>}</div>
+      <div className="set-source-body"><div className="set-source-selector"><span>Reference source</span><CaliSelect value={sourceId ?? ''} options={sourceOptions} onChange={onSourceChange} ariaLabel="Reference reviewer" className="cali-select--form" /></div>{sourceId ? <><p>Use these notes as your reference while writing each item.</p><div className="set-source-document">{activeSource?.content ? renderReferenceNodes(readableReviewerDocument(activeSource.content).content) : <p>{activeSource?.plain_text || 'This reviewer does not contain any text yet.'}</p>}</div></> : <p className="set-source-empty">Select a reviewer only when you want notes beside the editor.</p>}</div>
     </details>
   </aside>
 }

@@ -1,6 +1,10 @@
 # Cali handoff
 
-Updated: 2026-10-12
+Updated: 2026-10-16
+
+Repository simplification: automated test files, the SQL regression fixture, and the test runner were removed on 2026-10-16. Earlier test results below are historical. Current checks are lint, build, and manual feature verification. New contributors should read [Start here](docs/start-here.md).
+
+Status: **Work in progress — not a completed release or final visual approval.** Earlier dated module and deployment notes below are historical records; they were not reverified by this documentation update.
 
 ## What this repository is
 
@@ -8,13 +12,15 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ## Phase status
 
-- Cali's agreed core scope is feature-complete and is now a release candidate. Auth/onboarding, Dashboard, Schedules and local scanning, Tasks, Calendar, reminders, Study, Community, Profile, and administration are implemented.
+- Core modules are implemented, but development and acceptance remain in progress. Auth/onboarding, Dashboard, Schedules and local scanning, Tasks, Calendar, reminders, Study, Community, Profile, and administration are implemented.
 - All repository migrations through `20261011180000_learning_focused_quizzes.sql` match the linked Supabase database. On 2026-10-13, 112 tests across 17 files passed, lint passed, and the strict type-checked production build, deployment-variable check, client-bundle secret scan, and performance budgets passed.
 - Secondary workspace/public routes are lazy-loaded with accessible fallbacks. Dashboard task styles live in `dashboard-tasks.css` and must remain directly imported by `DashboardTasks`; they cannot depend on the lazy Tasks route. Flashcards/quizzes are split from the main Study reviewer chunk.
 - The team photo is emitted as a 53.7 KB WebP with explicit dimensions and lazy decoding. Regenerate it from the retained source PNG with `npm run images:optimize`.
-- Remaining work is release verification rather than a missing core module: deploy the current working tree, exercise authenticated student/admin journeys on desktop and mobile, complete accessibility/device review, add browser-level authorization coverage, and run the live Study AI provider and deployed-flow checks.
+- Remaining work is release verification: deploy the current working tree, exercise authenticated student/admin journeys on desktop and mobile, complete accessibility/device review, add browser-level authorization coverage, and run the live Study AI provider and deployed-flow checks.
 
 ## Completed work
+
+Historical module milestones follow; this heading does not mark the active iteration complete.
 
 ### Product foundation and account flow
 
@@ -204,8 +210,8 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 | Schedule page and scanner | `src/components/SchedulesPage.tsx`, `src/styles/schedules.css`, `src/components/ScheduleScanner.tsx`, `src/styles/schedule-scan.css`, `src/lib/scheduleOcr.ts`, `src/lib/rtuScheduleParser.ts` |
 | Tasks and dashboard summary | `src/components/TasksPage.tsx`, `src/components/DashboardTasks.tsx`, `src/styles/tasks.css`, `src/lib/tasks.ts` |
 | Independent calendar | `src/components/CalendarPage.tsx`, `src/styles/calendar.css` |
-| Study reviewers, flashcards, and quizzes | `src/components/StudyPage.tsx`, `src/components/StudySetsPage.tsx`, `src/styles/study.css`, `src/lib/studySets.ts`, `src/lib/studySets.test.ts`, `supabase/migrations/20261003000000_study_reviewers.sql`, `supabase/migrations/20261005000000_flashcards_and_quizzes.sql`, `supabase/migrations/20261006000000_study_set_save_functions.sql` through `20261006050000_change_study_set_reviewer.sql`, `supabase/migrations/20261011180000_learning_focused_quizzes.sql` |
-| AI reviewer intake and generation | `src/lib/noteScanner.ts`, `src/lib/reviewerPdf.ts`, `src/lib/reviewerPdfText.ts`, their focused tests, `api/study/reviewer-generation.ts`, `server/reviewerGeneration.ts`, `server/reviewerGeneration.test.ts`, `scripts/verify-study-ai.mjs`, `supabase/migrations/20261007000000_reliable_ai_reviewers.sql` |
+| Study reviewers, flashcards, and quizzes | `src/components/StudyPage.tsx`, `src/components/StudySetsPage.tsx`, `src/styles/study.css`, `src/lib/studySets.ts`, `supabase/migrations/20261003000000_study_reviewers.sql`, `supabase/migrations/20261005000000_flashcards_and_quizzes.sql`, `supabase/migrations/20261006000000_study_set_save_functions.sql` through `20261006050000_change_study_set_reviewer.sql`, `supabase/migrations/20261011180000_learning_focused_quizzes.sql` |
+| AI reviewer intake and generation | `src/lib/noteScanner.ts`, `src/lib/reviewerPdf.ts`, `src/lib/reviewerPdfText.ts`, `api/study/reviewer-generation.ts`, `server/reviewerGeneration.ts`, `scripts/verify-study-ai.mjs`, `supabase/migrations/20261007000000_reliable_ai_reviewers.sql` |
 | Shared confirmation/status visuals | `src/components/ConfirmationIcon.tsx`, `src/styles/index.css` |
 | Landing, team, policies, footer, and splash | `src/components/LandingPage.tsx`, `TeamPage.tsx`, `PolicyPage.tsx`, `SiteFooter.tsx`, `SplashScreen.tsx` |
 | Shared wordmark and assets | `src/components/CaliWordmark.tsx`, `src/assets/` |
@@ -220,7 +226,7 @@ CALI (Class Ally) is an independent academic workspace for Rizal Technological U
 
 ## Run and verify
 
-Install dependencies with `npm install`, then run `npm run dev`. Run `npm test`, `npm run build`, `npm run lint`, and `npm run verify:study-ai` before shipping. The build checks all required deployment variables and rejects a client bundle containing server secrets. Apply the complete Supabase migration sequence through `20261011180000_learning_focused_quizzes.sql` before testing the current frontend; that complete sequence is confirmed on the linked project as of 2026-10-12. The local/Vercel frontend environment must define `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_VAPID_PUBLIC_KEY`; `.env` is ignored by Git. Reviewer generation additionally requires the server-only `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel. Edge Function secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`. cron-job.org sends `POST <SUPABASE_URL>/functions/v1/send-reminders` every minute with the matching `X-Cali-Cron-Secret` header. Keep private keys, cron secrets, the service role, and `SUPABASE_DB_PASSWORD` out of browser-facing Vite variables. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
+Install dependencies with `npm install`, then run `npm run dev`. Run `npm run build`, `npm run lint`, and `npm run verify:study-ai`, then manually check affected features before shipping. The build checks all required deployment variables and rejects a client bundle containing server secrets. Apply the complete Supabase migration sequence through `20261011180000_learning_focused_quizzes.sql` before testing the current frontend; that complete sequence is confirmed on the linked project as of 2026-10-12. The local/Vercel frontend environment must define `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_VAPID_PUBLIC_KEY`; `.env` is ignored by Git. Reviewer generation additionally requires the server-only `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel. Edge Function secrets are `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`. cron-job.org sends `POST <SUPABASE_URL>/functions/v1/send-reminders` every minute with the matching `X-Cali-Cron-Secret` header. Keep private keys, cron secrets, the service role, and `SUPABASE_DB_PASSWORD` out of browser-facing Vite variables. On this Windows setup, `npm.cmd` can be used if PowerShell blocks `npm.ps1`.
 
 For production-backed local or phone testing without another Vercel deployment, run Vite on port 5173 and expose it with `ngrok http --url=afternoon-shame-petite.ngrok-free.dev 5173`. Supabase Auth must allow `https://afternoon-shame-petite.ngrok-free.dev/**`; the Site URL remains `https://cali-class-ally.vercel.app`. The tunnel uses the Supabase project from `.env`, so test actions can affect live data. Incognito avoids an existing production session masking the tunnel's OAuth flow.
 

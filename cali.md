@@ -1,7 +1,7 @@
 # CALI — Project Context and Architecture Plan
 
 **Document status:** Living product and implementation record
-**Last updated:** 2026-09-26
+**Last updated:** 2026-10-16
 **Purpose:** Record product decisions, implemented behavior, architecture, and the remaining development sequence.
 
 ## Decision status
@@ -238,7 +238,7 @@ Implemented packages are recorded in the root `package.json` and `package-lock.j
 | Reminder scheduler | cron-job.org authenticated request, once per minute |
 | Server runtime | Node.js built-in `fetch` and `@supabase/supabase-js` |
 | Server development | TypeScript and `@types/node` |
-| Tests | `vitest`; focused tests cover task, OCR, note ordering, PDF extraction, reviewer, study-set, and server-generation behavior |
+| Verification | `npm run lint`, `npm run build`, and manual feature checks; automated test files and their runner were removed on 2026-10-16 for repository simplicity |
 
 The backend can call OpenRouter with Node's built-in `fetch`; an OpenRouter SDK is not required for the current plan. Reminder delivery uses `web-push@3.6.7` only inside its Supabase Edge Function, not in the browser bundle. Charting and end-to-end test dependencies will be chosen when their respective requirements are defined. Fredoka and Inter are font assets rather than required npm packages.
 
@@ -295,7 +295,7 @@ The design prioritizes readable academic information and quick access to work. S
 4. Complete accessibility, keyboard, focus, contrast, reduced-motion, performance, and supported-device review.
 5. Run the live Study AI provider verification and one eligible-student generation/save/discard smoke test.
 
-The core scope is feature-complete as of 2026-10-12. Completed phases remain subject to release-level acceptance, accessibility, performance, and deployment verification.
+Historical milestone: the core module scope was recorded as implemented on 2026-10-12. Development remains in progress; release-level acceptance, accessibility, performance, and deployment verification are still open.
 
 ## 11. Open architecture decisions
 

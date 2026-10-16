@@ -1,14 +1,18 @@
 # Cali
 
+New to the codebase? Start with [the beginner guide](docs/start-here.md) for a reading order, folder map, and a walkthrough of task creation.
+
+For every module's full user-to-database flow, architecture, security, background services, and deployment details, read [the end-to-end technical guide](docs/technical-guide.md).
+
 CALI is a web-based academic workspace for Rizal Technological University students. The repository is one React, Vite, and TypeScript npm project. Vercel Node endpoints live in `api/`, with shared server-only validation and generation logic in `server/`.
 
 For the product scope, confirmed decisions, and development sequence, read cali.md.
 
 ## Current status
 
-Cali's core product is feature-complete and is treated as a release candidate. Authentication and onboarding, Dashboard, Schedules and local form scanning, Tasks, Calendar, reminders, Study, Community, Profile, and the administration workspace are implemented. The linked Supabase database matches every repository migration through `20261011180000_learning_focused_quizzes.sql`.
+The core academic modules are implemented; release verification remains in progress. Authentication and onboarding, Dashboard, Schedules and local form scanning, Tasks, Calendar, reminders, Study, Community, Profile, and administration are available. The linked database includes the audit reinforcements through `20261014074037_audit_foreign_key_indexes.sql`. See [reinforcement verification](docs/reinforcement-verification.md) for deployment status and outstanding acceptance checks.
 
-The repository-level release gates pass as of 2026-10-13: 112 tests across 17 files, lint, strict browser/server TypeScript, the production build, deployment-variable validation, client-bundle secret scanning, and initial-load/chunk/image performance budgets. This status does not replace final authenticated acceptance testing on the deployed app. Before a production handoff, run the critical student/admin journeys on desktop and mobile, complete the accessibility/device pass, and run the live Study AI provider check described below.
+Before a production handoff, exercise authenticated student/admin journeys on desktop and mobile, complete accessibility/device review, and run the existing Study AI provider verification.
 
 ## Local development
 
@@ -19,7 +23,7 @@ npm install
 npm run dev
 ~~~
 
-The project also has `npm run build`, `npm run lint`, and `npm test` scripts. `npm run images:optimize` regenerates the optimized WebP team photo from its source PNG.
+The project also has `npm run build` and `npm run lint` scripts. Automated test files and their runner have been removed to simplify the repository; manually check affected features after changes. `npm run images:optimize` regenerates the optimized WebP team photo from its source PNG.
 
 ## Schedule module
 
@@ -71,7 +75,7 @@ Flashcards use Front and Back fields, resumable sequential or shuffled sessions,
 
 Quizzes support multiple-choice and true/false questions with an optional topic and explanation. Only complete questions enter a quiz session. Saving a quiz with incomplete draft questions shows a warning that identifies the missing requirement for each affected question. Choice deletion and question-type changes are immediate editor actions; changing type resets that question's choices and correct answer. Deleting a question, discarding unsaved work, restarting a session, and deleting a quiz remain confirmed actions.
 
-In the editor, the selected correct answer has a clear active style and an explicit **Remove selection** action. A quiz can run as **Practice**, with feedback after each answer and a review round, or **Test**, with feedback withheld until submission. **Needs review** starts a focused Practice session from questions missed in the latest completed session. A student can choose **Not sure**; those questions return in the review round. Question and choice shuffling are applied to the immutable session snapshot and covered by focused tests.
+In the editor, the selected correct answer has a clear active style and an explicit **Remove selection** action. A quiz can run as **Practice**, with feedback after each answer and a review round, or **Test**, with feedback withheld until submission. **Needs review** starts a focused Practice session from questions missed in the latest completed session. A student can choose **Not sure**; those questions return in the review round. Question and choice shuffling are applied to the immutable session snapshot when a session starts.
 
 Results show the final score and missed-question count, followed by a per-question review. The quiz overview uses saved activity rather than invented analytics: completed sessions, latest score, questions to review, topic results calculated from completed responses, and recent session history. Library cards show question count, latest score, and draft count. Completed sessions remain immutable; restarting abandons the unfinished session before creating a new one, while deleting a quiz cascades to all its sessions.
 
@@ -169,7 +173,7 @@ The Vercel project is connected to `https://github.com/jdcnnn/cali.git`. Pushes 
 
 Production intentionally remains Cali's live testing and iteration environment. The local ngrok workflow above is only an additional way to inspect progress between pushes and does not change that deployment workflow.
 
-Before deployment, run `npm test`, `npm run lint`, and `npm run build`. The production build now fails when a required client or reviewer-generation variable is missing, scans `dist` to prevent server secrets from entering the browser bundle, and enforces gzip budgets for initial JavaScript/CSS, application chunks, and raster images. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production. The `send-reminders` Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`; cron-job.org calls it once per minute with `X-Cali-Cron-Secret`. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, the VAPID private key, or the cron secret as Vite environment variables.
+Before deployment, run `npm run lint` and `npm run build`. The production build now fails when a required client or reviewer-generation variable is missing, scans `dist` to prevent server secrets from entering the browser bundle, and enforces gzip budgets for initial JavaScript/CSS, application chunks, and raster images. Apply all migrations to the target Supabase project and configure `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_VAPID_PUBLIC_KEY`, `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production. The `send-reminders` Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CALI_CRON_SECRET`; cron-job.org calls it once per minute with `X-Cali-Cron-Secret`. Add the deployed origin to the Supabase Auth redirect URLs. Never expose `SUPABASE_DB_PASSWORD`, a service-role key, the VAPID private key, or the cron secret as Vite environment variables.
 
 Repository migrations through `20261011180000_learning_focused_quizzes.sql` are confirmed applied to the currently linked Cali Supabase project as of 2026-10-12. A different Supabase project needs the complete migration sequence.
 
@@ -222,4 +226,4 @@ Source text and preferences pass a contextual academic-content check before gene
 
 The default free models are `nvidia/nemotron-3-super-120b-a12b:free`, then `apodex/apodex-1.1-mini:free`. Reasoning is disabled. The primary uses strict JSON schema; fallback uses JSON-object output. Cali validates the full schema, size limits, grounding boundaries, requested block counts, selected study aids, and presentation semantics locally. A structurally valid response that ignores a selection is rejected, and the fallback receives the exact missing requirements. Requests use bounded attempt deadlines within the endpoint's 110-second budget. Optional server-only `CALI_REVIEWER_MODELS` accepts two to four distinct `:free` model IDs; no OpenRouter Auto or paid model is used.
 
-Server environments require `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. These names belong in the local `.env` and the corresponding Vercel environments; server secrets must never use a `VITE_` prefix. Before deployment, apply the latest Supabase migration and run `npm run verify:study-ai` to verify configured models with actual generated output and contextual academic-policy fixtures. A release should also exercise a real selectable-text PDF and pass `npm test`, `npm run lint`, and `npm run build`.
+Server environments require `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. These names belong in the local `.env` and the corresponding Vercel environments; server secrets must never use a `VITE_` prefix. Before deployment, apply the latest Supabase migration and run `npm run verify:study-ai` to verify configured models with actual generated output and contextual academic-policy fixtures. A release should also exercise a real selectable-text PDF and pass `npm run lint` and `npm run build`.

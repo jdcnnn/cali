@@ -1,3 +1,4 @@
+import { ModalBackdrop } from './ModalBackdrop'
 /* oxlint-disable react/set-state-in-effect -- async route data and modal state intentionally synchronize through effects. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -314,14 +315,6 @@ function ActionDialog({
     setBusy(false);
     if (action) window.setTimeout(() => (action.reasonLabel ? reasonRef.current : cancelRef.current)?.focus(), 0);
   }, [action]);
-  useEffect(() => {
-    if (!action) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) { event.preventDefault(); onClose(); }
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [action, busy, onClose]);
   if (!action) return null;
   const reasonRequired = Boolean(action.reasonLabel);
   async function confirm() {
@@ -340,17 +333,9 @@ function ActionDialog({
     ? "loading"
     : (action.icon ?? (action.tone === "danger" ? "warning" : "confirmation"));
   return (
-    <div
-      className="admin-dialog-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !busy) onClose();
-      }}
-    >
+    <ModalBackdrop className="admin-dialog-backdrop" labelledBy="admin-dialog-title" describedBy="admin-dialog-description" alert busy={busy} onClose={onClose}>
       <section
         className={`admin-dialog${action.icon === "signout" ? " admin-dialog--signout" : ""}`}
-        role="alertdialog"
-        aria-modal="true"
         aria-labelledby="admin-dialog-title"
         aria-describedby="admin-dialog-description"
       >
@@ -400,7 +385,7 @@ function ActionDialog({
           </button>
         </div>
       </section>
-    </div>
+    </ModalBackdrop>
   );
 }
 
@@ -871,17 +856,9 @@ function AdminPublicProfilePreview({
     publicProfile?.sharedReviewerCount ?? user.sharedReviewerCount;
   const hasSharedReviewerCount = Number.isFinite(sharedReviewerCount);
   return (
-    <div
-      className="admin-user-profile-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+    <ModalBackdrop className="admin-user-profile-backdrop" labelledBy="admin-user-profile-title" onClose={onClose}>
       <section
         className="admin-user-profile-modal"
-        role="dialog"
-        aria-modal="true"
         aria-labelledby="admin-user-profile-title"
       >
         <header>
@@ -963,7 +940,7 @@ function AdminPublicProfilePreview({
           )
         )}
       </section>
-    </div>
+    </ModalBackdrop>
   );
 }
 
@@ -996,17 +973,9 @@ function EnforcementCasePreview({
               ? "Closed"
               : "No confirmed case";
   return (
-    <div
-      className="admin-user-profile-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+    <ModalBackdrop className="admin-user-profile-backdrop" labelledBy="admin-enforcement-title" onClose={onClose}>
       <section
         className="admin-enforcement-modal"
-        role="dialog"
-        aria-modal="true"
         aria-labelledby="admin-enforcement-title"
       >
         <header>
@@ -1166,7 +1135,7 @@ function EnforcementCasePreview({
           </>
         )}
       </section>
-    </div>
+    </ModalBackdrop>
   );
 }
 

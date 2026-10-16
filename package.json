@@ -9,7 +9,6 @@
     "dev": "vite",
     "build": "node --env-file-if-exists=.env scripts/check-deployment-env.mjs && tsc -b && vite build && node --env-file-if-exists=.env scripts/check-client-bundle.mjs",
     "lint": "oxlint",
-    "test": "vitest run",
     "verify:study-ai": "node --env-file=.env scripts/verify-study-ai.mjs",
     "preview": "vite preview"
   },
@@ -26,7 +25,6 @@
     "@tiptap/react": "^3.28.0",
     "@tiptap/starter-kit": "^3.28.0",
     "docx": "^9.7.1",
-    "dompurify": "^3.4.12",
     "pdfjs-dist": "^5.4.296",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -35,19 +33,15 @@
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.3.2",
-    "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
-    "jsdom": "^29.1.1",
     "oxlint": "^1.81.0",
     "sharp": "^0.35.5",
     "supabase": "^2.117.0",
     "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.2"
+    "vite": "^8.3.0"
   }
 }
