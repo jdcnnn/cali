@@ -99,8 +99,10 @@ export function TeamPage() {
               : <span className="team-photo-name" aria-hidden="true">{member.placeholder}</span>}
           </div>
           <div className="team-card-copy">
-            <h2>{member.name}</h2>
-            <p className="team-role">{member.role}</p>
+            <div className="team-member-heading">
+              <h2>{member.name}</h2>
+              <p className="team-role">{member.role}</p>
+            </div>
             <p className="team-bio">{member.bio}</p>
           </div>
         </article>)}

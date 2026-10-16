@@ -8,6 +8,7 @@ import "../styles/entry.css";
 import "../styles/landing-refinement.css";
 import { useLoginMode } from "../auth/LoginModeContext";
 import { useAuth } from "../auth/AuthContext";
+import { useLandingMotion } from "../hooks/useLandingMotion";
 
 export function LandingPage() {
   const { allowPersonalGoogleLogin } = useLoginMode();
@@ -17,6 +18,8 @@ export function LandingPage() {
   const [busy, setBusy] = useState(false);
   const [authError, setAuthError] = useState(initialAuthRedirectError);
   const [menuOpen, setMenuOpen] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
+  useLandingMotion(pageRef);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const authDialogRef = useRef<HTMLDialogElement>(null);
@@ -106,7 +109,7 @@ export function LandingPage() {
   }
 
   return (
-    <div className="entry-page">
+    <div className="entry-page" ref={pageRef}>
       <a className="entry-skip" href="#main">
         Skip to content
       </a>
@@ -186,14 +189,15 @@ export function LandingPage() {
       <main id="main">
         <section
           className="entry-hero entry-container"
+          data-parallax-scene="hero"
           aria-labelledby="landing-title"
         >
-          <div className="entry-hero-copy">
-            <p className="entry-eyebrow">Your academics, organized.</p>
-            <h1 id="landing-title">
+          <div className="entry-hero-copy" data-parallax="0.38">
+            <p className="entry-eyebrow" data-parallax="0.02">Your academics, organized.</p>
+            <h1 id="landing-title" data-parallax="0.04">
               Make space for <em>better study habits.</em>
             </h1>
-            <p className="entry-summary">
+            <p className="entry-summary" data-parallax="0.015">
               Organize your classes, manage your tasks, and create study
               materials in one workspace built for RTU students.
             </p>
@@ -202,7 +206,7 @@ export function LandingPage() {
                 {error}
               </p>
             )}
-            <div className="entry-hero-actions">
+            <div className="entry-hero-actions" data-parallax="0.01">
               {workspaceDestination
                 ? <Link className="entry-google-primary" to={workspaceDestination}><span>{state.status === "ready" ? "Open Dashboard" : "Continue setup"}</span></Link>
                 : <button
@@ -219,7 +223,7 @@ export function LandingPage() {
                 Explore features
               </a>
             </div>
-            <p className="entry-auth-note">
+            <p className="entry-auth-note" data-parallax="0.01">
               {state.status === "ready"
                 ? "Your Cali session is active on this device."
                 : state.status === "needsOnboarding"
@@ -232,9 +236,10 @@ export function LandingPage() {
         <section
           className="entry-section entry-features entry-container"
           id="features"
+          data-parallax-scene
           aria-labelledby="features-title"
         >
-          <div className="entry-section-intro">
+          <div className="entry-section-intro" data-reveal>
             <p className="entry-kicker">01 / FEATURES</p>
             <h2 id="features-title">
               Less juggling.
@@ -247,30 +252,30 @@ export function LandingPage() {
             </p>
           </div>
           <div className="entry-feature-grid">
-            <article className="entry-feature">
+            <article className="entry-feature" data-reveal>
               <span className="entry-feature-index">01 / SCHEDULE</span>
-              <h3>See the whole week.</h3>
-              <p>
+              <h3 data-parallax="0.035">See the whole week.</h3>
+              <p data-parallax="0.035">
                 Find your class times and meeting details in one weekly view.
               </p>
             </article>
-            <article className="entry-feature">
+            <article className="entry-feature" data-reveal>
               <span className="entry-feature-index">02 / TASKS</span>
-              <h3>Stay on top of tasks.</h3>
-              <p>Organize assignments and deadlines alongside your classes.</p>
+              <h3 data-parallax="0.035">Stay on top of tasks.</h3>
+              <p data-parallax="0.035">Organize assignments and deadlines alongside your classes.</p>
             </article>
-            <article className="entry-feature">
+            <article className="entry-feature" data-reveal>
               <span className="entry-feature-index">03 / STUDY</span>
-              <h3>Study your way.</h3>
-              <p>
+              <h3 data-parallax="0.035">Study your way.</h3>
+              <p data-parallax="0.035">
                 Create reviewers, flashcards, and quizzes from your own notes
                 and files.
               </p>
             </article>
-            <article className="entry-feature">
+            <article className="entry-feature" data-reveal>
               <span className="entry-feature-index">04 / CALI COMMUNITY</span>
-              <h3>Share reviewers.</h3>
-              <p>
+              <h3 data-parallax="0.035">Share reviewers.</h3>
+              <p data-parallax="0.035">
                 Share and discover reviewers created by fellow RTU students.
               </p>
             </article>
@@ -280,28 +285,29 @@ export function LandingPage() {
         <section
           className="entry-how"
           id="how-it-works"
+          data-parallax-scene
           aria-labelledby="how-title"
         >
           <div className="entry-container entry-how-inner">
-            <div className="entry-how-heading">
+            <div className="entry-how-heading" data-reveal data-parallax="0.045">
               <p className="entry-kicker">02 / GET STARTED</p>
               <h2 id="how-title">
                 Your academic space starts <em>with you.</em>
               </h2>
               <p>Set up your profile once, then get started with Cali.</p>
             </div>
-            <ol className="entry-steps">
-              <li>
+            <ol className="entry-steps" data-parallax="0.02">
+              <li data-reveal>
                 <span aria-hidden="true">STEP 1</span>
                 <h3>Sign in with Google</h3>
                 <p>{allowPersonalGoogleLogin ? 'Choose any verified Google account.' : 'Choose your verified @rtu.edu.ph Google account.'}</p>
               </li>
-              <li>
+              <li data-reveal>
                 <span aria-hidden="true">STEP 2</span>
                 <h3>Make your profile</h3>
                 <p>Add a username, program, and year level.</p>
               </li>
-              <li>
+              <li data-reveal>
                 <span aria-hidden="true">STEP 3</span>
                 <h3>Open your workspace</h3>
                 <p>
@@ -316,9 +322,10 @@ export function LandingPage() {
         <section
           className="entry-about entry-container"
           id="about"
+          data-parallax-scene
           aria-labelledby="about-title"
         >
-          <div>
+          <div data-reveal data-parallax="0.04">
             <p className="entry-kicker">03 / ABOUT CALI</p>
             <h2 id="about-title">
               A class ally.
@@ -326,7 +333,7 @@ export function LandingPage() {
               <em>A space of your own.</em>
             </h2>
           </div>
-          <div className="entry-about-right">
+          <div className="entry-about-right" data-reveal>
             <p>
               Cali is an academic workspace for RTU students, bringing classes, tasks, study tools, and reviewer sharing together in one place.
             </p>
